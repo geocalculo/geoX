@@ -453,7 +453,7 @@ function renderAll() {
 function renderHeader() {
   document.getElementById('header-card').innerHTML = `<div class="header-grid">
     <div class="brand">
-      <h1>GeoNOXA | CARD PRO 2.0</h1>
+      <h1>GeoX | CARD PRO</h1>
       <p>Análisis territorial del POI</p>
     </div>
     <div class="meta">
@@ -465,12 +465,12 @@ function renderHeader() {
 
 function renderTopLayout() {
   const riesgo = analysisData.riesgo.nivel.toLowerCase();
-  const alertText = `POI con riesgo ${riesgo}, determinado por el KPI más crítico entre zona saturada y relaves.`;
+  const alertText = `POI con KPI principal ${riesgo}, determinado por el KPI más crítico entre área de referencia y objetos territoriales.`;
 
   document.getElementById('top-layout').innerHTML = `<article class="card panel summary-panel">
       <div class="card-topbar">
         <div class="card-topbar-left">
-      <h2 class="section-title">RIESGO TERRITORIAL</h2>
+      <h2 class="section-title">KPI PRINCIPAL</h2>
       <p class="risk-value ${getRiskClass(analysisData.riesgo.nivel)}">${analysisData.riesgo.nivel.toUpperCase()}</p>
       <div class="kpi-main-block">
         <p class="kpi-label">KPI CRÍTICO</p>
@@ -479,7 +479,7 @@ function renderTopLayout() {
           <span class="kpi-main ${getMainKpiRiskClass()}">${Number.isFinite(analysisData.riesgo.kpiCritico) ? analysisData.riesgo.kpiCritico.toFixed(2) : 'N/D'}</span>
         </p>
         <div class="kpi-formula">
-          <p><strong>Zona saturada:</strong><br>${formatKm(analysisData.zonaSaturada.distCentroideKm)} / ${formatKm(analysisData.zonaSaturada.diametroZonaKm)} = ${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'}</p>
+          <p><strong>Área de referencia:</strong><br>${formatKm(analysisData.zonaSaturada.distCentroideKm)} / ${formatKm(analysisData.zonaSaturada.diametroZonaKm)} = ${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'}</p>
           <p><strong>Relaves:</strong><br>${formatKm(analysisData.relavesGrupo.distanciaPromKm)} / ${formatKm(analysisData.relavesGrupo.diametroEquivalentePromedioKm)} = ${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</p>
         </div>
         <p class="kpi-note">Menor valor indica mayor exposición territorial.</p>
@@ -487,8 +487,8 @@ function renderTopLayout() {
       <div class="factors-block">
         <p class="kpi-label">Factores principales</p>
         <ul class="factors-list">
-          <li><strong>KPI relaves:</strong> ${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'} <span class="factor-subtle">(${formatKm(analysisData.relavesGrupo.distanciaPromKm)} / ${formatKm(analysisData.relavesGrupo.diametroEquivalentePromedioKm)})</span></li>
-          <li><strong>KPI zona saturada:</strong> ${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'} <span class="factor-subtle">(${formatKm(analysisData.zonaSaturada.distCentroideKm)} / ${formatKm(analysisData.zonaSaturada.diametroZonaKm)})</span></li>
+          <li><strong>KPI_1:</strong> ${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'} <span class="factor-subtle">(${formatKm(analysisData.relavesGrupo.distanciaPromKm)} / ${formatKm(analysisData.relavesGrupo.diametroEquivalentePromedioKm)})</span></li>
+          <li><strong>KPI_2:</strong> ${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'} <span class="factor-subtle">(${formatKm(analysisData.zonaSaturada.distCentroideKm)} / ${formatKm(analysisData.zonaSaturada.diametroZonaKm)})</span></li>
         </ul>
       </div>
       <div class="summary-alert">${alertText}</div>
@@ -684,7 +684,7 @@ function buildZonaSaturadaPlacemark() {
   const lastVertex = vertices[vertices.length - 1] || null;
   const firstRing = Array.isArray(rings?.[0]) ? rings[0] : null;
   const hasClosedRing = Boolean(firstRing?.length) && JSON.stringify(firstRing[0]) === JSON.stringify(firstRing[firstRing.length - 1]);
-  const leafletLayer = renderedAnalysisLayers?.getLayers?.()?.find((layer) => String(layer?.getPopup?.()?.getContent?.() || '').includes('Zona saturada:'));
+  const leafletLayer = renderedAnalysisLayers?.getLayers?.()?.find((layer) => String(layer?.getPopup?.()?.getContent?.() || '').includes('Área de referencia:'));
 
   console.group('[KML EXPORT][ZONA SATURADA]');
   console.log('zona.feature existe?', Boolean(feature));
@@ -703,7 +703,7 @@ function buildZonaSaturadaPlacemark() {
   const geometryXml = buildZonaSaturadaGeometryKml(feature);
   if (!geometryXml) return '';
 
-  return `<Placemark><name>${escapeXml(`Zona Saturada: ${zona?.nombre || 'Sin nombre'}`)}</name><styleUrl>#zonaSaturadaStyle</styleUrl><ExtendedData>
+  return `<Placemark><name>${escapeXml(`Área de Referencia: ${zona?.nombre || 'Sin nombre'}`)}</name><styleUrl>#zonaSaturadaStyle</styleUrl><ExtendedData>
       <Data name="estado"><value>${escapeXml(zona?.estado || 'N/D')}</value></Data>
       <Data name="distancia_poi_km"><value>${escapeXml(formatKm(zona?.distPerimetroKm))}</value></Data>
       <Data name="distancia_borde_km"><value>${escapeXml(formatKm(zona?.distPerimetroKm))}</value></Data>
@@ -818,7 +818,7 @@ function collectRenderedLayersForKml() {
 
     if (!geometryXml) return;
     const layerName = customName || layer?.getPopup?.()?.getContent?.() || layer?.getTooltip?.()?.getContent?.() || layerType;
-    if (String(layerName).includes('Zona saturada:')) return;
+    if (String(layerName).includes('Área de referencia:')) return;
     layers.push({
       name: String(layerName).replace(/<[^>]*>/g, ' ').trim() || layerType,
       geometryXml,
@@ -1081,7 +1081,7 @@ function renderSummaryCards() {
   const rg = analysisData.relavesGrupo;
   document.getElementById('summary-cards').innerHTML = `
     <article class="summary-card zona">
-      <h3>Zona Saturada</h3>
+      <h3>Área de Referencia</h3>
       <ul><li><strong>Nombre:</strong> ${z.nombre}</li><li><strong>Estado:</strong> ${z.estado}</li><li><strong>Distancia al POI:</strong> <span class="distance">${formatKm(z.distPerimetroKm)}</span></li><li><strong>Distancia al centroide:</strong> <span class="distance">${formatKm(z.distCentroideKm)}</span></li><li><strong>Diámetro equivalente:</strong> <span class="distance">${formatKm(z.diametroZonaKm)}</span></li><li><strong>KPI:</strong> ${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'}</li><li><strong>Clasificación:</strong> ${analysisData.riesgo.zona}</li><li><strong>Zonas saturadas consideradas:</strong> ${analysisData.contextoVisible.zonasSaturadasConsideradas} dentro de vista</li></ul>
     </article>
     <article class="summary-card relave">
@@ -1089,9 +1089,9 @@ function renderSummaryCards() {
       <ul><li><strong>ID:</strong> ${r.nombre}</li><li><strong>Faena:</strong> ${analysisData.relavesGrupo.items[0]?.faena || 'Sin datos disponibles'}</li><li><strong>Recurso:</strong> ${r.recurso}</li><li><strong>Comuna:</strong> ${analysisData.relavesGrupo.items[0]?.comuna || 'Sin datos disponibles'}</li><li><strong>Distancia al POI:</strong> <span class="distance">${formatKm(r.distPoiKm)}</span></li><li><strong>Superficie:</strong> ${formatHa(r.superficieHa)}</li><li><strong>KPI:</strong> ${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</li><li><strong>Clasificación:</strong> ${analysisData.riesgo.relaves}</li></ul>
     </article>
     <article class="summary-card relave">
-      <h3>Grupo de relaves analizados</h3>
+      <h3>Grupo de objetos territoriales analizados</h3>
       <ul>
-        <li><strong>N relaves considerados:</strong> ${rg.cantidadAnalizada} de ${rg.totalEnVista} en vista</li>
+        <li><strong>N objetos considerados:</strong> ${rg.cantidadAnalizada} de ${rg.totalEnVista} en vista</li>
         <li><strong>Distancia promedio al POI:</strong> <span class="distance">${formatKm(rg.distanciaPromKm)}</span></li>
         <li><strong>Diámetro equivalente promedio:</strong> <span class="distance">${formatKm(rg.diametroEquivalentePromedioKm)}</span></li>
         <li><strong>Distancia mínima:</strong> <span class="distance">${formatKm(rg.distanciaMinKm)}</span></li>
@@ -1105,8 +1105,8 @@ function renderSummaryCards() {
   if (rg.totalEnVista === 0) {
     document.getElementById('summary-cards').innerHTML += `
       <article class="summary-card relave">
-        <h3>Relaves</h3>
-        <p>Sin relaves en la vista actual</p>
+        <h3>Objetos Territoriales</h3>
+        <p>Sin objetos territoriales en la vista actual</p>
       </article>`;
   }
 }
@@ -1115,8 +1115,8 @@ function renderInterpretation() {
   const riesgo = analysisData.riesgo.nivel.toLowerCase();
   const kpiZona = Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D';
   const kpiRelaves = Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D';
-  const text = `El punto analizado presenta un riesgo ${riesgo}. El riesgo se determina mediante el cociente distancia/diámetro. Valores menores a 1 indican exposición muy alta, entre 1 y 2 alta, entre 2 y 5 media, entre 5 y 10 baja y mayores a 10 muy baja. En este caso, la zona saturada presenta un KPI de ${kpiZona} y los relaves un KPI de ${kpiRelaves}, siendo la ${analysisData.riesgo.factorDominante} el factor dominante del riesgo.`;
-  document.getElementById('interpretation').innerHTML = `<h2 class="section-title">INTERPRETACIÓN AUTOMÁTICA GEONOXA</h2><p>${text}</p>`;
+  const text = `El punto analizado presenta un riesgo ${riesgo}. El riesgo se determina mediante el cociente distancia/diámetro. Valores menores a 1 indican exposición muy alta, entre 1 y 2 alta, entre 2 y 5 media, entre 5 y 10 baja y mayores a 10 muy baja. En este caso, la área territorial de referencia presenta un KPI de ${kpiZona} y los objetos territoriales un KPI de ${kpiRelaves}, siendo la ${analysisData.riesgo.factorDominante} el factor dominante del KPI principal.`;
+  document.getElementById('interpretation').innerHTML = `<h2 class="section-title">INTERPRETACIÓN AUTOMÁTICA GEOX</h2><p>${text}</p>`;
 }
 
 function buildEcosystemUrl(baseUrl) { const { lat, lon, zoom, bbox } = analysisData.poi; const bboxText = Array.isArray(bbox) ? bbox.join(',') : ''; return `${baseUrl}?lat=${lat}&lon=${lon}&zoom=${zoom}&bbox=${encodeURIComponent(bboxText)}`; }
@@ -1209,7 +1209,7 @@ function initMap() {
 
   if (analysisData.zonaSaturada.polygon) {
     L.polygon(analysisData.zonaSaturada.polygon, { color: '#8b5cf6', weight: 2, fillColor: '#8b5cf6', fillOpacity: 0.16 })
-      .bindPopup(`Zona saturada: ${analysisData.zonaSaturada.nombre}`)
+      .bindPopup(`Área de referencia: ${analysisData.zonaSaturada.nombre}`)
       .addTo(group);
   }
 
@@ -1218,7 +1218,7 @@ function initMap() {
   if (analysisData.zonaSaturada.visibleEnBbox && Array.isArray(nearestBorderPoint)) {
     L.polyline([poiLatLng, nearestBorderPoint], { color: '#8b5cf6', weight: 2, dashArray: '6,6', opacity: 0.9 }).addTo(group);
     L.circleMarker(nearestBorderPoint, { radius: 5, color: '#8b5cf6', weight: 2, fillColor: '#8b5cf6', fillOpacity: 0.95 })
-      .bindPopup('Borde más cercano zona saturada')
+      .bindPopup('Borde más cercano área de referencia')
       .addTo(group);
   }
 

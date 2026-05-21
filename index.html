@@ -18,7 +18,7 @@
   <!-- End Google Tag Manager -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GeoNOXA | GeoCard System v1.0</title>
+  <title>GeoX | Plataforma Territorial Genérica</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <link rel="stylesheet" href="css/index.css" />
   <style>
@@ -149,13 +149,13 @@
   <!-- End Google Tag Manager (noscript) -->
   <div id="geonoxa-intro-modal" class="geonoxa-intro-modal" role="dialog" aria-modal="true" aria-labelledby="geonoxa-intro-title" aria-describedby="geonoxa-intro-desc" hidden>
     <section class="geonoxa-intro-modal__panel">
-      <h2 id="geonoxa-intro-title" class="geonoxa-intro-modal__title">GeoNOXA</h2>
-      <p class="geonoxa-intro-modal__subtitle">Inteligencia territorial ambiental</p>
+      <h2 id="geonoxa-intro-title" class="geonoxa-intro-modal__title">GeoX</h2>
+      <p class="geonoxa-intro-modal__subtitle">Plataforma territorial genérica</p>
       <div id="geonoxa-intro-desc" class="geonoxa-intro-modal__body">
-        <p>Haz clic en cualquier punto del mapa y GeoNOXA analizará su entorno ambiental inmediato.</p>
-        <p>La consulta permite identificar relaciones espaciales con zonas saturadas, relaves mineros y sistemas hídricos cercanos, entregando una lectura territorial simple, rápida y accionable.</p>
+        <p>Haz clic en cualquier punto del mapa y GeoX analizará su entorno territorial inmediato.</p>
+        <p>La consulta permite identificar relaciones espaciales con áreas territoriales de referencia, objetos territoriales y sistemas cercanos, entregando una lectura territorial simple, rápida y accionable.</p>
       </div>
-      <p class="geonoxa-intro-modal__highlight">Mapa + clic = valor territorial ambiental</p>
+      <p class="geonoxa-intro-modal__highlight">Mapa + clic = análisis territorial</p>
       <div class="geonoxa-intro-modal__actions">
         <button type="button" id="geonoxa-intro-reopen" class="geonoxa-intro-modal__btn geonoxa-intro-modal__btn--secondary">Ver nuevamente al inicio</button>
         <button type="button" id="geonoxa-intro-close" class="geonoxa-intro-modal__btn geonoxa-intro-modal__btn--primary">Comenzar análisis</button>
@@ -166,17 +166,17 @@
     <header class="main-header">
       <div class="header-inner">
         <div class="header-left">
-          <h1><span>GeoNOXA</span></h1>
-          <p>Riesgo Territorial y Conflictos Socioambientales</p>
-          <small>Zonas saturadas, relaves y exposición ambiental</small>
+          <h1><span>GeoX</span></h1>
+          <p>Plataforma territorial genérica</p>
+          <small>Análisis territorial basado en POI</small>
         </div>
 
         <div class="header-center">
           <section class="summary" aria-live="polite">
             <h2>SUMMARY</h2>
             <div class="summary-box summary-grid">
-              <div class="kpi"><span>Zonas saturadas</span><strong id="sum-zonas">0</strong></div>
-              <div class="kpi"><span>Relaves visibles</span><strong id="sum-relaves">0</strong></div>
+              <div class="kpi"><span>Áreas visibles</span><strong id="sum-zonas">0</strong></div>
+              <div class="kpi"><span>Objetos visibles</span><strong id="sum-relaves">0</strong></div>
             </div>
           </section>
         </div>
@@ -193,7 +193,7 @@
     <section class="map-wrap">
       <div id="map"></div>
       <div class="map-search-box">
-        <input type="text" id="map-search" placeholder="Buscar relave, zona saturada, centro urbano o lugar..." autocomplete="off" />
+        <input type="text" id="map-search" placeholder="Buscar objeto territorial, área o lugar..." autocomplete="off" />
         <div id="map-search-results" class="map-search-results"></div>
       </div>
       <aside class="panel-territorial">
@@ -201,13 +201,13 @@
         <fieldset>
           <legend>Etiquetas</legend>
           <label><input type="radio" name="relave-labels" value="none" checked /> Sin etiquetas</label>
-          <label><input type="radio" name="relave-labels" value="faena" /> Faena</label>
-          <label><input type="radio" name="relave-labels" value="empresa" /> Titular</label>
-          <label><input type="radio" name="relave-labels" value="tipo_deposito" /> Tipo depósito</label>
-          <label><input type="radio" name="relave-labels" value="recurso" /> Recurso</label>
+          <label><input type="radio" name="relave-labels" value="faena" /> Nombre objeto</label>
+          <label><input type="radio" name="relave-labels" value="empresa" /> Categoría</label>
+          <label><input type="radio" name="relave-labels" value="tipo_deposito" /> Tipo objeto</label>
+          <label><input type="radio" name="relave-labels" value="recurso" /> Atributo</label>
         </fieldset>
         <div class="relaves-control">
-          <label for="relaves-slider">Relaves a considerar</label>
+          <label for="relaves-slider">Objetos a considerar</label>
           <input type="range" id="relaves-slider" min="5" max="15" step="5" value="5" />
           <div class="range-labels"><span>5</span><span>10</span><span>15</span></div>
           <div id="relaves-hint"></div>
@@ -217,7 +217,7 @@
         <button type="button" id="mira-rifle" title="Mi ubicación">📍</button>
         <button type="button" class="map-control-btn" id="home-map-btn" title="Inicio">⌂</button>
       </div>
-      <p class="hint">Haz clic en el mapa para abrir el CARD PRO del punto consultado.</p>
+      <p class="hint">Haz clic en el mapa para abrir el CARD PRO del POI consultado.</p>
       <div id="crosshair" aria-hidden="true">+</div>
       <div id="geonoxa-warning" class="geonoxa-warning" role="status" aria-live="polite"></div>
     </section>
@@ -226,7 +226,7 @@
       <a data-site="geoipt" href="#"><span class="site-icon">🧭</span><span class="site-main">GeoIPT</span><span class="site-sub">Planificación urbana</span></a>
       <a data-site="geoeva" href="#"><span class="site-icon">🌿</span><span class="site-main">GeoEVA</span><span class="site-sub">Evaluación ambiental</span></a>
       <a data-site="geonemo" href="#"><span class="site-icon">🛡️</span><span class="site-main">GeoNEMO</span><span class="site-sub">Sitios protegidos</span></a>
-      <a data-site="geonoxa" class="active" href="#"><span class="site-icon">⚠️</span><span class="site-main">GeoNOXA</span><span class="site-sub">Riesgo territorial</span></a>
+      <a data-site="geonoxa" class="active" href="#"><span class="site-icon">⚠️</span><span class="site-main">GeoNOXA</span><span class="site-sub">Referencia ecosistema</span></a>
     </nav>
   </main>
 
