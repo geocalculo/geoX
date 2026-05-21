@@ -443,11 +443,28 @@ function getMainKpiRiskClass() {
 
 function renderAll() {
   renderHeader();
-  renderTopLayout();
-  renderSummaryCards();
-  renderInterpretation();
-  renderActions();
+  renderContextPanel();
+  renderKpiMapPanel();
+  renderMatchedObjectsPanel();
+  renderInterpretationPanel();
+  renderActionsPanel();
   initMap();
+}
+
+function renderContextPanel() {
+  // Panel 1 se renderiza en renderHeader() para mantener compatibilidad con header-card.
+}
+
+function renderKpiMapPanel() {
+  renderTopLayout();
+}
+
+function renderMatchedObjectsPanel() {
+  renderSummaryCards();
+}
+
+function renderInterpretationPanel() {
+  renderInterpretation();
 }
 
 function renderHeader() {
@@ -493,18 +510,7 @@ function renderTopLayout() {
       </div>
       <div class="summary-alert">${alertText}</div>
         </div>
-        <div class="card-topbar-right">
-          <div class="card-actions">
-            <button id="btn-export-kml" class="btn-export btn-kml" type="button">
-              <span class="btn-icon" aria-hidden="true">⇩</span>
-              <span class="btn-text">EXPORTAR KML</span>
-            </button>
-            <button id="btn-export-pdf" class="btn-export btn-pdf" type="button" title="Exportar reporte PDF">
-              <span class="btn-icon" aria-hidden="true">▣</span>
-              <span class="btn-text">PDF PRO</span>
-            </button>
-          </div>
-        </div>
+
       </div>
     </article>
     <article class="card panel map-panel">
@@ -841,8 +847,8 @@ function buildKml() {
       <Data name="longitud"><value>${escapeXml(poi.lon)}</value></Data>
       <Data name="fecha_consulta"><value>${escapeXml(fechaConsulta)}</value></Data>
       <Data name="radio_analisis"><value>${escapeXml(formatKm(analysisData.relavesGrupo?.radioEnvolventeKm))}</value></Data>
-      <Data name="relaves_analizados"><value>${escapeXml(analysisData.relavesGrupo?.cantidadAnalizada ?? 0)}</value></Data>
-      <Data name="zonas_saturadas"><value>${escapeXml(analysisData.zonaSaturada?.feature ? 1 : 0)}</value></Data>
+      <Data name="objetos_analizados"><value>${escapeXml(analysisData.relavesGrupo?.cantidadAnalizada ?? 0)}</value></Data>
+      <Data name="areas_referencia"><value>${escapeXml(analysisData.zonaSaturada?.feature ? 1 : 0)}</value></Data>
     </ExtendedData>
     <description>${escapeXml(`Latitud: ${poi.lat} | Longitud: ${poi.lon} | Fecha consulta: ${fechaConsulta}`)}</description>
   `;
@@ -859,14 +865,14 @@ function buildKml() {
       .filter(Boolean)
       .join(' ');
     if (envelopeKmlCoordinates) {
-      envelopePlacemark = `<Placemark><name>Círculo envolvente relaves seleccionados</name><styleUrl>#circuloEnvolventeStyle</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${envelopeKmlCoordinates}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`;
+      envelopePlacemark = `<Placemark><name>Círculo envolvente de objetos territoriales seleccionados</name><styleUrl>#circuloEnvolventeStyle</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${envelopeKmlCoordinates}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`;
     }
   } else {
     console.warn('[KML EXPORT] círculo envolvente sin ring precomputado; no se exporta como polígono');
   }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>GeoNOXA_QUERY</name>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>GeoX_QUERY</name>
 <Style id="poiStyle"><IconStyle><color>ffff8800</color><scale>1.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/blu-circle.png</href></Icon></IconStyle></Style>
 <Style id="circuloEnvolventeStyle"><LineStyle><color>ccff7b2f</color><width>2</width></LineStyle><PolyStyle><color>332f7bff</color></PolyStyle></Style>
 <Style id="zonaSaturadaStyle"><LineStyle><color>ff0055ff</color><width>2</width></LineStyle><PolyStyle><color>440055ff</color></PolyStyle></Style>
@@ -876,7 +882,7 @@ function buildKml() {
 }
 
 function exportKML() {
-  console.group('GeoNOXA exportKML');
+  console.group('GeoX exportKML');
   try {
     console.log('Exportando POI...');
     console.log('Exportando zonas saturadas...');
@@ -886,11 +892,11 @@ function exportKML() {
 
     const kml = buildKml();
     console.log(kml);
-    downloadTextFile('GeoNOXA_QUERY.kml', kml, 'application/vnd.google-earth.kml+xml');
+    downloadTextFile('GeoX_QUERY.kml', kml, 'application/vnd.google-earth.kml+xml');
     window.dataLayer?.push({
       event: 'download_kml',
       site: 'geonoxa',
-      file_name: 'GeoNOXA_QUERY.kml',
+      file_name: 'GeoX_QUERY.kml',
       download_method: 'blob_anchor'
     });
     console.log('KML generado correctamente');
@@ -972,7 +978,7 @@ async function exportGeoNoxaPdf() {
     clonedMap.style.height = `${Math.round(mapRect.height)}px`;
     const fixedMapImg = document.createElement('img');
     fixedMapImg.src = mapPng;
-    fixedMapImg.alt = 'Mapa GeoNOXA';
+    fixedMapImg.alt = 'Mapa GeoX';
     fixedMapImg.style.width = '100%';
     fixedMapImg.style.height = '100%';
     fixedMapImg.style.objectFit = 'contain';
@@ -1082,10 +1088,10 @@ function renderSummaryCards() {
   document.getElementById('summary-cards').innerHTML = `
     <article class="summary-card zona">
       <h3>Área de Referencia</h3>
-      <ul><li><strong>Nombre:</strong> ${z.nombre}</li><li><strong>Estado:</strong> ${z.estado}</li><li><strong>Distancia al POI:</strong> <span class="distance">${formatKm(z.distPerimetroKm)}</span></li><li><strong>Distancia al centroide:</strong> <span class="distance">${formatKm(z.distCentroideKm)}</span></li><li><strong>Diámetro equivalente:</strong> <span class="distance">${formatKm(z.diametroZonaKm)}</span></li><li><strong>KPI:</strong> ${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'}</li><li><strong>Clasificación:</strong> ${analysisData.riesgo.zona}</li><li><strong>Zonas saturadas consideradas:</strong> ${analysisData.contextoVisible.zonasSaturadasConsideradas} dentro de vista</li></ul>
+      <ul><li><strong>Nombre:</strong> ${z.nombre}</li><li><strong>Estado:</strong> ${z.estado}</li><li><strong>Distancia al POI:</strong> <span class="distance">${formatKm(z.distPerimetroKm)}</span></li><li><strong>Distancia al centroide:</strong> <span class="distance">${formatKm(z.distCentroideKm)}</span></li><li><strong>Diámetro equivalente:</strong> <span class="distance">${formatKm(z.diametroZonaKm)}</span></li><li><strong>KPI:</strong> ${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'}</li><li><strong>Clasificación:</strong> ${analysisData.riesgo.zona}</li><li><strong>Áreas de referencia consideradas:</strong> ${analysisData.contextoVisible.zonasSaturadasConsideradas} dentro de vista</li></ul>
     </article>
     <article class="summary-card relave">
-      <h3>Relave más cercano</h3>
+      <h3>Objeto territorial más cercano</h3>
       <ul><li><strong>ID:</strong> ${r.nombre}</li><li><strong>Faena:</strong> ${analysisData.relavesGrupo.items[0]?.faena || 'Sin datos disponibles'}</li><li><strong>Recurso:</strong> ${r.recurso}</li><li><strong>Comuna:</strong> ${analysisData.relavesGrupo.items[0]?.comuna || 'Sin datos disponibles'}</li><li><strong>Distancia al POI:</strong> <span class="distance">${formatKm(r.distPoiKm)}</span></li><li><strong>Superficie:</strong> ${formatHa(r.superficieHa)}</li><li><strong>KPI:</strong> ${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</li><li><strong>Clasificación:</strong> ${analysisData.riesgo.relaves}</li></ul>
     </article>
     <article class="summary-card relave">
@@ -1181,7 +1187,7 @@ function initMap() {
     analysisData.kmlGeometries = analysisData.kmlGeometries || {};
     analysisData.kmlGeometries.circuloEnvolventeRelaves = {
       type: 'Polygon',
-      name: 'Círculo envolvente relaves seleccionados',
+      name: 'Círculo envolvente de objetos territoriales seleccionados',
       center: [poiLatLng[0], poiLatLng[1]],
       radiusMeters: envelopeRadiusMeters,
       coordinates: ringCoords,
@@ -1202,8 +1208,8 @@ function initMap() {
       opacity: 0.9,
       dashArray: '8,6'
     })
-      .bindPopup(`Círculo envolvente relaves seleccionados<br>Radio: ${formatKm(envelopeRadiusKm)}<br>N relaves: ${analysisData.relavesGrupo.cantidadAnalizada}`)
-      .bindTooltip(`Círculo envolvente relaves seleccionados · ${formatKm(envelopeRadiusKm)}`)
+      .bindPopup(`Círculo envolvente de objetos territoriales seleccionados<br>Radio: ${formatKm(envelopeRadiusKm)}<br>N relaves: ${analysisData.relavesGrupo.cantidadAnalizada}`)
+      .bindTooltip(`Círculo envolvente de objetos territoriales seleccionados · ${formatKm(envelopeRadiusKm)}`)
       .addTo(group);
   }
 
@@ -1227,8 +1233,22 @@ function initMap() {
   if (bounds.isValid()) map.fitBounds(bounds.pad(0.12));
   poi.openPopup();
 }
-function renderActions() {
+function renderActionsPanel() {
   const el = document.getElementById('actions');
-  if (el) el.innerHTML = '';
+  if (!el) return;
+  el.innerHTML = `<div class="card panel actions-panel">
+    <h2 class="section-title">Exportaciones</h2>
+    <div class="card-actions">
+      <button id="btn-export-kml" class="btn-export btn-kml" type="button">
+        <span class="btn-icon" aria-hidden="true">⇩</span>
+        <span class="btn-text">EXPORTAR KML</span>
+      </button>
+      <button id="btn-export-pdf" class="btn-export btn-pdf" type="button" title="Exportar reporte PDF">
+        <span class="btn-icon" aria-hidden="true">▣</span>
+        <span class="btn-text">PDF PRO</span>
+      </button>
+      <a href="index.html" class="btn-export btn-index">Volver al INDEX</a>
+    </div>
+  </div>`;
 }
 (async function init(){const poi=getPoiFromUrl();analysisData=await buildAnalysisData(poi);renderAll();console.log('[CARD] renderAll ejecutado; renderTopLayout ya insertó el HTML. Vinculando acciones...');setupCardActions();})();
