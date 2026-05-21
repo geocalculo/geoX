@@ -510,6 +510,7 @@ function renderMatchedObjectsPanel() {
   document.getElementById('summary-cards').innerHTML = `
     <article class="card panel matched-panel">
       <h2 class="section-title">Detalle de objetos matcheados</h2>
+      <div class="matched-table-wrap">
       <table class="matched-table">
         <thead><tr><th>Tipo</th><th>Nombre</th><th>Categoría</th><th>Distancia al POI</th><th>Relación espacial</th><th>KPI asociado</th><th>Estado / atributo relevante</th></tr></thead>
         <tbody>
@@ -518,6 +519,7 @@ function renderMatchedObjectsPanel() {
           <tr><td>Grupo de objetos territoriales</td><td>${Number.isFinite(grupo.cantidadAnalizada) ? `${grupo.cantidadAnalizada} objetos` : 'Sin datos disponibles'}</td><td>${escapeHtml(analysisData.relavesGrupo.items?.[0]?.recurso || 'Grupo')}</td><td>${formatKm(grupo.distanciaPromKm)}</td><td>Promedio del grupo</td><td>${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</td><td>Total en vista: ${grupo.totalEnVista ?? 'Sin datos disponibles'}</td></tr>
         </tbody>
       </table>
+      </div>
     </article>`;
 }
 
@@ -540,7 +542,7 @@ function renderInterpretationPanel() {
 
 function renderHeader() {
   const bboxText = Array.isArray(analysisData.poi.bbox) ? analysisData.poi.bbox.map((v) => Number(v).toFixed(4)).join(', ') : 'Sin datos disponibles';
-  document.getElementById('header-card').innerHTML = `<article class="card panel context-panel"><div class="header-grid">
+  document.getElementById('header-card').innerHTML = `<div class="context-panel"><div class="header-grid">
     <div class="brand">
       <h1>GeoX | CARD PRO</h1>
       <p>Análisis territorial del POI</p>
@@ -555,7 +557,7 @@ function renderHeader() {
     <p><strong>Objetos territoriales alcanzados:</strong> ${analysisData.relavesGrupo.cantidadAnalizada ?? 0}</p>
     <p><strong>Áreas de referencia encontradas:</strong> ${analysisData.zonaSaturada.feature ? 1 : 0}</p>
     <p><strong>Radio/BBOX:</strong> ${formatKm(analysisData.relavesGrupo.radioEnvolventeKm)} | ${bboxText}</p>
-  </div></article>`;
+  </div></div>`;
 }
 
 // LEGACY: función heredada del CARD GeoNOXA. No usada actualmente por GeoCard Template v1.0.
