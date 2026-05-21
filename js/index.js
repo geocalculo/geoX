@@ -60,10 +60,10 @@ function toSearchItems(){
     });
   };
 
-  addLayerItems(noxaState.layers.relaves, "Relave", ["id_relave", "empresa", "faena", "tipo_deposito", "recurso"],
-    (p, v) => `${p.id_relave || "Relave"} · ${p.faena || p.empresa || v[0]}`);
-  addLayerItems(noxaState.layers.zonas, "Zona saturada", ["nombre_zon", "zona_dec", "saturado", "latentes", "decreto"],
-    (p, v) => `${p.nombre_zon || p.zona_dec || "Zona saturada"} · ${p.decreto || v[0]}`);
+  addLayerItems(noxaState.layers.relaves, "Objeto territorial", ["id_relave", "empresa", "faena", "tipo_deposito", "recurso"],
+    (p, v) => `${p.id_relave || "Objeto"} · ${p.faena || p.empresa || v[0]}`);
+  addLayerItems(noxaState.layers.zonas, "Área territorial de referencia", ["nombre_zon", "zona_dec", "saturado", "latentes", "decreto"],
+    (p, v) => `${p.nombre_zon || p.zona_dec || "Área territorial"} · ${p.decreto || v[0]}`);
 
   return items;
 }
@@ -155,11 +155,11 @@ async function loadJson(url){ const res = await fetch(url, { cache: "no-store" }
 async function loadAllLayers(){
   try {
     const zonas = await loadJson(GEO_NOXA_DATA.zonas);
-    noxaState.layers.zonas = L.geoJSON(zonas, { style: { color: "#ef4444", fillColor: "#fca5a5", fillOpacity: 0.35, weight: 1.5 }, onEachFeature: (f, l) => bindLayerInteractions(l, f?.properties?.nombre_zon || "Zona saturada") }).addTo(map);
-  } catch { showWarning("No se pudo cargar zonas saturadas"); }
+    noxaState.layers.zonas = L.geoJSON(zonas, { style: { color: "#ef4444", fillColor: "#fca5a5", fillOpacity: 0.35, weight: 1.5 }, onEachFeature: (f, l) => bindLayerInteractions(l, f?.properties?.nombre_zon || "Área territorial de referencia") }).addTo(map);
+  } catch { showWarning("No se pudo cargar áreas territoriales de referencia"); }
   try {
     const relaves = await loadJson(GEO_NOXA_DATA.relaves);
-    noxaState.layers.relaves = L.geoJSON(relaves, { pointToLayer: (_, latlng) => L.circleMarker(latlng, { radius: 6, color: "#f97316", fillColor: "#f97316", fillOpacity: .95, weight: 1 }), onEachFeature: (f, l) => bindLayerInteractions(l, f?.properties?.faena || "Relave") }).addTo(map);
+    noxaState.layers.relaves = L.geoJSON(relaves, { pointToLayer: (_, latlng) => L.circleMarker(latlng, { radius: 6, color: "#f97316", fillColor: "#f97316", fillOpacity: .95, weight: 1 }), onEachFeature: (f, l) => bindLayerInteractions(l, f?.properties?.faena || "Objeto territorial") }).addTo(map);
   } catch { showWarning("No se pudo cargar relaves"); }
   try { const hidricas = await loadJson(GEO_NOXA_DATA.hidricas); noxaState.layers.hidricas = L.geoJSON(hidricas, { style: { color: "#0284c7", weight: 1.5 } }); } catch {}
   try { const prc = await loadJson(GEO_NOXA_DATA.prc); noxaState.layers.prc = L.geoJSON(prc, { pointToLayer: (_, latlng) => L.circleMarker(latlng, { radius: 4, color: "#64748b" }) }); } catch {}
@@ -304,12 +304,12 @@ map.on("moveend zoomend", () => { updateSummary(); updateRelaveLabels(); });
   const relavesHint = document.getElementById("relaves-hint");
   const saved = getSelectedRelavesN();
   slider.value = String(saved);
-  relavesHint.innerText = "Analizarás los " + saved + " relaves más cercanos al hacer clic en el mapa";
+  relavesHint.innerText = "Analizarás los " + saved + " objetos territoriales más cercanos al hacer clic en el mapa";
   slider.addEventListener("input", () => {
     const n = getRelavesCount();
     slider.value = String(n);
     localStorage.setItem("geonoxa_relaves_n", String(n));
-    relavesHint.innerText = "Analizarás los " + n + " relaves más cercanos al hacer clic en el mapa";
+    relavesHint.innerText = "Analizarás los " + n + " objetos territoriales más cercanos al hacer clic en el mapa";
   });
 })();
 
