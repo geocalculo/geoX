@@ -441,6 +441,29 @@ function getMainKpiRiskClass() {
   return 'kpi-muy-bajo';
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getFactorDominanteLabel(value) {
+  const v = String(value || '').toLowerCase();
+
+  if (v.includes('zona') || v.includes('área') || v.includes('area')) {
+    return 'el área territorial de referencia';
+  }
+
+  if (v.includes('relave') || v.includes('objeto')) {
+    return 'los objetos territoriales';
+  }
+
+  return 'los elementos territoriales analizados';
+}
+
 function renderAll() {
   renderHeader();
   renderKpiMapPanel();
@@ -490,9 +513,9 @@ function renderMatchedObjectsPanel() {
       <table class="matched-table">
         <thead><tr><th>Tipo</th><th>Nombre</th><th>Categoría</th><th>Distancia al POI</th><th>Relación espacial</th><th>KPI asociado</th><th>Estado / atributo relevante</th></tr></thead>
         <tbody>
-          <tr><td>Objeto territorial más cercano</td><td>${relave.nombre || 'Sin datos disponibles'}</td><td>${relave.recurso || 'Sin datos disponibles'}</td><td>${formatKm(relave.distPoiKm)}</td><td>Distancia al POI</td><td>${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</td><td>${analysisData.riesgo.relaves || 'Sin datos disponibles'}</td></tr>
-          <tr><td>Área de referencia</td><td>${zona.nombre || 'Sin datos disponibles'}</td><td>Área territorial</td><td>${formatKm(zona.distPerimetroKm)}</td><td>Borde más cercano</td><td>${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'}</td><td>${zona.estado || 'Sin datos disponibles'}</td></tr>
-          <tr><td>Grupo de objetos territoriales</td><td>${Number.isFinite(grupo.cantidadAnalizada) ? `${grupo.cantidadAnalizada} objetos` : 'Sin datos disponibles'}</td><td>${analysisData.relavesGrupo.items?.[0]?.recurso || 'Grupo'}</td><td>${formatKm(grupo.distanciaPromKm)}</td><td>Promedio del grupo</td><td>${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</td><td>Total en vista: ${grupo.totalEnVista ?? 'Sin datos disponibles'}</td></tr>
+          <tr><td>Objeto territorial más cercano</td><td>${escapeHtml(relave.nombre || 'Sin datos disponibles')}</td><td>${escapeHtml(relave.recurso || 'Sin datos disponibles')}</td><td>${formatKm(relave.distPoiKm)}</td><td>Distancia al POI</td><td>${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</td><td>${analysisData.riesgo.relaves || 'Sin datos disponibles'}</td></tr>
+          <tr><td>Área de referencia</td><td>${escapeHtml(zona.nombre || 'Sin datos disponibles')}</td><td>Área territorial</td><td>${formatKm(zona.distPerimetroKm)}</td><td>Borde más cercano</td><td>${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'}</td><td>${escapeHtml(zona.estado || 'Sin datos disponibles')}</td></tr>
+          <tr><td>Grupo de objetos territoriales</td><td>${Number.isFinite(grupo.cantidadAnalizada) ? `${grupo.cantidadAnalizada} objetos` : 'Sin datos disponibles'}</td><td>${escapeHtml(analysisData.relavesGrupo.items?.[0]?.recurso || 'Grupo')}</td><td>${formatKm(grupo.distanciaPromKm)}</td><td>Promedio del grupo</td><td>${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</td><td>Total en vista: ${grupo.totalEnVista ?? 'Sin datos disponibles'}</td></tr>
         </tbody>
       </table>
     </article>`;
@@ -502,7 +525,7 @@ function renderInterpretationPanel() {
   const nivel = (analysisData.riesgo.nivel || 'SIN DATOS').toLowerCase();
   const kpiZona = Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D';
   const kpiRelaves = Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D';
-  const factorDominante = analysisData.riesgo.factorDominante === 'zona saturada' ? 'el área territorial de referencia' : 'los objetos territoriales';
+  const factorDominante = getFactorDominanteLabel(analysisData.riesgo.factorDominante);
   const resumen = `El punto analizado presenta un KPI territorial ${nivel}. El KPI principal se determina mediante el cociente distancia/diámetro. Valores menores indican mayor exposición relativa. En este caso, el área territorial de referencia presenta un KPI de ${kpiZona} y los objetos territoriales un KPI de ${kpiRelaves}, siendo ${factorDominante} el factor dominante del KPI principal.`;
   document.getElementById('interpretation').innerHTML = `
     <article class="card panel analysis-panel">
@@ -535,6 +558,8 @@ function renderHeader() {
   </div></article>`;
 }
 
+// LEGACY: función heredada del CARD GeoNOXA. No usada actualmente por GeoCard Template v1.0.
+// Mantener temporalmente para rollback durante la etapa de neutralización.
 function renderTopLayout() {
   const riesgo = analysisData.riesgo.nivel.toLowerCase();
   const alertText = `POI con KPI principal ${riesgo}, determinado por el KPI más crítico entre área de referencia y objetos territoriales.`;
@@ -569,7 +594,7 @@ function renderTopLayout() {
       </div>
     </article>
     <article class="card panel map-panel">
-      <h2 class="section-title">Mapa de relaciones espaciales</h2>
+      <h2 class="section-title">Mapa de análisis territorial</h2>
       <div class="map-wrap">
         <div id="map"></div>
       </div>
@@ -1077,10 +1102,10 @@ async function exportGeoNoxaPdf() {
   const relaveRaw =
     analysisData?.relave?.nombre ||
     analysisData?.relavesGrupo?.items?.[0]?.nombre ||
-    'Relave';
+    'Objeto territorial';
 
   const zona = sanitizeFileName(zonaRaw) || 'Zona';
-  const relave = sanitizeFileName(relaveRaw) || 'Relave';
+  const relave = sanitizeFileName(relaveRaw) || 'Objeto territorial';
 
   const now = new Date();
   const fecha =
@@ -1136,6 +1161,8 @@ function setupCardActions() {
   if (pdfBtn) pdfBtn.onclick = handleExportPdf;
 }
 
+// LEGACY: función heredada del CARD GeoNOXA. No usada actualmente por GeoCard Template v1.0.
+// Mantener temporalmente para rollback durante la etapa de neutralización.
 function renderSummaryCards() {
   const z = analysisData.zonaSaturada;
   const r = analysisData.relave;
@@ -1172,6 +1199,8 @@ function renderSummaryCards() {
   }
 }
 
+// LEGACY: función heredada del CARD GeoNOXA. No usada actualmente por GeoCard Template v1.0.
+// Mantener temporalmente para rollback durante la etapa de neutralización.
 function renderInterpretation() {
   const riesgo = analysisData.riesgo.nivel.toLowerCase();
   const kpiZona = Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D';
@@ -1222,7 +1251,7 @@ function initMap() {
       fillColor: isNearest ? '#f97316' : '#f59e0b',
       fillOpacity: 0.9
     })
-      .bindPopup(`Objeto territorial #${relave.rank}: ${relave.nombre}`)
+      .bindPopup(`Objeto territorial #${relave.rank}: ${escapeHtml(relave.nombre || 'Sin datos disponibles')}`)
       .addTo(group);
 
     const relaveRadiusMeters = computeEquivalentRadiusMeters(Number(relave.superficieHa));
