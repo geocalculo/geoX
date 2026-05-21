@@ -443,7 +443,6 @@ function getMainKpiRiskClass() {
 
 function renderAll() {
   renderHeader();
-  renderContextPanel();
   renderKpiMapPanel();
   renderMatchedObjectsPanel();
   renderInterpretationPanel();
@@ -451,24 +450,74 @@ function renderAll() {
   initMap();
 }
 
-function renderContextPanel() {
-  // Panel 1 se renderiza en renderHeader() para mantener compatibilidad con header-card.
-}
-
 function renderKpiMapPanel() {
-  renderTopLayout();
+  const kpiPrincipal = Number.isFinite(analysisData.riesgo.kpiCritico) ? analysisData.riesgo.kpiCritico.toFixed(2) : 'N/D';
+  const kpiRelaves = Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D';
+  const kpiZona = Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D';
+  document.getElementById('top-layout').innerHTML = `
+    <div class="kpi-map-layout">
+      <article class="card panel kpi-panel">
+        <h2 class="section-title">KPI principal</h2>
+        <p class="risk-value ${getRiskClass(analysisData.riesgo.nivel)}">${analysisData.riesgo.nivel}</p>
+        <p><strong>KPI territorial:</strong> ${kpiPrincipal}</p>
+        <ul class="factors-list">
+          <li><strong>KPI_1 — Objetos territoriales:</strong> ${kpiRelaves}</li>
+          <li><strong>KPI_2 — Área de referencia:</strong> ${kpiZona}</li>
+          <li><strong>KPI_3 — Distancia / relación:</strong> ${formatKm(analysisData.relavesGrupo.distanciaPromKm)} / ${formatKm(analysisData.relavesGrupo.diametroEquivalentePromedioKm)}</li>
+          <li><strong>KPI_4 — Exposición relativa:</strong> Menor valor = mayor exposición</li>
+        </ul>
+        <p><strong>Objetos territoriales:</strong> ${analysisData.relavesGrupo.cantidadAnalizada} analizados.</p>
+      </article>
+      <article class="card panel map-panel">
+        <h2 class="section-title">Mapa de análisis territorial</h2>
+        <div class="map-wrap"><div id="map"></div></div>
+      </article>
+    </div>`;
 }
 
 function renderMatchedObjectsPanel() {
-  renderSummaryCards();
+  const relave = analysisData.relave || {};
+  const zona = analysisData.zonaSaturada || {};
+  const grupo = analysisData.relavesGrupo || {};
+  const hasData = Boolean(relave.nombre || zona.nombre || Number.isFinite(grupo.distanciaPromKm));
+  if (!hasData) {
+    document.getElementById('summary-cards').innerHTML = `<article class="card panel matched-panel"><h2 class="section-title">Detalle de objetos matcheados</h2><p>Sin datos disponibles</p></article>`;
+    return;
+  }
+  document.getElementById('summary-cards').innerHTML = `
+    <article class="card panel matched-panel">
+      <h2 class="section-title">Detalle de objetos matcheados</h2>
+      <table class="matched-table">
+        <thead><tr><th>Tipo</th><th>Nombre</th><th>Categoría</th><th>Distancia al POI</th><th>Relación espacial</th><th>KPI asociado</th><th>Estado / atributo relevante</th></tr></thead>
+        <tbody>
+          <tr><td>Objeto territorial más cercano</td><td>${relave.nombre || 'Sin datos disponibles'}</td><td>${relave.recurso || 'Sin datos disponibles'}</td><td>${formatKm(relave.distPoiKm)}</td><td>Distancia al POI</td><td>${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</td><td>${analysisData.riesgo.relaves || 'Sin datos disponibles'}</td></tr>
+          <tr><td>Área de referencia</td><td>${zona.nombre || 'Sin datos disponibles'}</td><td>Área territorial</td><td>${formatKm(zona.distPerimetroKm)}</td><td>Borde más cercano</td><td>${Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D'}</td><td>${zona.estado || 'Sin datos disponibles'}</td></tr>
+          <tr><td>Grupo de objetos territoriales</td><td>${Number.isFinite(grupo.cantidadAnalizada) ? `${grupo.cantidadAnalizada} objetos` : 'Sin datos disponibles'}</td><td>${analysisData.relavesGrupo.items?.[0]?.recurso || 'Grupo'}</td><td>${formatKm(grupo.distanciaPromKm)}</td><td>Promedio del grupo</td><td>${Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D'}</td><td>Total en vista: ${grupo.totalEnVista ?? 'Sin datos disponibles'}</td></tr>
+        </tbody>
+      </table>
+    </article>`;
 }
 
 function renderInterpretationPanel() {
-  renderInterpretation();
+  const nivel = (analysisData.riesgo.nivel || 'SIN DATOS').toLowerCase();
+  const kpiZona = Number.isFinite(analysisData.riesgo.kpiZona) ? analysisData.riesgo.kpiZona.toFixed(2) : 'N/D';
+  const kpiRelaves = Number.isFinite(analysisData.riesgo.kpiRelaves) ? analysisData.riesgo.kpiRelaves.toFixed(2) : 'N/D';
+  const factorDominante = analysisData.riesgo.factorDominante === 'zona saturada' ? 'el área territorial de referencia' : 'los objetos territoriales';
+  const resumen = `El punto analizado presenta un KPI territorial ${nivel}. El KPI principal se determina mediante el cociente distancia/diámetro. Valores menores indican mayor exposición relativa. En este caso, el área territorial de referencia presenta un KPI de ${kpiZona} y los objetos territoriales un KPI de ${kpiRelaves}, siendo ${factorDominante} el factor dominante del KPI principal.`;
+  document.getElementById('interpretation').innerHTML = `
+    <article class="card panel analysis-panel">
+      <h2 class="section-title">INTERPRETACIÓN Y ANÁLISIS</h2>
+      <p><strong>Resumen ejecutivo automático:</strong> ${resumen}</p>
+      <p><strong>Lectura territorial:</strong> Se observa interacción entre el POI, objetos territoriales y áreas de referencia dentro de la vista activa.</p>
+      <p><strong>Factor dominante:</strong> ${factorDominante}.</p>
+      <p><strong>Advertencias:</strong> Este resultado depende del alcance espacial visible y de la calidad de las geometrías cargadas.</p>
+      <p><strong>Conclusión automática:</strong> Priorizar seguimiento del factor dominante para mejorar la interpretación territorial del POI.</p>
+    </article>`;
 }
 
 function renderHeader() {
-  document.getElementById('header-card').innerHTML = `<div class="header-grid">
+  const bboxText = Array.isArray(analysisData.poi.bbox) ? analysisData.poi.bbox.map((v) => Number(v).toFixed(4)).join(', ') : 'Sin datos disponibles';
+  document.getElementById('header-card').innerHTML = `<article class="card panel context-panel"><div class="header-grid">
     <div class="brand">
       <h1>GeoX | CARD PRO</h1>
       <p>Análisis territorial del POI</p>
@@ -477,7 +526,13 @@ function renderHeader() {
       <p>POI: ${analysisData.poi.lat}, ${analysisData.poi.lon}</p>
       <p>Fecha análisis: ${new Date().toLocaleString('es-CL')}</p>
     </div>
-  </div>`;
+  </div>
+  <div class="context-grid">
+    <p><strong>Escala aprox.:</strong> 1:10.000</p>
+    <p><strong>Objetos territoriales alcanzados:</strong> ${analysisData.relavesGrupo.cantidadAnalizada ?? 0}</p>
+    <p><strong>Áreas de referencia encontradas:</strong> ${analysisData.zonaSaturada.feature ? 1 : 0}</p>
+    <p><strong>Radio/BBOX:</strong> ${formatKm(analysisData.relavesGrupo.radioEnvolventeKm)} | ${bboxText}</p>
+  </div></article>`;
 }
 
 function renderTopLayout() {
@@ -1167,13 +1222,13 @@ function initMap() {
       fillColor: isNearest ? '#f97316' : '#f59e0b',
       fillOpacity: 0.9
     })
-      .bindPopup(`Relave #${relave.rank}: ${relave.nombre}`)
+      .bindPopup(`Objeto territorial #${relave.rank}: ${relave.nombre}`)
       .addTo(group);
 
     const relaveRadiusMeters = computeEquivalentRadiusMeters(Number(relave.superficieHa));
     if (Number.isFinite(relaveRadiusMeters) && relaveRadiusMeters > 0) {
       L.circle(relave.centroide, { radius: relaveRadiusMeters, color: isNearest ? '#ea580c' : '#f59e0b', weight: 2, fillOpacity: 0.04 })
-        .bindPopup(`Círculo equivalente relave #${relave.rank}`)
+        .bindPopup(`Círculo equivalente objeto territorial #${relave.rank}`)
         .addTo(group);
     }
 
@@ -1208,7 +1263,7 @@ function initMap() {
       opacity: 0.9,
       dashArray: '8,6'
     })
-      .bindPopup(`Círculo envolvente de objetos territoriales seleccionados<br>Radio: ${formatKm(envelopeRadiusKm)}<br>N relaves: ${analysisData.relavesGrupo.cantidadAnalizada}`)
+      .bindPopup(`Círculo envolvente de objetos territoriales seleccionados<br>Radio: ${formatKm(envelopeRadiusKm)}<br>N objetos: ${analysisData.relavesGrupo.cantidadAnalizada}`)
       .bindTooltip(`Círculo envolvente de objetos territoriales seleccionados · ${formatKm(envelopeRadiusKm)}`)
       .addTo(group);
   }
@@ -1247,7 +1302,7 @@ function renderActionsPanel() {
         <span class="btn-icon" aria-hidden="true">▣</span>
         <span class="btn-text">PDF PRO</span>
       </button>
-      <a href="index.html" class="btn-export btn-index">Volver al INDEX</a>
+      <a href="index.html" class="btn-export btn-back">Volver al INDEX</a>
     </div>
   </div>`;
 }
