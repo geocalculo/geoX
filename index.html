@@ -1,268 +1,111 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <!-- Google Tag Manager -->
-  <script>
-  (function(w,d,s,l,i){
-    w[l]=w[l]||[];
-    w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});
-    var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),
-    dl=l!='dataLayer'?'&l='+l:'';
-    j.async=true;
-    j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
-    f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','GTM-T7Z7PCBP');
-  </script>
-  <!-- End Google Tag Manager -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GeoX | Plataforma Territorial Genérica</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+
+  <title>GeoX - GeoFactory</title>
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <!-- CSS propio -->
   <link rel="stylesheet" href="css/index.css" />
-  <style>
-    .geonoxa-intro-modal {
-      position: fixed;
-      inset: 0;
-      z-index: 3000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-      background: rgba(7, 11, 19, 0.72);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-    }
-
-    .geonoxa-intro-modal[hidden] {
-      display: none !important;
-    }
-
-    .geonoxa-intro-modal__panel {
-      width: min(680px, 100%);
-      max-height: calc(100vh - 2rem);
-      overflow-y: auto;
-      margin: 0 auto;
-      border-radius: 18px;
-      border: 1px solid rgba(140, 167, 194, 0.35);
-      background: linear-gradient(155deg, rgba(14, 23, 35, 0.98), rgba(8, 13, 24, 0.98));
-      color: #e6f0ff;
-      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.45);
-      padding: clamp(1.2rem, 2vw, 2rem);
-    }
-
-    .geonoxa-intro-modal__title {
-      margin: 0;
-      font-size: clamp(1.8rem, 3vw, 2.3rem);
-      font-weight: 700;
-      letter-spacing: 0.02em;
-    }
-
-    .geonoxa-intro-modal__subtitle {
-      margin: 0.35rem 0 1rem;
-      color: #95b2d8;
-      font-size: clamp(0.95rem, 2vw, 1.05rem);
-      font-weight: 500;
-    }
-
-    .geonoxa-intro-modal__body {
-      margin: 0 0 1rem;
-      line-height: 1.6;
-      color: #d5e1f4;
-      font-size: 0.97rem;
-    }
-
-    .geonoxa-intro-modal__highlight {
-      margin: 0 0 1.3rem;
-      padding: 0.72rem 0.9rem;
-      border-radius: 10px;
-      border: 1px solid rgba(141, 192, 255, 0.28);
-      background: rgba(28, 52, 83, 0.35);
-      color: #cbe2ff;
-      font-weight: 600;
-      text-align: center;
-      letter-spacing: 0.01em;
-    }
-
-    .geonoxa-intro-modal__actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-
-    .geonoxa-intro-modal__btn {
-      border: 0;
-      border-radius: 10px;
-      padding: 0.66rem 1rem;
-      font: inherit;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-    }
-
-    .geonoxa-intro-modal__btn:hover {
-      transform: translateY(-1px);
-    }
-
-    .geonoxa-intro-modal__btn:focus-visible {
-      outline: 2px solid #8fc2ff;
-      outline-offset: 2px;
-    }
-
-    .geonoxa-intro-modal__btn--primary {
-      background: linear-gradient(140deg, #1278f2, #0f65cb);
-      color: #fff;
-      font-weight: 600;
-      box-shadow: 0 8px 18px rgba(18, 120, 242, 0.35);
-    }
-
-    .geonoxa-intro-modal__btn--secondary {
-      background: rgba(128, 153, 184, 0.16);
-      color: #c5d6ed;
-      border: 1px solid rgba(140, 167, 194, 0.4);
-      font-size: 0.84rem;
-      padding: 0.56rem 0.78rem;
-    }
-
-    @media (max-width: 640px) {
-      .geonoxa-intro-modal__actions {
-        justify-content: stretch;
-      }
-
-      .geonoxa-intro-modal__btn {
-        width: 100%;
-      }
-    }
-  </style>
 </head>
+
 <body>
-  <!-- Google Tag Manager (noscript) -->
-  <noscript>
-  <iframe
-  src="https://www.googletagmanager.com/ns.html?id=GTM-T7Z7PCBP"
-  height="0"
-  width="0"
-  style="display:none;visibility:hidden">
-  </iframe>
-  </noscript>
-  <!-- End Google Tag Manager (noscript) -->
-  <div id="geonoxa-intro-modal" class="geonoxa-intro-modal" role="dialog" aria-modal="true" aria-labelledby="geonoxa-intro-title" aria-describedby="geonoxa-intro-desc" hidden>
-    <section class="geonoxa-intro-modal__panel">
-      <h2 id="geonoxa-intro-title" class="geonoxa-intro-modal__title">GeoX</h2>
-      <p class="geonoxa-intro-modal__subtitle">Plataforma territorial genérica</p>
-      <div id="geonoxa-intro-desc" class="geonoxa-intro-modal__body">
-        <p>Haz clic en cualquier punto del mapa y GeoX analizará su entorno territorial inmediato.</p>
-        <p>La consulta permite identificar relaciones espaciales con áreas territoriales de referencia, objetos territoriales y sistemas cercanos, entregando una lectura territorial simple, rápida y accionable.</p>
-      </div>
-      <p class="geonoxa-intro-modal__highlight">Mapa + clic = análisis territorial</p>
-      <div class="geonoxa-intro-modal__actions">
-        <button type="button" id="geonoxa-intro-reopen" class="geonoxa-intro-modal__btn geonoxa-intro-modal__btn--secondary">Ver nuevamente al inicio</button>
-        <button type="button" id="geonoxa-intro-close" class="geonoxa-intro-modal__btn geonoxa-intro-modal__btn--primary">Comenzar análisis</button>
-      </div>
-    </section>
-  </div>
-  <main class="app-shell">
-    <header class="main-header">
-      <div class="header-inner">
-        <div class="header-left">
-          <h1><span>GeoX</span></h1>
-          <p>Plataforma territorial genérica</p>
-          <small>Análisis territorial basado en POI</small>
-        </div>
+  <div id="app">
 
-        <div class="header-center">
-          <section class="summary" aria-live="polite">
-            <h2>SUMMARY</h2>
-            <div class="summary-box summary-grid">
-              <div class="kpi"><span>Áreas visibles</span><strong id="sum-zonas">0</strong></div>
-              <div class="kpi"><span>Objetos visibles</span><strong id="sum-relaves">0</strong></div>
-            </div>
-          </section>
-        </div>
+    <!-- HEADER -->
+    <header id="main-header">
+      <div class="brand-block">
+        <div id="site-title">GeoX</div>
+        <div id="site-subtitle">Molde territorial genérico</div>
+      </div>
 
-        <div class="header-right">
-          <div class="summary-card region-selector-card">
-            <label for="region-select">Explorar región</label>
-            <select id="region-select" class="region-selector"></select>
-          </div>
+      <div id="summary-bar">
+        <div class="summary-item">
+          <span class="summary-value">0</span>
+          <span class="summary-label">Objetos visibles</span>
         </div>
+        <div class="summary-item">
+          <span class="summary-value">0</span>
+          <span class="summary-label">Capas activas</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-value">GeoX</span>
+          <span class="summary-label">Modo</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-osm">OSM</button>
+        <button id="btn-sat">SAT</button>
       </div>
     </header>
 
-    <section class="map-wrap">
-      <div id="map"></div>
-      <div class="map-search-box">
-        <input type="text" id="map-search" placeholder="Buscar objeto territorial, área o lugar..." autocomplete="off" />
-        <div id="map-search-results" class="map-search-results"></div>
-      </div>
-      <aside class="panel-territorial">
-        <h3>Panel territorial</h3>
-        <fieldset>
-          <legend>Etiquetas</legend>
-          <label><input type="radio" name="relave-labels" value="none" checked /> Sin etiquetas</label>
-          <label><input type="radio" name="relave-labels" value="faena" /> Nombre objeto</label>
-          <label><input type="radio" name="relave-labels" value="empresa" /> Categoría</label>
-          <label><input type="radio" name="relave-labels" value="tipo_deposito" /> Tipo objeto</label>
-          <label><input type="radio" name="relave-labels" value="recurso" /> Atributo</label>
-        </fieldset>
-        <div class="relaves-control">
-          <label for="relaves-slider">Objetos a considerar</label>
-          <input type="range" id="relaves-slider" min="5" max="15" step="5" value="5" />
-          <div class="range-labels"><span>5</span><span>10</span><span>15</span></div>
-          <div id="relaves-hint"></div>
-        </div>
-      </aside>
-      <div class="map-overlay-controls map-overlay-controls--bottom" aria-label="Acciones operacionales">
-        <button type="button" id="mira-rifle" title="Mi ubicación">📍</button>
-        <button type="button" class="map-control-btn" id="home-map-btn" title="Inicio">⌂</button>
-      </div>
-      <p class="hint">Haz clic en el mapa para abrir el CARD PRO del POI consultado.</p>
-      <div id="crosshair" aria-hidden="true">+</div>
-      <div id="geonoxa-warning" class="geonoxa-warning" role="status" aria-live="polite"></div>
+    <!-- BARRA SUPERIOR DE CONTROL -->
+    <section id="control-bar">
+      <select id="country-selector">
+        <option value="CL">Chile</option>
+      </select>
+
+      <select id="region-selector">
+        <option value="03">Región de Atacama</option>
+      </select>
+
+      <input
+        id="search-box"
+        type="text"
+        placeholder="Buscar territorio, objeto o capa..."
+      />
+
+      <button id="btn-search">Buscar</button>
+      <button id="btn-clear">Limpiar</button>
     </section>
 
-    <nav class="geo-switch" id="geo-switch" aria-label="GeoSwitch">
-      <a data-site="geoipt" href="#"><span class="site-icon">🧭</span><span class="site-main">GeoIPT</span><span class="site-sub">Planificación urbana</span></a>
-      <a data-site="geoeva" href="#"><span class="site-icon">🌿</span><span class="site-main">GeoEVA</span><span class="site-sub">Evaluación ambiental</span></a>
-      <a data-site="geonemo" href="#"><span class="site-icon">🛡️</span><span class="site-main">GeoNEMO</span><span class="site-sub">Sitios protegidos</span></a>
-      <a data-site="geonoxa" class="active" href="#"><span class="site-icon">⚠️</span><span class="site-main">GeoNOXA</span><span class="site-sub">Referencia ecosistema</span></a>
-    </nav>
-  </main>
+    <!-- CUERPO PRINCIPAL -->
+    <main id="main-layout">
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="js/index.js"></script>
-  <script>
-    (function () {
-      var INTRO_KEY = "geonoxa_intro_modal_seen";
-      var introModal = document.getElementById("geonoxa-intro-modal");
-      var closeBtn = document.getElementById("geonoxa-intro-close");
-      var reopenBtn = document.getElementById("geonoxa-intro-reopen");
+      <!-- PANEL TERRITORIAL -->
+      <aside id="territorial-panel">
+        <h3 id="panel-title">Panel Territorial</h3>
 
-      if (!introModal || !closeBtn || !reopenBtn) return;
+        <div class="panel-section">
+          <label>
+            <input type="checkbox" disabled />
+            Capa demostrativa
+          </label>
+        </div>
 
-      var openModal = function () {
-        introModal.hidden = false;
-      };
+        <div class="panel-note">
+          GeoX aún no tiene capas conectadas.
+        </div>
+      </aside>
 
-      var closeModal = function () {
-        introModal.hidden = true;
-      };
+      <!-- MAPA -->
+      <section id="map-container">
+        <div id="map"></div>
+      </section>
 
-      if (localStorage.getItem(INTRO_KEY) !== "true") {
-        openModal();
-      }
+    </main>
 
-      closeBtn.addEventListener("click", function () {
-        localStorage.setItem(INTRO_KEY, "true");
-        closeModal();
-      });
+    <!-- FOOTER -->
+    <footer id="main-footer">
+      GeoFactory · GeoX · Fase 1 Index
+    </footer>
 
-      reopenBtn.addEventListener("click", function () {
-        localStorage.removeItem(INTRO_KEY);
-        closeModal();
-      });
-    })();
+  </div>
+
+  <!-- Leaflet -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
   </script>
+
+  <!-- JS propio -->
+  <script src="js/index.js"></script>
 </body>
 </html>

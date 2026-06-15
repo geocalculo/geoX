@@ -1,0 +1,30 @@
+{
+  "sitio": "GeoX",
+  "titulo": "GeoSitio Territorial",
+  "subtitulo": "Molde territorial genérico para GeoFactory",
+  "pais_default": "CL",
+  "region_default": "03",
+  "centro_mapa": [-27.3668, -70.3323],
+  "zoom_inicial": 7,
+  "mapa_base": "osm",
+  "summary_activo": true,
+  "selector_activo": true,
+  "search_activo": true,
+  "panel_activo": true,
+  "panel_titulo": "Panel Territorial",
+  "search_placeholder": "Buscar territorio, objeto o capa...",
+  "summary_items": [
+    {
+      "label": "Objetos visibles",
+      "value": "0"
+    },
+    {
+      "label": "Capas activas",
+      "value": "0"
+    },
+    {
+      "label": "Modo",
+      "value": "GeoX"
+    }
+  ]
+}

@@ -1,0 +1,5790 @@
+{
+    "type": "FeatureCollection",
+    "name": "Centroides_KMZ_Resumen",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.09548499025965,
+                    -20.28467520128907
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_01_PRC_Alto_Hospicio.kml",
+                "Carpeta": "capas_01",
+                "Superficie_Total_m2": 31440707.71,
+                "Superficie_Total_ha": 3144.07,
+                "Total_Poligonos": 31,
+                "Total_Zonas_Unicas": 18
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.2100318611233,
+                    -19.595033659080592
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_01_PRC_Huara.kml",
+                "Carpeta": "capas_01",
+                "Superficie_Total_m2": 411261.56,
+                "Superficie_Total_ha": 41.13,
+                "Total_Poligonos": 28,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.15561640522027,
+                    -20.48339495371713
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_01_PRC_Iquique.kml",
+                "Carpeta": "capas_01",
+                "Superficie_Total_m2": 137178609.43,
+                "Superficie_Total_ha": 13717.86,
+                "Total_Poligonos": 2137,
+                "Total_Zonas_Unicas": 60
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -69.32538765083574,
+                    -20.48771934473234
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_01_PRC_Pica.kml",
+                "Carpeta": "capas_01",
+                "Superficie_Total_m2": 646331.66,
+                "Superficie_Total_ha": 64.63,
+                "Total_Poligonos": 3,
+                "Total_Zonas_Unicas": 3
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -69.78519118745643,
+                    -20.257240798711734
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_01_PRC_Pozo_al_Monte.kml",
+                "Carpeta": "capas_01",
+                "Superficie_Total_m2": 1341015.62,
+                "Superficie_Total_ha": 134.1,
+                "Total_Poligonos": 7,
+                "Total_Zonas_Unicas": 6
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.4419683500002,
+                    -23.51320779242841
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_02_Antofagasta.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 578700198.72,
+                "Superficie_Total_ha": 57870.02,
+                "Total_Poligonos": 1065,
+                "Total_Zonas_Unicas": 81
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -68.91971806451095,
+                    -22.46519591470301
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_02_Calama.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 43614390.51,
+                "Superficie_Total_ha": 4361.44,
+                "Total_Poligonos": 58,
+                "Total_Zonas_Unicas": 26
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.42876444272405,
+                    -23.066700966662086
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_02_Mejillones.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 143936762.65,
+                "Superficie_Total_ha": 14393.68,
+                "Total_Poligonos": 279,
+                "Total_Zonas_Unicas": 46
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -68.25306552908195,
+                    -21.22636763336145
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_02_Ollague.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 669276.89,
+                "Superficie_Total_ha": 66.93,
+                "Total_Poligonos": 43,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -68.19816985269104,
+                    -22.910623565960336
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_02_SanPedroAtacama.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 1625665.09,
+                "Superficie_Total_ha": 162.57,
+                "Total_Poligonos": 52,
+                "Total_Zonas_Unicas": 10
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -68.06216464408473,
+                    -23.682458781426497
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_02_SanPedroAtacama_Peine.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 362925.76,
+                "Superficie_Total_ha": 36.29,
+                "Total_Poligonos": 8,
+                "Total_Zonas_Unicas": 6
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -68.00353810208024,
+                    -23.1900098530221
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_02_SanPedroAtacama_Toconao.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 435555.91,
+                "Superficie_Total_ha": 43.56,
+                "Total_Poligonos": 17,
+                "Total_Zonas_Unicas": 10
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.53268534828484,
+                    -25.444308740439645
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_02_Taltal.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 14228931.28,
+                "Superficie_Total_ha": 1422.89,
+                "Total_Poligonos": 80,
+                "Total_Zonas_Unicas": 38
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.19134974254412,
+                    -22.024801772810648
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_02_Tocopilla.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 9162429.15,
+                "Superficie_Total_ha": 916.24,
+                "Total_Poligonos": 428,
+                "Total_Zonas_Unicas": 34
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -69.55323402716765,
+                    -23.09094522747243
+                ]
+            },
+            "properties": {
+                "Archivo": "PRC_Sierra_Gorda.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 5261107.26,
+                "Superficie_Total_ha": 526.11,
+                "Total_Poligonos": 196,
+                "Total_Zonas_Unicas": 19
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.39694523342693,
+                    -23.553219047836514
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Antofagasta_LaChimba.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 4195848.98,
+                "Superficie_Total_ha": 419.58,
+                "Total_Poligonos": 41,
+                "Total_Zonas_Unicas": 10
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.31636418174975,
+                    -23.78091447223276
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Antofagasta_LaNegra.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 54207223.22,
+                "Superficie_Total_ha": 5420.72,
+                "Total_Poligonos": 53,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -68.923459206644,
+                    -22.451654432956303
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Calama_SanJuan.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 694028.8,
+                "Superficie_Total_ha": 69.4,
+                "Total_Poligonos": 12,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -68.90156942517149,
+                    -22.47955036514384
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Calama_Topater.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 5486205.47,
+                "Superficie_Total_ha": 548.62,
+                "Total_Poligonos": 28,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.47026742192232,
+                    -23.100262150997615
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Mejillones_CostaneraSur.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 6482186.72,
+                "Superficie_Total_ha": 648.22,
+                "Total_Poligonos": 71,
+                "Total_Zonas_Unicas": 18
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.43604591606591,
+                    -23.105634666960846
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Mejillones_IndPequena.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 1413873.95,
+                "Superficie_Total_ha": 141.39,
+                "Total_Poligonos": 4,
+                "Total_Zonas_Unicas": 4
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.29341827077533,
+                    -22.930876923424588
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Mejillones_ItataHornitos.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 29514884.88,
+                "Superficie_Total_ha": 2951.49,
+                "Total_Poligonos": 44,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.40105860550213,
+                    -23.101814818156175
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Mejillones_Meseta.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 11432804.95,
+                "Superficie_Total_ha": 1143.28,
+                "Total_Poligonos": 11,
+                "Total_Zonas_Unicas": 6
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.3526328691101,
+                    -23.07096769875745
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Mejillones_Portuaria.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 40025588.14,
+                "Superficie_Total_ha": 4002.56,
+                "Total_Poligonos": 29,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -68.18060322441981,
+                    -22.922071519591224
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_SanPedroAtacama_Pozo.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 3386511.6,
+                "Superficie_Total_ha": 338.65,
+                "Total_Poligonos": 5,
+                "Total_Zonas_Unicas": 2
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -68.21466605771595,
+                    -22.89250449397133
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_SanPedroAtacama_Quitar.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 93319.37,
+                "Superficie_Total_ha": 9.33,
+                "Total_Poligonos": 3,
+                "Total_Zonas_Unicas": 3
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.63162269499767,
+                    -25.643862169181055
+                ]
+            },
+            "properties": {
+                "Archivo": "SECC_02_Taltal_Cifuncho.kml",
+                "Carpeta": "capas_02",
+                "Superficie_Total_m2": 9807472.29,
+                "Superficie_Total_ha": 980.75,
+                "Total_Poligonos": 83,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.87510389805769,
+                    -27.437860965472975
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_PRC_Caldera.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 287769646.97,
+                "Superficie_Total_ha": 28776.96,
+                "Total_Poligonos": 420,
+                "Total_Zonas_Unicas": 53
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.61793511716117,
+                    -26.34226969319472
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_PRC_Chanaral.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 7477245.82,
+                "Superficie_Total_ha": 747.72,
+                "Total_Poligonos": 83,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.31761955943807,
+                    -27.382446477216206
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_PRC_Copiapo.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 42116839.83,
+                "Superficie_Total_ha": 4211.68,
+                "Total_Poligonos": 43,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.03773317773488,
+                    -26.391970257262166
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_PRC_Diego_de_Almagro.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 7245555.41,
+                "Superficie_Total_ha": 724.56,
+                "Total_Poligonos": 124,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.07271768706113,
+                    -28.511136343504013
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_PRC_Freirina.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 2381347.31,
+                "Superficie_Total_ha": 238.13,
+                "Total_Poligonos": 94,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.22414877606197,
+                    -28.476298358156622
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_PRC_Huasco.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 12813538.62,
+                "Superficie_Total_ha": 1281.35,
+                "Total_Poligonos": 501,
+                "Total_Zonas_Unicas": 27
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.76265125300861,
+                    -28.577885923672785
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_PRC_Vallenar.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 9737399.2,
+                "Superficie_Total_ha": 973.74,
+                "Total_Poligonos": 16,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.3183070152812,
+                    -26.42185583952841
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_SCC_ElSalado.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 964212.65,
+                "Superficie_Total_ha": 96.42,
+                "Total_Poligonos": 102,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.6835377766051,
+                    -26.574383260428068
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_SCC_Flamenco.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 2043196.58,
+                "Superficie_Total_ha": 204.32,
+                "Total_Poligonos": 172,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.70113822441785,
+                    -26.51456888126546
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_03_SCC_Portofino.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 648648.19,
+                "Superficie_Total_ha": 64.86,
+                "Total_Poligonos": 75,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.76371555902114,
+                    -27.59898831527838
+                ]
+            },
+            "properties": {
+                "Archivo": "PRICOST_Atacama.kml",
+                "Carpeta": "capas_03",
+                "Superficie_Total_m2": 15068670719.12,
+                "Superficie_Total_ha": 1506867.07,
+                "Total_Poligonos": 706,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.08485075615478,
+                    -30.238105996273024
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Andacollo.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 4322568.84,
+                "Superficie_Total_ha": 432.26,
+                "Total_Poligonos": 45,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.00413354009493,
+                    -31.17928205095095
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Combarbala.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 2570343.07,
+                "Superficie_Total_ha": 257.03,
+                "Total_Poligonos": 100,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.35834452925947,
+                    -30.052032593430585
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Coquimbo.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 95449570.7,
+                "Superficie_Total_ha": 9544.96,
+                "Total_Poligonos": 1196,
+                "Total_Zonas_Unicas": 76
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.17436507991127,
+                    -31.637197563018738
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Illapel.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 10831695.89,
+                "Superficie_Total_ha": 1083.17,
+                "Total_Poligonos": 72,
+                "Total_Zonas_Unicas": 22
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.26848184422091,
+                    -29.402450864254888
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_La_Higuera.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 7494285.08,
+                "Superficie_Total_ha": 749.43,
+                "Total_Poligonos": 505,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.2479072258856,
+                    -29.894652897019483
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_La_Serena.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 77223850.08,
+                "Superficie_Total_ha": 7722.39,
+                "Total_Poligonos": 772,
+                "Total_Zonas_Unicas": 41
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.51187595970121,
+                    -32.012815743185875
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Los_Vilos.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 7070625.34,
+                "Superficie_Total_ha": 707.06,
+                "Total_Poligonos": 48,
+                "Total_Zonas_Unicas": 24
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.91158302003853,
+                    -30.78361628154475
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Monte_Patria.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 15896305.72,
+                "Superficie_Total_ha": 1589.63,
+                "Total_Poligonos": 739,
+                "Total_Zonas_Unicas": 27
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.19437864891006,
+                    -30.596438521393672
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Ovalle.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 23978489.96,
+                "Superficie_Total_ha": 2397.85,
+                "Total_Poligonos": 237,
+                "Total_Zonas_Unicas": 0
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.50483774718224,
+                    -30.07736538485312
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Paiguano.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 3231305.59,
+                "Superficie_Total_ha": 323.13,
+                "Total_Poligonos": 234,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.25732482521838,
+                    -30.82797411239977
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Punitaqui.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 3204323.22,
+                "Superficie_Total_ha": 320.43,
+                "Total_Poligonos": 216,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.82181560265572,
+                    -30.362488806225297
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Rio_Hurtado.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 2835708.99,
+                "Superficie_Total_ha": 283.57,
+                "Total_Poligonos": 307,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.96876073984626,
+                    -31.778661673577975
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Salamanca.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 3739924.98,
+                "Superficie_Total_ha": 373.99,
+                "Total_Poligonos": 39,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.74461243629969,
+                    -30.01615730661432
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_04_PRC_Vicuna.kml",
+                "Carpeta": "capas_04",
+                "Superficie_Total_m2": 14588340.87,
+                "Superficie_Total_ha": 1458.83,
+                "Total_Poligonos": 377,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.65899577529957,
+                    -33.35683758370365
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Algarrobo.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 16099993.95,
+                "Superficie_Total_ha": 1610.0,
+                "Total_Poligonos": 119,
+                "Total_Zonas_Unicas": 39
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.07565892779596,
+                    -32.42352964925814
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Cabildo.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 3577788.25,
+                "Superficie_Total_ha": 357.78,
+                "Total_Poligonos": 104,
+                "Total_Zonas_Unicas": 23
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.19953040287747,
+                    -32.786161227423854
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Calera.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 8722436.44,
+                "Superficie_Total_ha": 872.24,
+                "Total_Poligonos": 63,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.62017986665627,
+                    -32.86792189410454
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Calle_Larga.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 8997207.77,
+                "Superficie_Total_ha": 899.72,
+                "Total_Poligonos": 83,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.59833548231406,
+                    -33.541345121209076
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Cartagena.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 8268486.92,
+                "Superficie_Total_ha": 826.85,
+                "Total_Poligonos": 25,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.96462892008618,
+                    -32.77748092615195
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Catemu.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 970979.37,
+                "Superficie_Total_ha": 97.1,
+                "Total_Poligonos": 5,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.50138468876523,
+                    -32.937458021308736
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Concon.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 16287900.9,
+                "Superficie_Total_ha": 1628.79,
+                "Total_Poligonos": 877,
+                "Total_Zonas_Unicas": 53
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.68145729426077,
+                    -33.41254287223181
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_El_Quisco.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 20709222.18,
+                "Superficie_Total_ha": 2070.92,
+                "Total_Poligonos": 1182,
+                "Total_Zonas_Unicas": 41
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.63745859009565,
+                    -33.47406450335826
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_El_Tabo.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 20819236.36,
+                "Superficie_Total_ha": 2081.92,
+                "Total_Poligonos": 109,
+                "Total_Zonas_Unicas": 22
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.13899445960212,
+                    -32.80804604587415
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Hijuelas.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 2793268.99,
+                "Superficie_Total_ha": 279.33,
+                "Total_Poligonos": 28,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -109.43613710614092,
+                    -27.151195561774983
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Isla_de_Pascua.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 4631041.25,
+                "Superficie_Total_ha": 463.1,
+                "Total_Poligonos": 19,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -78.888192223887,
+                    -33.65654221991174
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Juan_Fernandez.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 4744855.57,
+                "Superficie_Total_ha": 474.49,
+                "Total_Poligonos": 40,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.23403187688078,
+                    -32.45184615515156
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_La_Ligua.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 2966539.33,
+                "Superficie_Total_ha": 296.65,
+                "Total_Poligonos": 13,
+                "Total_Zonas_Unicas": 6
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.26649830325115,
+                    -33.00033612812625
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Limache.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 12979437.71,
+                "Superficie_Total_ha": 1297.94,
+                "Total_Poligonos": 242,
+                "Total_Zonas_Unicas": 28
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.9563456202394,
+                    -32.8410631273698
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Llayllay.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 6358195.5,
+                "Superficie_Total_ha": 635.82,
+                "Total_Poligonos": 11,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.59237474752473,
+                    -32.83290509464998
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Los_Andes.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 18926724.27,
+                "Superficie_Total_ha": 1892.67,
+                "Total_Poligonos": 38,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.21137443102445,
+                    -32.70918013491737
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Nogales.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 2721568.94,
+                "Superficie_Total_ha": 272.16,
+                "Total_Poligonos": 11,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.17158839088985,
+                    -32.993981682611114
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Olmue.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 9613147.65,
+                "Superficie_Total_ha": 961.31,
+                "Total_Poligonos": 14,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.8408969014546,
+                    -32.77400625787165
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Panquehue.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 624508.73,
+                "Superficie_Total_ha": 62.45,
+                "Total_Poligonos": 3,
+                "Total_Zonas_Unicas": 2
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.41140859526342,
+                    -32.493746719622166
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Papudo.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 9302682.98,
+                "Superficie_Total_ha": 930.27,
+                "Total_Poligonos": 465,
+                "Total_Zonas_Unicas": 38
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.46470230479596,
+                    -32.706294825189154
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Puchuncavi.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 17461132.18,
+                "Superficie_Total_ha": 1746.11,
+                "Total_Poligonos": 75,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.71744314250792,
+                    -32.627498948679346
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Putaendo.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 1092161.43,
+                "Superficie_Total_ha": 109.22,
+                "Total_Poligonos": 3,
+                "Total_Zonas_Unicas": 3
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.24887442458592,
+                    -32.88140952072731
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Quillota.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 10949510.0,
+                "Superficie_Total_ha": 1094.95,
+                "Total_Poligonos": 80,
+                "Total_Zonas_Unicas": 24
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.52220869809761,
+                    -32.78842806546218
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Quintero.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 9665414.2,
+                "Superficie_Total_ha": 966.54,
+                "Total_Poligonos": 15,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.68823197866627,
+                    -32.848415316887284
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Rinconada.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 5074315.12,
+                "Superficie_Total_ha": 507.43,
+                "Total_Poligonos": 26,
+                "Total_Zonas_Unicas": 8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.65712528621125,
+                    -32.74736421669372
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Santa_Maria.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 1196440.12,
+                "Superficie_Total_ha": 119.64,
+                "Total_Poligonos": 4,
+                "Total_Zonas_Unicas": 4
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.61714000041529,
+                    -33.647154824616294
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Santo_Domingo.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 17928200.5,
+                "Superficie_Total_ha": 1792.82,
+                "Total_Poligonos": 129,
+                "Total_Zonas_Unicas": 33
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.59256129450335,
+                    -33.59834755634867
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_San_Antonio.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 42390994.92,
+                "Superficie_Total_ha": 4239.1,
+                "Total_Poligonos": 386,
+                "Total_Zonas_Unicas": 33
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.58202316862497,
+                    -32.806196801759974
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_San_Esteban.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 7005685.76,
+                "Superficie_Total_ha": 700.57,
+                "Total_Poligonos": 205,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.71289109628044,
+                    -32.75530064073113
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_San_Felipe.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 22203939.54,
+                "Superficie_Total_ha": 2220.39,
+                "Total_Poligonos": 128,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.62084438050206,
+                    -33.49706338953037
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_SCC_El_Tabo.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 86687.16,
+                "Superficie_Total_ha": 8.67,
+                "Total_Poligonos": 6,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.61248535845819,
+                    -33.04982063730726
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Valparaiso.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 31588819.77,
+                "Superficie_Total_ha": 3158.88,
+                "Total_Poligonos": 348,
+                "Total_Zonas_Unicas": 39
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.36730307850236,
+                    -33.05081651018244
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Villa_Alemana.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 27732332.03,
+                "Superficie_Total_ha": 2773.23,
+                "Total_Poligonos": 366,
+                "Total_Zonas_Unicas": 20
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.52494563115165,
+                    -33.02763712662254
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Vina_del_Mar.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 81506575.45,
+                "Superficie_Total_ha": 8150.66,
+                "Total_Poligonos": 3243,
+                "Total_Zonas_Unicas": 90
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.43976102349457,
+                    -32.57993936102887
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_PRC_Zapallar.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 24676748.15,
+                "Superficie_Total_ha": 2467.67,
+                "Total_Poligonos": 135,
+                "Total_Zonas_Unicas": 20
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.55604124996906,
+                    -33.02302546272519
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_SCC_VdelMar_Avenida_Marina.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 45429.17,
+                "Superficie_Total_ha": 4.54,
+                "Total_Poligonos": 2,
+                "Total_Zonas_Unicas": 1
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.56423703368515,
+                    -33.02206817865565
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_SCC_VdelMar_Cerro_Castillo.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 210505.85,
+                "Superficie_Total_ha": 21.05,
+                "Total_Poligonos": 43,
+                "Total_Zonas_Unicas": 8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.54843853897142,
+                    -33.0065889790532
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_SCC_VdelMar_Coraceros.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 99838.77,
+                "Superficie_Total_ha": 9.98,
+                "Total_Poligonos": 2,
+                "Total_Zonas_Unicas": 1
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.53492038801572,
+                    -32.977936703158015
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_SCC_VdelMar_Jardin_del_Mar.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 1019621.7,
+                "Superficie_Total_ha": 101.96,
+                "Total_Poligonos": 164,
+                "Total_Zonas_Unicas": 10
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.54455199266224,
+                    -32.97415148603033
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_SCC_VdelMar_Parroquia_Renaca.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 2192.53,
+                "Superficie_Total_ha": 0.22,
+                "Total_Poligonos": 1,
+                "Total_Zonas_Unicas": 1
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.54849212940694,
+                    -33.07289846166743
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_SCC_VdelMar_Universidad.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 368287.58,
+                "Superficie_Total_ha": 36.83,
+                "Total_Poligonos": 3,
+                "Total_Zonas_Unicas": 3
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.5702731744314,
+                    -33.038998906336765
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_05_SCC_VdelMar_Vistas_Agua_Santa.kml",
+                "Carpeta": "capas_05",
+                "Superficie_Total_m2": 711502.59,
+                "Superficie_Total_ha": 71.15,
+                "Total_Poligonos": 58,
+                "Total_Zonas_Unicas": 10
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.72492446155476,
+                    -34.065360243630444
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PNSECC_Graneros_Estacion.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 88015.88,
+                "Superficie_Total_ha": 8.8,
+                "Total_Poligonos": 6,
+                "Total_Zonas_Unicas": 4
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.44087598787718,
+                    -34.22195608443864
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PNSECC_Las_Cabras_ElManzano_Llallauquen.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 9523454.54,
+                "Superficie_Total_ha": 952.35,
+                "Total_Poligonos": 23,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.25809503161275,
+                    -34.73482521253323
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Chepica.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 3720190.56,
+                "Superficie_Total_ha": 372.02,
+                "Total_Poligonos": 85,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.03734401384645,
+                    -34.70298820891897
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Chimbarongo.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 5151857.49,
+                "Superficie_Total_ha": 515.19,
+                "Total_Poligonos": 98,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.65720153111296,
+                    -34.04041165310919
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Codegua.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 3262593.13,
+                "Superficie_Total_ha": 326.26,
+                "Total_Poligonos": 127,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.6775070758049,
+                    -34.08375487052423
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Codegua_La_Compania.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 218842.09,
+                "Superficie_Total_ha": 21.88,
+                "Total_Poligonos": 8,
+                "Total_Zonas_Unicas": 3
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.95035902245506,
+                    -34.26607604682598
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Coinco.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 2278112.56,
+                "Superficie_Total_ha": 227.81,
+                "Total_Poligonos": 143,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.07918654979282,
+                    -34.28823412891346
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Coltauco.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 1888238.93,
+                "Superficie_Total_ha": 188.82,
+                "Total_Poligonos": 13,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.91739653579516,
+                    -34.208744397399876
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Donihue.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 4273132.15,
+                "Superficie_Total_ha": 427.31,
+                "Total_Poligonos": 22,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.71845932175054,
+                    -34.07324183492622
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Graneros.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 8110541.44,
+                "Superficie_Total_ha": 811.05,
+                "Total_Poligonos": 336,
+                "Total_Zonas_Unicas": 29
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.30574810194425,
+                    -34.28994953381659
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Las_Cabras.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 1945517.89,
+                "Superficie_Total_ha": 194.55,
+                "Total_Poligonos": 14,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.65215278984692,
+                    -34.20518797742479
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_La_Estrella.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 1425210.45,
+                "Superficie_Total_ha": 142.52,
+                "Total_Poligonos": 71,
+                "Total_Zonas_Unicas": 8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.72478723974827,
+                    -34.11703035450297
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Litueche.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 2055675.38,
+                "Superficie_Total_ha": 205.57,
+                "Total_Poligonos": 134,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.65110358379503,
+                    -34.732158995868396
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Lolol.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 2845297.17,
+                "Superficie_Total_ha": 284.53,
+                "Total_Poligonos": 75,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.92672791812468,
+                    -34.455748682743135
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Malloa.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 3409723.81,
+                "Superficie_Total_ha": 340.97,
+                "Total_Poligonos": 194,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.68827232357114,
+                    -33.98928559003266
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Mostazal.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 5201616.24,
+                "Superficie_Total_ha": 520.16,
+                "Total_Poligonos": 232,
+                "Total_Zonas_Unicas": 25
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.83413404527988,
+                    -33.957839548524205
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Navidad.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 11470815.77,
+                "Superficie_Total_ha": 1147.08,
+                "Total_Poligonos": 274,
+                "Total_Zonas_Unicas": 22
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.78544949272734,
+                    -34.206413691880726
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Olivar.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 2571398.37,
+                "Superficie_Total_ha": 257.14,
+                "Total_Poligonos": 39,
+                "Total_Zonas_Unicas": 10
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.36064913002379,
+                    -34.58303473514754
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Palmilla.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 3637127.15,
+                "Superficie_Total_ha": 363.71,
+                "Total_Poligonos": 61,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.95331083633891,
+                    -34.65796450989756
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Paredones.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 4130289.22,
+                "Superficie_Total_ha": 413.03,
+                "Total_Poligonos": 43,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.50485455245824,
+                    -34.46848465980386
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Peralillo.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 1913198.35,
+                "Superficie_Total_ha": 191.32,
+                "Total_Poligonos": 36,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.1713847139541,
+                    -34.39332642399371
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Peumo.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 3769280.76,
+                "Superficie_Total_ha": 376.93,
+                "Total_Poligonos": 27,
+                "Total_Zonas_Unicas": 8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.32882636909022,
+                    -34.33659751966606
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Pichidegua.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 8806187.66,
+                "Superficie_Total_ha": 880.62,
+                "Total_Poligonos": 70,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.01766604401726,
+                    -34.42339774937954
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Pichilemu.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 22567010.3,
+                "Superficie_Total_ha": 2256.7,
+                "Total_Poligonos": 198,
+                "Total_Zonas_Unicas": 27
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.11775908907815,
+                    -34.637296323756765
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Placilla.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 535144.86,
+                "Superficie_Total_ha": 53.51,
+                "Total_Poligonos": 10,
+                "Total_Zonas_Unicas": 6
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.96861625935124,
+                    -34.354103073372
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Qta_Tilcoco.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 3989527.42,
+                "Superficie_Total_ha": 398.95,
+                "Total_Poligonos": 25,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.7350318314835,
+                    -34.16452198932015
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Rancagua.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 47771788.36,
+                "Superficie_Total_ha": 4777.18,
+                "Total_Poligonos": 789,
+                "Total_Zonas_Unicas": 55
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.8571604591621,
+                    -34.38753092898832
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Rengo.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 14424516.07,
+                "Superficie_Total_ha": 1442.45,
+                "Total_Poligonos": 469,
+                "Total_Zonas_Unicas": 37
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.80652138630242,
+                    -34.26168056591143
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Requinoa.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 6581959.81,
+                "Superficie_Total_ha": 658.2,
+                "Total_Poligonos": 43,
+                "Total_Zonas_Unicas": 20
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.36026685951381,
+                    -34.635385606153626
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_Santa_Cruz.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 7651687.07,
+                "Superficie_Total_ha": 765.17,
+                "Total_Poligonos": 31,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.98599812824234,
+                    -34.58843587355598
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_San_Fernando.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 17969598.33,
+                "Superficie_Total_ha": 1796.96,
+                "Total_Poligonos": 71,
+                "Total_Zonas_Unicas": 18
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.07947346103397,
+                    -34.43509754516655
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_06_PRC_San_Vicente.kml",
+                "Carpeta": "capas_06",
+                "Superficie_Total_m2": 11201751.74,
+                "Superficie_Total_ha": 1120.18,
+                "Total_Poligonos": 376,
+                "Total_Zonas_Unicas": 22
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.32519809846312,
+                    -35.967771599942004
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Cauquenes.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 10510674.49,
+                "Superficie_Total_ha": 1051.07,
+                "Total_Poligonos": 92,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.3452595408492,
+                    -35.70700811080758
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Colbun.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 12015444.62,
+                "Superficie_Total_ha": 1201.54,
+                "Total_Poligonos": 178,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.4196428776132,
+                    -35.33512885113505
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Constitucion.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 7850371.67,
+                "Superficie_Total_ha": 785.04,
+                "Total_Poligonos": 32,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.00967175166153,
+                    -35.14210581274634
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Curepto.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 3105023.89,
+                "Superficie_Total_ha": 310.5,
+                "Total_Poligonos": 164,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.21991795287518,
+                    -34.98474809798514
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Curico.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 37780643.49,
+                "Superficie_Total_ha": 3778.06,
+                "Total_Poligonos": 264,
+                "Total_Zonas_Unicas": 20
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.59406684978417,
+                    -35.842677630527575
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Linares.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 21399182.25,
+                "Superficie_Total_ha": 2139.92,
+                "Total_Poligonos": 162,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.68509792663936,
+                    -35.47652539346608
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Maule.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 14673673.58,
+                "Superficie_Total_ha": 1467.37,
+                "Total_Poligonos": 292,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.26117877173857,
+                    -35.14134530364676
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Molina.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 16074389.33,
+                "Superficie_Total_ha": 1607.44,
+                "Total_Poligonos": 331,
+                "Total_Zonas_Unicas": 20
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.80660971962911,
+                    -36.15856357151383
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Parral.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 7559185.12,
+                "Superficie_Total_ha": 755.92,
+                "Total_Poligonos": 28,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.58986706556489,
+                    -35.8205483733402
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Pelluhue.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 10112478.99,
+                "Superficie_Total_ha": 1011.25,
+                "Total_Poligonos": 115,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.8142881034819,
+                    -35.403241249595155
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Pencahue.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 3308208.29,
+                "Superficie_Total_ha": 330.82,
+                "Total_Poligonos": 140,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.08676256782547,
+                    -34.96409049600406
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Romeral.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 5267070.71,
+                "Superficie_Total_ha": 526.71,
+                "Total_Poligonos": 53,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.4986540167169,
+                    -35.52914460506039
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_San_Clemente.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 6842663.5,
+                "Superficie_Total_ha": 684.27,
+                "Total_Poligonos": 184,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.72316501347765,
+                    -35.596788597547175
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_San_Javier.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 11160081.54,
+                "Superficie_Total_ha": 1116.01,
+                "Total_Poligonos": 531,
+                "Total_Zonas_Unicas": 18
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.63372171642531,
+                    -35.41605008959816
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Talca.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 104794500.03,
+                "Superficie_Total_ha": 10479.45,
+                "Total_Poligonos": 129,
+                "Total_Zonas_Unicas": 35
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.17490474802212,
+                    -34.86455194765082
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Teno.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 4029241.78,
+                "Superficie_Total_ha": 402.92,
+                "Total_Poligonos": 217,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.05683519623346,
+                    -34.81869615568734
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Vichuquen.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 6440698.25,
+                "Superficie_Total_ha": 644.07,
+                "Total_Poligonos": 37,
+                "Total_Zonas_Unicas": 1
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.71841057345247,
+                    -35.691855645037265
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Villa_Alegre.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 4570543.76,
+                "Superficie_Total_ha": 457.05,
+                "Total_Poligonos": 117,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.58353393791542,
+                    -35.7475780279292
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_07_PRC_Yerbas_Buenas.kml",
+                "Carpeta": "capas_07",
+                "Superficie_Total_m2": 2583928.47,
+                "Superficie_Total_ha": 258.39,
+                "Total_Poligonos": 61,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.06435443654783,
+                    -36.828592603793105
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PNSECC_Concepcion_RiberaNorte.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 991720.32,
+                "Superficie_Total_ha": 99.17,
+                "Total_Poligonos": 120,
+                "Total_Zonas_Unicas": 19
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.3079789097751,
+                    -37.93597575128264
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PNSECC_Lago_Lanalhue.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 34924827.08,
+                "Superficie_Total_ha": 3492.48,
+                "Total_Poligonos": 52,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.63896257544454,
+                    -37.87940029522992
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Alto_Biobio.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 1731496.63,
+                "Superficie_Total_ha": 173.15,
+                "Total_Poligonos": 24,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.672913010365,
+                    -37.329086706292145
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Antuco.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 1568792.52,
+                "Superficie_Total_ha": 156.88,
+                "Total_Poligonos": 14,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.2407769235776,
+                    -37.2234632542075
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Arauco.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 43428161.43,
+                "Superficie_Total_ha": 4342.82,
+                "Total_Poligonos": 60,
+                "Total_Zonas_Unicas": 31
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.38987452691691,
+                    -37.085143385755806
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Cabrero.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 24878686.87,
+                "Superficie_Total_ha": 2487.87,
+                "Total_Poligonos": 308,
+                "Total_Zonas_Unicas": 29
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.36526139500229,
+                    -37.86054406181908
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Canete.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 28622462.78,
+                "Superficie_Total_ha": 2862.25,
+                "Total_Poligonos": 135,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.02817987912134,
+                    -36.90862971631613
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Chiguayante.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 36203482.93,
+                "Superficie_Total_ha": 3620.35,
+                "Total_Poligonos": 221,
+                "Total_Zonas_Unicas": 38
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.02153471393648,
+                    -36.82098798775596
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Concepcion.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 75030125.06,
+                "Superficie_Total_ha": 7503.01,
+                "Total_Poligonos": 4541,
+                "Total_Zonas_Unicas": 59
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.23455657443623,
+                    -38.00330656477928
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Contulmo.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 10212796.66,
+                "Superficie_Total_ha": 1021.28,
+                "Total_Poligonos": 126,
+                "Total_Zonas_Unicas": 19
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.16293655904958,
+                    -36.990063601643364
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Coronel.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 60777578.62,
+                "Superficie_Total_ha": 6077.76,
+                "Total_Poligonos": 450,
+                "Total_Zonas_Unicas": 36
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.34642601734278,
+                    -37.47490376369062
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Curanilahue.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 4817965.15,
+                "Superficie_Total_ha": 481.8,
+                "Total_Poligonos": 10,
+                "Total_Zonas_Unicas": 4
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.68352719148648,
+                    -36.83543298949181
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Florida.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 4893854.39,
+                "Superficie_Total_ha": 489.39,
+                "Total_Poligonos": 35,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.14584478810279,
+                    -36.78737381130871
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Hualpen.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 46898974.42,
+                "Superficie_Total_ha": 4689.9,
+                "Total_Poligonos": 454,
+                "Total_Zonas_Unicas": 29
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.9401862691245,
+                    -37.02698139422962
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Hualqui.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 21422976.12,
+                "Superficie_Total_ha": 2142.3,
+                "Total_Poligonos": 666,
+                "Total_Zonas_Unicas": 24
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.69162652495588,
+                    -37.27246532006173
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Laja.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 8591452.94,
+                "Superficie_Total_ha": 859.15,
+                "Total_Poligonos": 204,
+                "Total_Zonas_Unicas": 34
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.63943015049949,
+                    -37.6136027616321
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Lebu.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 8513852.21,
+                "Superficie_Total_ha": 851.39,
+                "Total_Poligonos": 191,
+                "Total_Zonas_Unicas": 22
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.42512777727671,
+                    -37.6332815215743
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Los_Alamos.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 14543578.57,
+                "Superficie_Total_ha": 1454.36,
+                "Total_Poligonos": 76,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.36291958116843,
+                    -37.45142048630929
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Los_Angeles.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 44020557.01,
+                "Superficie_Total_ha": 4402.06,
+                "Total_Poligonos": 469,
+                "Total_Zonas_Unicas": 39
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.15303740820217,
+                    -37.09145346613429
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Lota.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 10055516.07,
+                "Superficie_Total_ha": 1005.55,
+                "Total_Poligonos": 26,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.24445128483595,
+                    -37.72061830206127
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Mulchen.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 6581610.6,
+                "Superficie_Total_ha": 658.16,
+                "Total_Poligonos": 27,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.66929082619356,
+                    -37.504114486180306
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Nacimiento.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 13429756.95,
+                "Superficie_Total_ha": 1342.98,
+                "Total_Poligonos": 116,
+                "Total_Zonas_Unicas": 29
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.54886650140901,
+                    -37.58446270578647
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Negrete.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 2340500.15,
+                "Superficie_Total_ha": 234.05,
+                "Total_Poligonos": 25,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.00338970619289,
+                    -36.74882177033118
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Penco.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 25524600.62,
+                "Superficie_Total_ha": 2552.46,
+                "Total_Poligonos": 224,
+                "Total_Zonas_Unicas": 59
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.02304967435113,
+                    -37.66645665823704
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Santa_Barbara.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 3295032.73,
+                "Superficie_Total_ha": 329.5,
+                "Total_Poligonos": 61,
+                "Total_Zonas_Unicas": 18
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.95403209422385,
+                    -37.170665531064635
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Santa_Juana.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 10603617.89,
+                "Superficie_Total_ha": 1060.36,
+                "Total_Poligonos": 40,
+                "Total_Zonas_Unicas": 25
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.94004627291726,
+                    -36.438944662858496
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_San_Carlos.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 23638879.81,
+                "Superficie_Total_ha": 2363.89,
+                "Total_Poligonos": 138,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.1108500907253,
+                    -36.87349814621559
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_San_Pedro_de_la_Paz.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 63286161.69,
+                "Superficie_Total_ha": 6328.62,
+                "Total_Poligonos": 730,
+                "Total_Zonas_Unicas": 34
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.1124252233589,
+                    -36.73452550430877
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Talcahuano.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 49565321.08,
+                "Superficie_Total_ha": 4956.53,
+                "Total_Poligonos": 305,
+                "Total_Zonas_Unicas": 95
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.48870088524383,
+                    -38.30552765801655
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Tirua.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 3548185.31,
+                "Superficie_Total_ha": 354.82,
+                "Total_Poligonos": 60,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.9522892508057,
+                    -36.59783019201785
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Tome.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 54538164.6,
+                "Superficie_Total_ha": 5453.82,
+                "Total_Poligonos": 708,
+                "Total_Zonas_Unicas": 70
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.55640860534426,
+                    -37.127678657455085
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_08_PRC_Yumbel.kml",
+                "Carpeta": "capas_08",
+                "Superficie_Total_m2": 15440211.85,
+                "Superficie_Total_ha": 1544.02,
+                "Total_Poligonos": 319,
+                "Total_Zonas_Unicas": 22
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.70092972913534,
+                    -37.80050214884553
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Angol.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 15730430.84,
+                "Superficie_Total_ha": 1573.04,
+                "Total_Poligonos": 903,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.200752480192,
+                    -38.68735579213894
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Carahue.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 5960639.81,
+                "Superficie_Total_ha": 596.06,
+                "Total_Poligonos": 84,
+                "Total_Zonas_Unicas": 18
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.43718575834528,
+                    -37.92199712781735
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Collipulli.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 9542355.58,
+                "Superficie_Total_ha": 954.24,
+                "Total_Poligonos": 105,
+                "Total_Zonas_Unicas": 25
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.88767016641958,
+                    -38.44048171264839
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Curacautin.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 3992331.38,
+                "Superficie_Total_ha": 399.23,
+                "Total_Poligonos": 23,
+                "Total_Zonas_Unicas": 10
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.60827953766373,
+                    -38.862997630446785
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Freire.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 3359968.43,
+                "Superficie_Total_ha": 336.0,
+                "Total_Poligonos": 17,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.67648918004971,
+                    -39.100046629105634
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Gorbea.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 4009446.58,
+                "Superficie_Total_ha": 400.94,
+                "Total_Poligonos": 40,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.43835306518929,
+                    -38.54916424215681
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Lautaro.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 8084694.77,
+                "Superficie_Total_ha": 808.47,
+                "Total_Poligonos": 33,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.62984185691974,
+                    -39.36751407841337
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Loncoche.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 5827057.3,
+                "Superficie_Total_ha": 582.71,
+                "Total_Poligonos": 38,
+                "Total_Zonas_Unicas": 19
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.36821939404226,
+                    -38.453678814738446
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Lonquimay_Villa_Portales.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 1494876.77,
+                "Superficie_Total_ha": 149.49,
+                "Total_Poligonos": 20,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.94743265829098,
+                    -38.746165157306166
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Nueva_Imperial.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 5234685.85,
+                "Superficie_Total_ha": 523.47,
+                "Total_Poligonos": 259,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.59661567535598,
+                    -38.762905949809
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Padre_Las_Casas.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 3839207.83,
+                "Superficie_Total_ha": 383.92,
+                "Total_Poligonos": 1,
+                "Total_Zonas_Unicas": 1
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.64048466151307,
+                    -38.98556378066803
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Pitrufquen.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 5867564.79,
+                "Superficie_Total_ha": 586.76,
+                "Total_Poligonos": 17,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.97586022515931,
+                    -39.279572032465005
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Pucon.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 7533640.97,
+                "Superficie_Total_ha": 753.36,
+                "Total_Poligonos": 29,
+                "Total_Zonas_Unicas": 22
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.39690685339569,
+                    -38.791169949974936
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Puerto_Saavedra.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 1608150.88,
+                "Superficie_Total_ha": 160.82,
+                "Total_Poligonos": 21,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.58448616845207,
+                    -37.6730338495158
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Renaico.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 1302114.69,
+                "Superficie_Total_ha": 130.21,
+                "Total_Poligonos": 146,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.61663281148057,
+                    -37.73498880985282
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Renaico_Tijeral.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 1117935.78,
+                "Superficie_Total_ha": 111.79,
+                "Total_Poligonos": 12,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.6363181675319,
+                    -38.72509543237189
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Temuco.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 123182304.29,
+                "Superficie_Total_ha": 12318.23,
+                "Total_Poligonos": 1788,
+                "Total_Zonas_Unicas": 28
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.50010530231114,
+                    -38.6768822812772
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Temuco_Cajon.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 3735490.65,
+                "Superficie_Total_ha": 373.55,
+                "Total_Poligonos": 25,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.20219512872515,
+                    -39.39665221368153
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Tolten_Queule.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 920173.79,
+                "Superficie_Total_ha": 92.02,
+                "Total_Poligonos": 22,
+                "Total_Zonas_Unicas": 8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.21934039232168,
+                    -39.24893523797592
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Tolten_Villa_Ohiggins.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 88431.9,
+                "Superficie_Total_ha": 8.84,
+                "Total_Poligonos": 8,
+                "Total_Zonas_Unicas": 6
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.67177954453771,
+                    -38.25061848852699
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Traiguen.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 5461409.4,
+                "Superficie_Total_ha": 546.14,
+                "Total_Poligonos": 38,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.33447777947734,
+                    -38.23391727467643
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Victoria.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 6094376.15,
+                "Superficie_Total_ha": 609.44,
+                "Total_Poligonos": 36,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.2108388417512,
+                    -39.32774545745211
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_09_PRC_Villarrica.kml",
+                "Carpeta": "capas_09",
+                "Superficie_Total_m2": 12688832.18,
+                "Superficie_Total_ha": 1268.88,
+                "Total_Poligonos": 66,
+                "Total_Zonas_Unicas": 32
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.36592829946349,
+                    -43.412597381012176
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PNSECC_Chaiten_Villa_Santa_Lucia.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 2062087.99,
+                "Superficie_Total_ha": 206.21,
+                "Total_Poligonos": 29,
+                "Total_Zonas_Unicas": 10
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.42922212502548,
+                    -40.71533090985856
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PNSECC_Puntilla_Niquen_Entre_Lagos.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 1641506.72,
+                "Superficie_Total_ha": 164.15,
+                "Total_Poligonos": 19,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73461655164365,
+                    -40.59000353490125
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PNSECC_San_Juan_BahiaMansa.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 2382173.42,
+                "Superficie_Total_ha": 238.22,
+                "Total_Poligonos": 71,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.46995365277283,
+                    -40.60513259147101
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PNSECC_San_Juan_Costa_Pauacho.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 885972.01,
+                "Superficie_Total_ha": 88.6,
+                "Total_Poligonos": 11,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.81461797373639,
+                    -41.87274139971576
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Ancud.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 7267936.76,
+                "Superficie_Total_ha": 726.79,
+                "Total_Poligonos": 61,
+                "Total_Zonas_Unicas": 29
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.18789943556473,
+                    -41.77443080211476
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Calbuco.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 6695993.7,
+                "Superficie_Total_ha": 669.6,
+                "Total_Poligonos": 64,
+                "Total_Zonas_Unicas": 35
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.77825885757987,
+                    -42.46909318894016
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Castro.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 13613001.91,
+                "Superficie_Total_ha": 1361.3,
+                "Total_Poligonos": 94,
+                "Total_Zonas_Unicas": 27
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.77657873459087,
+                    -42.62256652810682
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Chonchi.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 3357976.97,
+                "Superficie_Total_ha": 335.8,
+                "Total_Poligonos": 53,
+                "Total_Zonas_Unicas": 19
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.42017308468647,
+                    -41.1534647532388
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Fresia.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 3176142.54,
+                "Superficie_Total_ha": 317.61,
+                "Total_Poligonos": 17,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.039434203482,
+                    -41.13321203327943
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Frutillar.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 10802598.37,
+                "Superficie_Total_ha": 1080.26,
+                "Total_Poligonos": 72,
+                "Total_Zonas_Unicas": 37
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.00305268109001,
+                    -41.261029382515055
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Llanquihue.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 3544067.8,
+                "Superficie_Total_ha": 354.41,
+                "Total_Poligonos": 56,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.59913781864157,
+                    -41.62426664789286
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Maullin.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 2419991.66,
+                "Superficie_Total_ha": 242.0,
+                "Total_Poligonos": 92,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.13722701592056,
+                    -40.57735722101707
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Osorno.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 31656187.11,
+                "Superficie_Total_ha": 3165.62,
+                "Total_Poligonos": 148,
+                "Total_Zonas_Unicas": 24
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.8021224607414,
+                    -43.61805573742474
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Palena.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 748034.85,
+                "Superficie_Total_ha": 74.8,
+                "Total_Poligonos": 10,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.95725304585764,
+                    -41.4674301102301
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Puerto_Montt.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 95054898.03,
+                "Superficie_Total_ha": 9505.49,
+                "Total_Poligonos": 395,
+                "Total_Zonas_Unicas": 77
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.88184679473835,
+                    -40.978274744945395
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Puerto_Octay.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 2198222.32,
+                "Superficie_Total_ha": 219.82,
+                "Total_Poligonos": 36,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.97151421370577,
+                    -41.32370533151236
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Puerto_Varas.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 18825970.25,
+                "Superficie_Total_ha": 1882.6,
+                "Total_Poligonos": 479,
+                "Total_Zonas_Unicas": 22
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.16152358382395,
+                    -40.926035303016455
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Purranque.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 6290389.03,
+                "Superficie_Total_ha": 629.04,
+                "Total_Poligonos": 133,
+                "Total_Zonas_Unicas": 32
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.5999598360194,
+                    -40.68602085981576
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Puyehue.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 1910641.12,
+                "Superficie_Total_ha": 191.06,
+                "Total_Poligonos": 24,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.47249325326689,
+                    -42.888161497635956
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Queilen.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 1459507.07,
+                "Superficie_Total_ha": 145.95,
+                "Total_Poligonos": 26,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.45613117104442,
+                    -40.79125361247957
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Queilen_Puyehue_Bahia_El_Encanto.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 1149468.54,
+                "Superficie_Total_ha": 114.95,
+                "Total_Poligonos": 64,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.62245037940782,
+                    -43.12272502781251
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Quellon.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 8975361.8,
+                "Superficie_Total_ha": 897.54,
+                "Total_Poligonos": 56,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.49040974837109,
+                    -42.471710070462684
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Quinchao_Achao.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 1656399.93,
+                "Superficie_Total_ha": 165.64,
+                "Total_Poligonos": 31,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.21140736896128,
+                    -40.797079030792375
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_Rio_Negro.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 3749948.18,
+                "Superficie_Total_ha": 374.99,
+                "Total_Poligonos": 60,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.00927567587316,
+                    -40.41326256761954
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_10_PRC_San_Pablo.kml",
+                "Carpeta": "capas_10",
+                "Superficie_Total_m2": 2707055.11,
+                "Superficie_Total_ha": 270.71,
+                "Total_Poligonos": 105,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.74154140986633,
+                    -43.89436392981136
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_11_PNSECC_Melinka_Guatecas.kml",
+                "Carpeta": "capas_11",
+                "Superficie_Total_m2": 929344.01,
+                "Superficie_Total_ha": 92.93,
+                "Total_Poligonos": 45,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.15625545222505,
+                    -46.122420162228025
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_11_PNSECC_Rio_Ibanez_Cerro_Castillo.kml",
+                "Carpeta": "capas_11",
+                "Superficie_Total_m2": 371724.45,
+                "Superficie_Total_ha": 37.17,
+                "Total_Poligonos": 19,
+                "Total_Zonas_Unicas": 6
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.67894180896214,
+                    -44.72881239734167
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_11_PRC_Cisnes.kml",
+                "Carpeta": "capas_11",
+                "Superficie_Total_m2": 1803336.23,
+                "Superficie_Total_ha": 180.33,
+                "Total_Poligonos": 92,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.05798958759982,
+                    -45.587956300130465
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_11_PRC_Coyhaique.kml",
+                "Carpeta": "capas_11",
+                "Superficie_Total_m2": 25396419.25,
+                "Superficie_Total_ha": 2539.64,
+                "Total_Poligonos": 140,
+                "Total_Zonas_Unicas": 24
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.85284929682602,
+                    -44.24010976117521
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_11_PRC_Lago_Verde.kml",
+                "Carpeta": "capas_11",
+                "Superficie_Total_m2": 786046.13,
+                "Superficie_Total_ha": 78.6,
+                "Total_Poligonos": 11,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.40740494384019,
+                    -43.97610027718497
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_11_PRC_La_Junta.kml",
+                "Carpeta": "capas_11",
+                "Superficie_Total_m2": 1390076.06,
+                "Superficie_Total_ha": 139.01,
+                "Total_Poligonos": 21,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.6912961785233,
+                    -45.402740934743285
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_11_PRC_Puerto_Aysen.kml",
+                "Carpeta": "capas_11",
+                "Superficie_Total_m2": 11704850.67,
+                "Superficie_Total_ha": 1170.49,
+                "Total_Poligonos": 96,
+                "Total_Zonas_Unicas": 20
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.78746933533832,
+                    -45.450790678213124
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_11_PRC_Puerto_Chacabuco.kml",
+                "Carpeta": "capas_11",
+                "Superficie_Total_m2": 4990540.25,
+                "Superficie_Total_ha": 499.05,
+                "Total_Poligonos": 51,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.56071502290092,
+                    -44.323417836632444
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_11_PRC_Puyuhuapi.kml",
+                "Carpeta": "capas_11",
+                "Superficie_Total_m2": 950613.53,
+                "Superficie_Total_ha": 95.06,
+                "Total_Poligonos": 21,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.3460110082084,
+                    -51.25536020869733
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_12_PNSECC_Cerro_Castillo.kml",
+                "Carpeta": "capas_12",
+                "Superficie_Total_m2": 462560.49,
+                "Superficie_Total_ha": 46.26,
+                "Total_Poligonos": 7,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.98953815327259,
+                    -51.240832593853355
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_12_PNSECC_Rio_Serrano.kml",
+                "Carpeta": "capas_12",
+                "Superficie_Total_m2": 6120903.13,
+                "Superficie_Total_ha": 612.09,
+                "Total_Poligonos": 25,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.41443473640672,
+                    -52.42719146645544
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_12_PRC_Laguna_Blanca.kml",
+                "Carpeta": "capas_12",
+                "Superficie_Total_m2": 176396.16,
+                "Superficie_Total_ha": 17.64,
+                "Total_Poligonos": 10,
+                "Total_Zonas_Unicas": 6
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.37226605455884,
+                    -53.296989301004956
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_12_PRC_Porvenir.kml",
+                "Carpeta": "capas_12",
+                "Superficie_Total_m2": 7379134.55,
+                "Superficie_Total_ha": 737.91,
+                "Total_Poligonos": 75,
+                "Total_Zonas_Unicas": 24
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.4935907795126,
+                    -51.73063798377932
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_12_PRC_Puerto_Natales.kml",
+                "Carpeta": "capas_12",
+                "Superficie_Total_m2": 5477896.52,
+                "Superficie_Total_ha": 547.79,
+                "Total_Poligonos": 11,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -67.60554994307122,
+                    -54.935938941224904
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_12_PRC_Puerto_Williams_CaboHornos.kml",
+                "Carpeta": "capas_12",
+                "Superficie_Total_m2": 1143442.77,
+                "Superficie_Total_ha": 114.34,
+                "Total_Poligonos": 27,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.904620475428,
+                    -53.12569860124448
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_12_PRC_Punta_Arenas.kml",
+                "Carpeta": "capas_12",
+                "Superficie_Total_m2": 51414650.12,
+                "Superficie_Total_ha": 5141.47,
+                "Total_Poligonos": 2873,
+                "Total_Zonas_Unicas": 58
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -69.68570515819229,
+                    -52.31483138102291
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_12_PRC_Punta_Delgada_San_Gregorio.kml",
+                "Carpeta": "capas_12",
+                "Superficie_Total_m2": 1044485.09,
+                "Superficie_Total_ha": 104.45,
+                "Total_Poligonos": 11,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.71269779876421,
+                    -33.4997570140957
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Cerrillos.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 15632532.6,
+                "Superficie_Total_ha": 1563.25,
+                "Total_Poligonos": 67,
+                "Total_Zonas_Unicas": 27
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.74421887187304,
+                    -33.422453517217384
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Cerro_Navia.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 8089765.07,
+                "Superficie_Total_ha": 808.98,
+                "Total_Poligonos": 1002,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.67224353578615,
+                    -33.23980897454975
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Colina.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 97171752.31,
+                "Superficie_Total_ha": 9717.18,
+                "Total_Poligonos": 210,
+                "Total_Zonas_Unicas": 36
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.67660056962295,
+                    -33.38343931931794
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Conchali.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 10969019.5,
+                "Superficie_Total_ha": 1096.9,
+                "Total_Poligonos": 2190,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.13772439600875,
+                    -33.4014985678453
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Curacavi.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 8888650.84,
+                "Superficie_Total_ha": 888.87,
+                "Total_Poligonos": 52,
+                "Total_Zonas_Unicas": 19
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.67614858195486,
+                    -33.56270334077368
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_El_Bosque.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 14236464.34,
+                "Superficie_Total_ha": 1423.65,
+                "Total_Poligonos": 79,
+                "Total_Zonas_Unicas": 20
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.70053817637753,
+                    -33.46418278482941
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Estacion_Central.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 14423661.42,
+                "Superficie_Total_ha": 1442.37,
+                "Total_Poligonos": 66,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.64771955524108,
+                    -33.36929476861051
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Huechuraba.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 21358030.71,
+                "Superficie_Total_ha": 2135.8,
+                "Total_Poligonos": 122,
+                "Total_Zonas_Unicas": 27
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.66501755726348,
+                    -33.41433378085747
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Independencia.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 7367161.11,
+                "Superficie_Total_ha": 736.72,
+                "Total_Poligonos": 157,
+                "Total_Zonas_Unicas": 19
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.88756786106269,
+                    -33.75139865229823
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Isla_de_Maipo.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 8240157.38,
+                "Superficie_Total_ha": 824.02,
+                "Total_Poligonos": 22,
+                "Total_Zonas_Unicas": 8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.53910290644663,
+                    -33.4046404660842
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Las_Condes.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 44591505.65,
+                "Superficie_Total_ha": 4459.15,
+                "Total_Poligonos": 437,
+                "Total_Zonas_Unicas": 66
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.66380720124592,
+                    -33.530086218801394
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_La_Cisterna.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 10007547.05,
+                "Superficie_Total_ha": 1000.75,
+                "Total_Poligonos": 67,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.571549096682,
+                    -33.53494689063853
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_La_Florida.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 43660409.14,
+                "Superficie_Total_ha": 4366.04,
+                "Total_Poligonos": 482,
+                "Total_Zonas_Unicas": 39
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.62244643654098,
+                    -33.53550600882683
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_La_Granja.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 10068995.55,
+                "Superficie_Total_ha": 1006.9,
+                "Total_Poligonos": 429,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.63641461262618,
+                    -33.58916128806819
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_La_Pintana.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 28017076.12,
+                "Superficie_Total_ha": 2801.71,
+                "Total_Poligonos": 1,
+                "Total_Zonas_Unicas": 1
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.5437527545583,
+                    -33.44625609184365
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_La_Reina.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 19263721.73,
+                "Superficie_Total_ha": 1926.37,
+                "Total_Poligonos": 194,
+                "Total_Zonas_Unicas": 44
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.48592623460524,
+                    -33.34499721516609
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Lo_Barnechea.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 48041521.43,
+                "Superficie_Total_ha": 4804.15,
+                "Total_Poligonos": 292,
+                "Total_Zonas_Unicas": 50
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.68972817111275,
+                    -33.520429839738
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Lo_Espejo.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 8192175.9,
+                "Superficie_Total_ha": 819.22,
+                "Total_Poligonos": 5,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.7229420398932,
+                    -33.446790365580924
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Lo_Prado.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 6545742.02,
+                "Superficie_Total_ha": 654.57,
+                "Total_Poligonos": 252,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.59999083773275,
+                    -33.48923748805129
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Macul.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 10605365.71,
+                "Superficie_Total_ha": 1060.54,
+                "Total_Poligonos": 902,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.76284878788441,
+                    -33.517388168876344
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Maipu.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 56165150.28,
+                "Superficie_Total_ha": 5616.52,
+                "Total_Poligonos": 778,
+                "Total_Zonas_Unicas": 33
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.20911147399546,
+                    -33.682886702245185
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Melipilla.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 14566760.9,
+                "Superficie_Total_ha": 1456.68,
+                "Total_Poligonos": 85,
+                "Total_Zonas_Unicas": 41
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.59859129548785,
+                    -33.457995507916806
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Nunoa.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 12248296.54,
+                "Superficie_Total_ha": 1224.83,
+                "Total_Poligonos": 1754,
+                "Total_Zonas_Unicas": 40
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.80937899708294,
+                    -33.570510391167176
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Padre_Hurtado.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 8683275.28,
+                "Superficie_Total_ha": 868.33,
+                "Total_Poligonos": 117,
+                "Total_Zonas_Unicas": 18
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.72824582816833,
+                    -33.82879825776761
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Paine.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 15303601.57,
+                "Superficie_Total_ha": 1530.36,
+                "Total_Poligonos": 131,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.87689742688825,
+                    -33.60785359396471
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Penaflor.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 13900280.98,
+                "Superficie_Total_ha": 1390.03,
+                "Total_Poligonos": 2,
+                "Total_Zonas_Unicas": 1
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.54958745230023,
+                    -33.48684687655701
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Penalolen.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 29633767.7,
+                "Superficie_Total_ha": 2963.38,
+                "Total_Poligonos": 133,
+                "Total_Zonas_Unicas": 45
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.57066918432284,
+                    -33.634281027093095
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Pirque.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 3853030.01,
+                "Superficie_Total_ha": 385.3,
+                "Total_Poligonos": 47,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.6119901118764,
+                    -33.43164335942342
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Providencia.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 14342536.3,
+                "Superficie_Total_ha": 1434.25,
+                "Total_Poligonos": 280,
+                "Total_Zonas_Unicas": 20
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.77406334821538,
+                    -33.44005523188866
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Pudahuel.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 25965982.3,
+                "Superficie_Total_ha": 2596.6,
+                "Total_Poligonos": 325,
+                "Total_Zonas_Unicas": 20
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.56676184653068,
+                    -33.59513417568979
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Puente_Alto.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 71711764.75,
+                "Superficie_Total_ha": 7171.18,
+                "Total_Poligonos": 160,
+                "Total_Zonas_Unicas": 29
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.72041686163412,
+                    -33.369073753799874
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Quilicura.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 3525237.04,
+                "Superficie_Total_ha": 352.52,
+                "Total_Poligonos": 10,
+                "Total_Zonas_Unicas": 6
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.70094776580908,
+                    -33.42757878462293
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Quinta_Normal.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 8331426.76,
+                "Superficie_Total_ha": 833.14,
+                "Total_Poligonos": 966,
+                "Total_Zonas_Unicas": 58
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.72881926650848,
+                    -33.40119945762626
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Renca.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 22124369.64,
+                "Superficie_Total_ha": 2212.44,
+                "Total_Poligonos": 2227,
+                "Total_Zonas_Unicas": 24
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.71269779876421,
+                    -33.4997570140957
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_RM_Cerrillos.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 15632532.6,
+                "Superficie_Total_ha": 1563.25,
+                "Total_Poligonos": 67,
+                "Total_Zonas_Unicas": 27
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.74421887187304,
+                    -33.422453517217384
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_RM_Cerro_Navia.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 8089765.07,
+                "Superficie_Total_ha": 808.98,
+                "Total_Poligonos": 1002,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.65662588566985,
+                    -33.45330590540521
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Santiago.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 23189408.75,
+                "Superficie_Total_ha": 2318.94,
+                "Total_Poligonos": 195,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.69942731114419,
+                    -33.59410655159719
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_San_Bernardo.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 48398239.02,
+                "Superficie_Total_ha": 4839.82,
+                "Total_Poligonos": 88,
+                "Total_Zonas_Unicas": 34
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.6284265730574,
+                    -33.496290723917355
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_San_Joaquin.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 7696939.02,
+                "Superficie_Total_ha": 769.69,
+                "Total_Poligonos": 766,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.651444837079,
+                    -33.4991321992482
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_San_Miguel.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 8406677.06,
+                "Superficie_Total_ha": 840.67,
+                "Total_Poligonos": 701,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.6423758549736,
+                    -33.54058747067269
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_San_Ramon.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 6326608.06,
+                "Superficie_Total_ha": 632.66,
+                "Total_Poligonos": 4,
+                "Total_Zonas_Unicas": 3
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.92160315379951,
+                    -33.66808124359631
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Talagante.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 18212373.11,
+                "Superficie_Total_ha": 1821.24,
+                "Total_Poligonos": 209,
+                "Total_Zonas_Unicas": 25
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.57351693405711,
+                    -33.37795407887834
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_13_PRC_Vitacura.kml",
+                "Carpeta": "capas_13",
+                "Superficie_Total_m2": 23200481.48,
+                "Superficie_Total_ha": 2320.05,
+                "Total_Poligonos": 1420,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.46627974235761,
+                    -40.13713615846457
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PNOSECC_Futrono_Bahia_Coique.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 5365478.64,
+                "Superficie_Total_ha": 536.55,
+                "Total_Poligonos": 17,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.55487339447073,
+                    -40.33152830630892
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PNOSECC_Lago_Ranco_Ignao.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 502557.61,
+                "Superficie_Total_ha": 50.26,
+                "Total_Poligonos": 27,
+                "Total_Zonas_Unicas": 8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.28003293764226,
+                    -39.68275671261576
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PNOSECC_Panguipulli_Puyumen.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 62014.24,
+                "Superficie_Total_ha": 6.2,
+                "Total_Poligonos": 5,
+                "Total_Zonas_Unicas": 5
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.245326541016,
+                    -39.82366088886266
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PNOSECC_Valdivia_Barrios_Bajos.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 1214101.36,
+                "Superficie_Total_ha": 121.41,
+                "Total_Poligonos": 17,
+                "Total_Zonas_Unicas": 8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.42955462081498,
+                    -39.87986772095544
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Corral.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 1711079.69,
+                "Superficie_Total_ha": 171.11,
+                "Total_Poligonos": 102,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.38742663511411,
+                    -40.1296631255167
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Futrono.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 3330752.58,
+                "Superficie_Total_ha": 333.08,
+                "Total_Poligonos": 25,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.47890640929802,
+                    -40.32236579475274
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Lago_Ranco.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 1292942.95,
+                "Superficie_Total_ha": 129.29,
+                "Total_Poligonos": 18,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.77302079554032,
+                    -39.45150506369801
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Lanco.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 2657666.51,
+                "Superficie_Total_ha": 265.77,
+                "Total_Poligonos": 38,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.07536808721709,
+                    -40.29485768555524
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_La_Union.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 10079237.74,
+                "Superficie_Total_ha": 1007.92,
+                "Total_Poligonos": 42,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.80639324751094,
+                    -39.86373233199223
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Los_Lagos.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 3893691.47,
+                "Superficie_Total_ha": 389.37,
+                "Total_Poligonos": 31,
+                "Total_Zonas_Unicas": 19
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.94921357302326,
+                    -39.66140840886988
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Mafil.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 2684982.95,
+                "Superficie_Total_ha": 268.5,
+                "Total_Poligonos": 95,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.87013378077627,
+                    -40.0661020538905
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Paillaco.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 6945434.8,
+                "Superficie_Total_ha": 694.54,
+                "Total_Poligonos": 249,
+                "Total_Zonas_Unicas": 33
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.33283948635984,
+                    -39.64199235671563
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Panguipulli.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 3666063.7,
+                "Superficie_Total_ha": 366.61,
+                "Total_Poligonos": 28,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.94990418656592,
+                    -40.33648514061364
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Rio_Bueno.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 5533398.83,
+                "Superficie_Total_ha": 553.34,
+                "Total_Poligonos": 16,
+                "Total_Zonas_Unicas": 13
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.26333726626171,
+                    -39.834849280621015
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_14_PRC_Valdivia.kml",
+                "Carpeta": "capas_14",
+                "Superficie_Total_m2": 49335609.47,
+                "Superficie_Total_ha": 4933.56,
+                "Total_Poligonos": 395,
+                "Total_Zonas_Unicas": 69
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.3019765045448,
+                    -18.45493794089142
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_15_PRC_Arica.kml",
+                "Carpeta": "capas_15",
+                "Superficie_Total_m2": 47363045.57,
+                "Superficie_Total_ha": 4736.3,
+                "Total_Poligonos": 30,
+                "Total_Zonas_Unicas": 30
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -70.1766496754163,
+                    -18.518366166874152
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_15_PRC_Arica_SECC_San_MIguel.kml",
+                "Carpeta": "capas_15",
+                "Superficie_Total_m2": 240726.27,
+                "Superficie_Total_ha": 24.07,
+                "Total_Poligonos": 4,
+                "Total_Zonas_Unicas": 3
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -69.55981953422176,
+                    -18.196753882158838
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_15_PRC_Putre.kml",
+                "Carpeta": "capas_15",
+                "Superficie_Total_m2": 247104.16,
+                "Superficie_Total_ha": 24.71,
+                "Total_Poligonos": 3,
+                "Total_Zonas_Unicas": 2
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.29853650337698,
+                    -36.773998004953356
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Bulnes.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 16650474.8,
+                "Superficie_Total_ha": 1665.05,
+                "Total_Poligonos": 62,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.10455479811888,
+                    -36.60746341372491
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Chillan.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 54110652.09,
+                "Superficie_Total_ha": 5411.07,
+                "Total_Poligonos": 365,
+                "Total_Zonas_Unicas": 0
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.18757186567841,
+                    -36.64694422478002
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Chillan_Viejo.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 18217820.0,
+                "Superficie_Total_ha": 1821.78,
+                "Total_Poligonos": 51,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.79359162471322,
+                    -36.137717103128495
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Cobquecura.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 51556897.44,
+                "Superficie_Total_ha": 5155.69,
+                "Total_Poligonos": 119,
+                "Total_Zonas_Unicas": 22
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.79322309540329,
+                    -36.44519974885366
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Coelemu.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 22309148.29,
+                "Superficie_Total_ha": 2230.91,
+                "Total_Poligonos": 66,
+                "Total_Zonas_Unicas": 24
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.02219931498054,
+                    -36.89773644020119
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_El_Carmen.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 3499522.3,
+                "Superficie_Total_ha": 349.95,
+                "Total_Poligonos": 35,
+                "Total_Zonas_Unicas": 17
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.40082379990476,
+                    -36.398686147992606
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Ninhue.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 3247633.7,
+                "Superficie_Total_ha": 324.76,
+                "Total_Poligonos": 129,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.81533187996855,
+                    -36.31197864972665
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Niquen.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 4137920.46,
+                "Superficie_Total_ha": 413.79,
+                "Total_Poligonos": 37,
+                "Total_Zonas_Unicas": 12
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.09705767437369,
+                    -36.9776860764026
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Pemuco.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 3157620.86,
+                "Superficie_Total_ha": 315.76,
+                "Total_Poligonos": 22,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.50093924616063,
+                    -36.89298805807418
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Pinto.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 99950012.89,
+                "Superficie_Total_ha": 9995.0,
+                "Total_Poligonos": 26,
+                "Total_Zonas_Unicas": 11
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.42933655280373,
+                    -36.52926342468905
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Portezuelo.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 3014076.17,
+                "Superficie_Total_ha": 301.41,
+                "Total_Poligonos": 47,
+                "Total_Zonas_Unicas": 14
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.4551521441952,
+                    -36.748998745043345
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Quillon.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 23025625.34,
+                "Superficie_Total_ha": 2302.56,
+                "Total_Poligonos": 44,
+                "Total_Zonas_Unicas": 21
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.54062810945685,
+                    -36.278634170212555
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Quirihue.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 11753211.24,
+                "Superficie_Total_ha": 1175.32,
+                "Total_Poligonos": 146,
+                "Total_Zonas_Unicas": 16
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.5029470711502,
+                    -36.6399800596729
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Ranquil.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 10088726.24,
+                "Superficie_Total_ha": 1008.87,
+                "Total_Poligonos": 117,
+                "Total_Zonas_Unicas": 25
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.94004627291743,
+                    -36.438944662859
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_San_Carlos.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 23638879.81,
+                "Superficie_Total_ha": 2363.89,
+                "Total_Poligonos": 136,
+                "Total_Zonas_Unicas": 15
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -71.54910051418445,
+                    -36.55518513179275
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_San_Fabian.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 762715.03,
+                "Superficie_Total_ha": 76.27,
+                "Total_Poligonos": 49,
+                "Total_Zonas_Unicas": 7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.04936583146892,
+                    -36.8326554857017
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_San_Ignacio.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 5353398.3,
+                "Superficie_Total_ha": 535.34,
+                "Total_Poligonos": 42,
+                "Total_Zonas_Unicas": 9
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -72.0176292729763,
+                    -37.12127073063308
+                ]
+            },
+            "properties": {
+                "Archivo": "IPT_16_PRC_Yungay.kml",
+                "Carpeta": "capas_16",
+                "Superficie_Total_m2": 2675628.62,
+                "Superficie_Total_ha": 267.56,
+                "Total_Poligonos": 26,
+                "Total_Zonas_Unicas": 13
+            }
+        }
+    ]
+}
