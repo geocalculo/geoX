@@ -19,6 +19,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     iniciarMapa(params);
     conectarEventos();
+    await cargarListadoPanelTerritorial();
+    iniciarPanelTerritorial();
 
     // Si hay summary cargado, calcular indicadores y suscribirse a eventos del mapa
     if (summaryConfig && map) {
@@ -268,4 +270,136 @@ function calcularYActualizarIndicadores() {
     div.innerHTML = `\n      <span class="summary-value">${r.value}</span>\n      <span class="summary-label">${r.label}</span>\n    `;
     summaryBar.appendChild(div);
   });
+}
+// GEOFACTORY PANEL TERRITORIAL
+const PANEL_CAPAS_PATH = "capas_panel/listado_capas.json";
+let panelCapasListado = [];
+let panelPerimetrosActivo = false;
+const panelCapasCargadas = new Map();
+const panelCapasEnCarga = new Set();
+
+// CARGA listado_capas.json
+async function cargarListadoPanelTerritorial() {
+  try {
+    const response = await fetch(PANEL_CAPAS_PATH);
+    if (!response.ok) throw new Error(`No se pudo cargar ${PANEL_CAPAS_PATH}`);
+    const data = await response.json();
+    panelCapasListado = Array.isArray(data) ? data : [];
+  } catch (error) {
+    panelCapasListado = [];
+    console.warn("GEOFACTORY PANEL TERRITORIAL: listado_capas.json no disponible.", error);
+  }
+}
+
+function iniciarPanelTerritorial() {
+  const toggle = document.getElementById("toggle-perimetros-ipt");
+  if (!toggle || !map) return;
+
+  toggle.addEventListener("change", () => {
+    panelPerimetrosActivo = toggle.checked;
+    // ON/OFF PERÍMETROS IPT
+    if (panelPerimetrosActivo) {
+      actualizarPerimetrosIptVisibles();
+    } else {
+      removerTodosPerimetrosIpt();
+    }
+  });
+
+  map.on("moveend zoomend", () => {
+    if (panelPerimetrosActivo) actualizarPerimetrosIptVisibles();
+  });
+}
+
+// FILTRO BBOX VIEWPORT
+function bboxIntersectaViewport(bbox, bounds) {
+  if (!Array.isArray(bbox) || bbox.length !== 4) return true;
+  const [minLon, minLat, maxLon, maxLat] = bbox.map(Number);
+  if (![minLon, minLat, maxLon, maxLat].every(Number.isFinite)) return true;
+
+  return maxLon >= bounds.getWest()
+    && minLon <= bounds.getEast()
+    && maxLat >= bounds.getSouth()
+    && minLat <= bounds.getNorth();
+}
+
+function obtenerCapasPanelCandidatas() {
+  if (!map) return [];
+  const bounds = map.getBounds();
+  return panelCapasListado.filter((item) => bboxIntersectaViewport(item.bbox, bounds));
+}
+
+async function actualizarPerimetrosIptVisibles() {
+  if (!panelPerimetrosActivo || !map) return;
+
+  const candidatas = obtenerCapasPanelCandidatas();
+  const idsCandidatas = new Set(candidatas.map((item) => item.id));
+
+  panelCapasCargadas.forEach((layer, id) => {
+    if (!idsCandidatas.has(id) && map.hasLayer(layer)) {
+      map.removeLayer(layer);
+    }
+  });
+
+  await Promise.all(candidatas.map((item) => cargarCapaPanelSiCorresponde(item)));
+}
+
+// CARGA DINÁMICA GEOJSON
+async function cargarCapaPanelSiCorresponde(item) {
+  if (!item || !item.id || !item.archivo || !map) return;
+
+  const capaExistente = panelCapasCargadas.get(item.id);
+  if (capaExistente) {
+    if (!map.hasLayer(capaExistente)) capaExistente.addTo(map);
+    return;
+  }
+
+  if (panelCapasEnCarga.has(item.id)) return;
+  panelCapasEnCarga.add(item.id);
+
+  try {
+    const response = await fetch(item.archivo);
+    if (!response.ok) throw new Error(`No se pudo cargar ${item.archivo}`);
+    const geojson = await response.json();
+    const layer = L.geoJSON(geojson, {
+      style: item.style || {},
+      onEachFeature: (feature, featureLayer) => vincularPopupPanel(feature, featureLayer, item)
+    });
+
+    panelCapasCargadas.set(item.id, layer);
+    if (panelPerimetrosActivo && bboxIntersectaViewport(item.bbox, map.getBounds())) {
+      layer.addTo(map);
+    }
+  } catch (error) {
+    console.warn("GEOFACTORY PANEL TERRITORIAL: error cargando GeoJSON regional.", item.archivo, error);
+  } finally {
+    panelCapasEnCarga.delete(item.id);
+  }
+}
+
+function vincularPopupPanel(feature, layer, item) {
+  const props = feature && feature.properties ? feature.properties : {};
+  const popup = item.popup || {};
+  const partes = [];
+  const titulo = popup.titulo && props[popup.titulo] ? props[popup.titulo] : "";
+  const subtitulo = popup.subtitulo && props[popup.subtitulo] ? props[popup.subtitulo] : "";
+
+  if (titulo) partes.push(`<strong>${escapeHtml(titulo)}</strong>`);
+  if (subtitulo && subtitulo !== titulo) partes.push(`<span>${escapeHtml(subtitulo)}</span>`);
+  if (partes.length) layer.bindPopup(`<div class="panel-popup">${partes.join("<br>")}</div>`);
+}
+
+function removerTodosPerimetrosIpt() {
+  panelCapasCargadas.forEach((layer) => {
+    if (map && map.hasLayer(layer)) map.removeLayer(layer);
+  });
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;"
+  }[char]));
 }
