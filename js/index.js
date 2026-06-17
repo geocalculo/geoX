@@ -145,6 +145,7 @@ function cambiarBase(nuevaCapa) {
 
   nuevaCapa.addTo(map);
   currentBaseLayer = nuevaCapa;
+  actualizarEstiloPerimetrosIptVisibles();
 }
 
 // GEOFACTORY TOSEARCH
@@ -477,6 +478,40 @@ const panelCapasCargadas = new Map();
 const panelLabelsCargados = new Map();
 const panelCapasEnCarga = new Set();
 
+// ESTILO DINÁMICO SEGÚN BASEMAP
+function obtenerEstiloPerimetrosSegunBase(itemStyle = {}) {
+  const estiloBase = { ...itemStyle };
+
+  if (currentBaseLayer === satLayer) {
+    return {
+      ...estiloBase,
+      color: "#ffe600",
+      weight: 3,
+      opacity: 1,
+      fillColor: "#ffe600",
+      fillOpacity: 0.08
+    };
+  }
+
+  return {
+    ...estiloBase,
+    color: "#ff6600",
+    fillColor: "#ff6600"
+  };
+}
+
+function actualizarEstiloPerimetrosIptVisibles() {
+  if (!map) return;
+
+  panelCapasCargadas.forEach((layer, id) => {
+    if (!map.hasLayer(layer) || typeof layer.setStyle !== "function") return;
+
+    const item = panelCapasListado.find((capa) => capa.id === id);
+    const itemStyle = item && item.style ? item.style : {};
+    layer.setStyle(obtenerEstiloPerimetrosSegunBase(itemStyle));
+  });
+}
+
 // CARGA listado_capas.json
 async function cargarListadoPanelTerritorial() {
   try {
@@ -554,6 +589,7 @@ async function cargarCapaPanelSiCorresponde(item) {
 
   const capaExistente = panelCapasCargadas.get(item.id);
   if (capaExistente) {
+    capaExistente.setStyle(obtenerEstiloPerimetrosSegunBase(item.style || {}));
     if (!map.hasLayer(capaExistente)) capaExistente.addTo(map);
     const labelsExistentes = panelLabelsCargados.get(item.id);
     if (labelsExistentes && !map.hasLayer(labelsExistentes)) labelsExistentes.addTo(map);
@@ -568,7 +604,7 @@ async function cargarCapaPanelSiCorresponde(item) {
     if (!response.ok) throw new Error(`No se pudo cargar ${item.archivo}`);
     const geojson = await response.json();
     const layer = L.geoJSON(geojson, {
-      style: item.style || {},
+      style: obtenerEstiloPerimetrosSegunBase(item.style || {}),
       onEachFeature: (feature, featureLayer) => vincularPopupPanel(feature, featureLayer, item)
     });
     const layerLabels = crearLabelsLocalidadParaGeoJSON(geojson);
