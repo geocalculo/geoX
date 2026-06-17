@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     iniciarMapa(params);
     conectarEventos();
+    cargarListadoToSearch();
     await cargarListadoPanelTerritorial();
     iniciarPanelTerritorial();
 
@@ -127,18 +128,14 @@ function conectarEventos() {
 
   document.getElementById("btn-clear").addEventListener("click", () => {
     document.getElementById("search-box").value = "";
+    cerrarResultadosToSearch();
   });
 
   document.getElementById("btn-search").addEventListener("click", () => {
-    const texto = document.getElementById("search-box").value.trim();
-
-    if (!texto) {
-      alert("Ingrese un texto de búsqueda.");
-      return;
-    }
-
-    alert(`GeoX aún no tiene buscador conectado. Texto ingresado: ${texto}`);
+    seleccionarPrimerResultadoToSearch();
   });
+
+  conectarSearchBoxToSearch();
 }
 
 function cambiarBase(nuevaCapa) {
@@ -148,6 +145,206 @@ function cambiarBase(nuevaCapa) {
 
   nuevaCapa.addTo(map);
   currentBaseLayer = nuevaCapa;
+}
+
+// GEOFACTORY TOSEARCH
+const TOSEARCH_LISTADO_PATH = "capas_tosearch/listado_tosearch.json";
+const toSearchIndice = [];
+let toSearchResultadosActuales = [];
+let toSearchHighlightLayer = null;
+
+function normalizarTextoToSearch(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+// CARGA listado_tosearch.json
+async function cargarListadoToSearch() {
+  try {
+    const response = await fetch(TOSEARCH_LISTADO_PATH);
+    if (!response.ok) throw new Error(`No se pudo cargar ${TOSEARCH_LISTADO_PATH}`);
+
+    const listado = await response.json();
+    const capasActivas = Array.isArray(listado)
+      ? listado.filter((item) => item && item.activo === true && item.archivo)
+      : [];
+
+    await Promise.all(capasActivas.map((item) => cargarCapaToSearch(item)));
+  } catch (error) {
+    console.warn("GEOFACTORY TOSEARCH: listado_tosearch.json no disponible. El sitio continúa sin búsqueda por localidad.", error);
+  }
+}
+
+async function cargarCapaToSearch(layerConfig) {
+  try {
+    const response = await fetch(layerConfig.archivo);
+    if (!response.ok) throw new Error(`No se pudo cargar ${layerConfig.archivo}`);
+
+    const geojson = await response.json();
+    const features = Array.isArray(geojson.features) ? geojson.features : [];
+
+    features.forEach((feature) => agregarFeatureAlIndiceToSearch(feature, layerConfig));
+  } catch (error) {
+    console.warn("GEOFACTORY TOSEARCH: no se pudo cargar GeoJSON de búsqueda.", layerConfig.archivo, error);
+  }
+}
+
+// INDICE DE BUSQUEDA POR LOCALIDAD
+function agregarFeatureAlIndiceToSearch(feature, layerConfig) {
+  if (!feature || !feature.geometry) return;
+
+  const props = feature.properties || {};
+  const campoBusqueda = layerConfig.campo_busqueda || "localidad";
+  const campoDisplay = layerConfig.campo_display || campoBusqueda;
+  const textoBusqueda = props[campoBusqueda];
+  const textoDisplay = props[campoDisplay] || textoBusqueda;
+
+  if (!textoBusqueda || !textoDisplay) return;
+
+  const bounds = obtenerBoundsFeatureToSearch(feature);
+  if (!bounds || !bounds.isValid()) return;
+
+  toSearchIndice.push({
+    texto_busqueda: normalizarTextoToSearch(textoBusqueda),
+    texto_display: String(textoDisplay),
+    feature,
+    layer_config: layerConfig,
+    bounds
+  });
+}
+
+function obtenerBoundsFeatureToSearch(feature) {
+  try {
+    return L.geoJSON(feature).getBounds();
+  } catch (error) {
+    console.warn("GEOFACTORY TOSEARCH: no se pudieron calcular bounds de feature.", error);
+    return null;
+  }
+}
+
+function conectarSearchBoxToSearch() {
+  const searchBox = document.getElementById("search-box");
+  if (!searchBox) return;
+
+  searchBox.addEventListener("input", () => mostrarResultadosToSearch(searchBox.value));
+  searchBox.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      seleccionarPrimerResultadoToSearch();
+    } else if (event.key === "Escape") {
+      cerrarResultadosToSearch();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    const wrapper = document.getElementById("search-box-wrapper");
+    if (wrapper && !wrapper.contains(event.target)) cerrarResultadosToSearch();
+  });
+}
+
+// RESULTADOS SEARCH BOX
+function buscarResultadosToSearch(texto) {
+  const query = normalizarTextoToSearch(texto);
+  if (!query) return [];
+
+  return toSearchIndice
+    .filter((item) => item.texto_busqueda.includes(query))
+    .sort((a, b) => a.texto_display.localeCompare(b.texto_display, "es"))
+    .slice(0, 20);
+}
+
+function mostrarResultadosToSearch(texto) {
+  const contenedor = document.getElementById("search-results");
+  if (!contenedor) return;
+
+  toSearchResultadosActuales = buscarResultadosToSearch(texto);
+  contenedor.innerHTML = "";
+
+  if (!toSearchResultadosActuales.length) {
+    contenedor.classList.remove("is-visible");
+    return;
+  }
+
+  toSearchResultadosActuales.forEach((item) => {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = "search-result-item";
+    boton.textContent = item.texto_display;
+    boton.addEventListener("click", () => seleccionarResultadoToSearch(item));
+    contenedor.appendChild(boton);
+  });
+
+  contenedor.classList.add("is-visible");
+}
+
+function cerrarResultadosToSearch() {
+  const contenedor = document.getElementById("search-results");
+  toSearchResultadosActuales = [];
+  if (contenedor) {
+    contenedor.innerHTML = "";
+    contenedor.classList.remove("is-visible");
+  }
+}
+
+function seleccionarPrimerResultadoToSearch() {
+  const searchBox = document.getElementById("search-box");
+  if (!toSearchResultadosActuales.length && searchBox) {
+    toSearchResultadosActuales = buscarResultadosToSearch(searchBox.value);
+  }
+
+  if (toSearchResultadosActuales.length) {
+    seleccionarResultadoToSearch(toSearchResultadosActuales[0]);
+  }
+}
+
+// ZOOM TO FEATURE
+function seleccionarResultadoToSearch(item) {
+  const searchBox = document.getElementById("search-box");
+  if (searchBox) searchBox.value = item.texto_display;
+  cerrarResultadosToSearch();
+
+  if (!map || !item.bounds || !item.bounds.isValid()) return;
+
+  const layerConfig = item.layer_config || {};
+  const padding = Array.isArray(layerConfig.padding) ? layerConfig.padding : [40, 40];
+  const maxZoom = Number.isFinite(Number(layerConfig.max_zoom)) ? Number(layerConfig.max_zoom) : 15;
+
+  map.fitBounds(item.bounds, {
+    padding,
+    maxZoom
+  });
+
+  resaltarTemporalmenteFeatureToSearch(item.feature);
+}
+
+// HIGHLIGHT TEMPORAL
+function resaltarTemporalmenteFeatureToSearch(feature) {
+  if (!map || !feature) return;
+
+  if (toSearchHighlightLayer && map.hasLayer(toSearchHighlightLayer)) {
+    map.removeLayer(toSearchHighlightLayer);
+  }
+
+  toSearchHighlightLayer = L.geoJSON(feature, {
+    interactive: false,
+    style: {
+      color: "#f97316",
+      weight: 3,
+      opacity: 1,
+      fillColor: "#f97316",
+      fillOpacity: 0.18
+    }
+  }).addTo(map);
+
+  window.setTimeout(() => {
+    if (toSearchHighlightLayer && map && map.hasLayer(toSearchHighlightLayer)) {
+      map.removeLayer(toSearchHighlightLayer);
+    }
+    toSearchHighlightLayer = null;
+  }, 2000);
 }
 
 // --- Summary: carga y cálculo de indicadores ---
