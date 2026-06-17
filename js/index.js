@@ -114,9 +114,12 @@ function iniciarMapa(params) {
     currentBaseLayer = osmLayer;
   }
 
+  // GEOFACTORY ESCALA GRÁFICA
   L.control.scale({
+    position: "bottomleft",
     metric: true,
-    imperial: false
+    imperial: false,
+    maxWidth: 120
   }).addTo(map);
 
   map.invalidateSize();
