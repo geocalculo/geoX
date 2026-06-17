@@ -2,6 +2,8 @@ let map;
 let osmLayer;
 let satLayer;
 let currentBaseLayer;
+// GEOFACTORY MI UBICACIÓN
+let myLocationLayer = null;
 
 const PARAMS_PATH = "parametros/parametros_index.json";
 const REGIONES_PATH = "capas_selector/regiones.json";
@@ -144,8 +146,66 @@ function conectarEventos() {
     seleccionarPrimerResultadoToSearch();
   });
 
+  const btnMyLocation = document.getElementById("btn-my-location");
+  if (btnMyLocation) {
+    btnMyLocation.addEventListener("click", centrarEnMiUbicacion);
+  }
+
   conectarSearchBoxToSearch();
 }
+
+// CENTRAR EN MI UBICACIÓN
+function centrarEnMiUbicacion() {
+  if (!navigator.geolocation) {
+    alert("Tu navegador no permite obtener ubicación.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      const accuracy = position.coords.accuracy;
+
+      map.flyTo([lat, lon], 14, {
+        animate: true,
+        duration: 0.8
+      });
+
+      mostrarMarcadorMiUbicacion(lat, lon, accuracy);
+    },
+    (error) => {
+      console.warn("No se pudo obtener ubicación:", error);
+      alert("No se pudo obtener tu ubicación. Revisa permisos del navegador.");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 8000,
+      maximumAge: 30000
+    }
+  );
+}
+
+// MARCADOR MI UBICACIÓN
+function mostrarMarcadorMiUbicacion(lat, lon, accuracy) {
+  if (myLocationLayer && map.hasLayer(myLocationLayer)) {
+    map.removeLayer(myLocationLayer);
+  }
+
+  const marker = L.marker([lat, lon]).bindPopup("Mi ubicación aproximada");
+
+  const circle = L.circle([lat, lon], {
+    radius: accuracy || 50,
+    color: "#0ea5e9",
+    weight: 2,
+    opacity: 0.8,
+    fillColor: "#0ea5e9",
+    fillOpacity: 0.12
+  });
+
+  myLocationLayer = L.layerGroup([circle, marker]).addTo(map);
+}
+
 // GEOFACTORY SELECTOR REGIÓN
 // CARGA regiones.json
 async function cargarRegionesSelector() {
