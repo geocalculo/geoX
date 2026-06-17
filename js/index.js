@@ -473,6 +473,8 @@ const PANEL_CAPAS_PATH = "capas_panel/listado_capas.json";
 let panelCapasListado = [];
 let panelPerimetrosActivo = false;
 const panelCapasCargadas = new Map();
+// ETIQUETAS LOCALIDAD PANEL
+const panelLabelsCargados = new Map();
 const panelCapasEnCarga = new Set();
 
 // CARGA listado_capas.json
@@ -537,6 +539,12 @@ async function actualizarPerimetrosIptVisibles() {
     }
   });
 
+  panelLabelsCargados.forEach((layerLabels, id) => {
+    if (!idsCandidatas.has(id) && map.hasLayer(layerLabels)) {
+      map.removeLayer(layerLabels);
+    }
+  });
+
   await Promise.all(candidatas.map((item) => cargarCapaPanelSiCorresponde(item)));
 }
 
@@ -547,6 +555,8 @@ async function cargarCapaPanelSiCorresponde(item) {
   const capaExistente = panelCapasCargadas.get(item.id);
   if (capaExistente) {
     if (!map.hasLayer(capaExistente)) capaExistente.addTo(map);
+    const labelsExistentes = panelLabelsCargados.get(item.id);
+    if (labelsExistentes && !map.hasLayer(labelsExistentes)) labelsExistentes.addTo(map);
     return;
   }
 
@@ -561,10 +571,13 @@ async function cargarCapaPanelSiCorresponde(item) {
       style: item.style || {},
       onEachFeature: (feature, featureLayer) => vincularPopupPanel(feature, featureLayer, item)
     });
+    const layerLabels = crearLabelsLocalidadParaGeoJSON(geojson);
 
     panelCapasCargadas.set(item.id, layer);
+    panelLabelsCargados.set(item.id, layerLabels);
     if (panelPerimetrosActivo && bboxIntersectaViewport(item.bbox, map.getBounds())) {
       layer.addTo(map);
+      layerLabels.addTo(map);
     }
   } catch (error) {
     console.warn("GEOFACTORY PANEL TERRITORIAL: error cargando GeoJSON regional.", item.archivo, error);
@@ -588,6 +601,51 @@ function vincularPopupPanel(feature, layer, item) {
 function removerTodosPerimetrosIpt() {
   panelCapasCargadas.forEach((layer) => {
     if (map && map.hasLayer(layer)) map.removeLayer(layer);
+  });
+  removerTodosLabelsLocalidad();
+}
+
+function crearLabelsLocalidadParaGeoJSON(geojson) {
+  const layerLabels = L.layerGroup();
+  const features = Array.isArray(geojson?.features) ? geojson.features : [];
+
+  features.forEach((feature) => {
+    const center = obtenerCentroFeatureParaLabel(feature);
+    const marker = crearMarkerLabelLocalidad(feature, center);
+    if (marker) layerLabels.addLayer(marker);
+  });
+
+  return layerLabels;
+}
+
+function obtenerCentroFeatureParaLabel(feature) {
+  if (!feature) return null;
+
+  const bounds = L.geoJSON(feature).getBounds();
+  if (!bounds.isValid()) return null;
+
+  return bounds.getCenter();
+}
+
+function crearMarkerLabelLocalidad(feature, center) {
+  // CREAR LABEL LOCALIDAD
+  const localidad = feature?.properties?.localidad;
+  if (!localidad || !center) return null;
+
+  return L.marker(center, {
+    interactive: false,
+    icon: L.divIcon({
+      className: "geofactory-localidad-label",
+      html: escapeHtml(localidad),
+      iconSize: null
+    })
+  });
+}
+
+function removerTodosLabelsLocalidad() {
+  // REMOVER LABELS LOCALIDAD
+  panelLabelsCargados.forEach((layerLabels) => {
+    if (map && map.hasLayer(layerLabels)) map.removeLayer(layerLabels);
   });
 }
 
