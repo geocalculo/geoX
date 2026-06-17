@@ -57,11 +57,16 @@
         <option value="03">Región de Atacama</option>
       </select>
 
-      <input
-        id="search-box"
-        type="text"
-        placeholder="Buscar territorio, objeto o capa..."
-      />
+      <!-- GEOFACTORY TOSEARCH -->
+      <div id="search-box-wrapper">
+        <input
+          id="search-box"
+          type="text"
+          placeholder="Buscar territorio, objeto o capa..."
+          autocomplete="off"
+        />
+        <div id="search-results" role="listbox" aria-label="Resultados de búsqueda"></div>
+      </div>
 
       <button id="btn-search">Buscar</button>
       <button id="btn-clear">Limpiar</button>
