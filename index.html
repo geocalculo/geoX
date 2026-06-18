@@ -57,17 +57,6 @@
         <option value="03">Región de Atacama</option>
       </select>
 
-      <!-- GEOFACTORY TOSEARCH -->
-      <div id="search-box-wrapper">
-        <input
-          id="search-box"
-          type="text"
-          placeholder="Buscar territorio, objeto o capa..."
-          autocomplete="off"
-        />
-        <div id="search-results" role="listbox" aria-label="Resultados de búsqueda"></div>
-      </div>
-
       <button id="btn-search">Buscar</button>
       <button id="btn-clear">Limpiar</button>
     </section>
@@ -90,6 +79,17 @@
 
       <!-- MAPA -->
       <section id="map-container">
+        <!-- GEOFACTORY SEARCH SOBRE MAPA -->
+        <div id="search-box-wrapper">
+          <input
+            id="search-box"
+            type="text"
+            placeholder="Buscar territorio, objeto o capa..."
+            autocomplete="off"
+          />
+          <div id="search-results" role="listbox" aria-label="Resultados de búsqueda"></div>
+        </div>
+
         <div id="map"></div>
         <button id="btn-my-location" title="Centrar en mi ubicación" aria-label="Centrar en mi ubicación">
           📍
