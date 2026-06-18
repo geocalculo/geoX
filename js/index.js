@@ -315,23 +315,54 @@ async function cargarCapaToSearch(layerConfig) {
 }
 
 // INDICE DE BUSQUEDA POR LOCALIDAD
+// GEOFACTORY SEARCH CONTEXTO TERRITORIAL
+function obtenerPropTexto(props, nombresCampos) {
+  for (const nombre of nombresCampos) {
+    const valor = props?.[nombre];
+    if (valor !== undefined && valor !== null && String(valor).trim() !== "") {
+      return String(valor).trim();
+    }
+  }
+  return "";
+}
+
+// RESULTADO LOCALIDAD COMUNA REGION
+function construirTextoResultadoToSearch(props) {
+  const localidad = obtenerPropTexto(props, ["localidad", "LOC", "LOCALIDAD"]);
+  const comuna = obtenerPropTexto(props, ["comuna", "COM", "COMUNA"]);
+  const region = obtenerPropTexto(props, ["region", "REG", "REGION", "region_nombre"]);
+
+  const partes = [];
+  for (const valor of [localidad, comuna, region]) {
+    if (!valor) continue;
+    const anterior = partes[partes.length - 1];
+    if (anterior && anterior.toLowerCase() === valor.toLowerCase()) continue;
+    partes.push(valor);
+  }
+
+  return {
+    texto_localidad: localidad,
+    texto_comuna: comuna,
+    texto_region: region,
+    texto_resultado: partes.join(" - "),
+    texto_busqueda: normalizarTextoToSearch([localidad, comuna, region].join(" "))
+  };
+}
+
 function agregarFeatureAlIndiceToSearch(feature, layerConfig) {
   if (!feature || !feature.geometry) return;
 
   const props = feature.properties || {};
-  const campoBusqueda = layerConfig.campo_busqueda || "localidad";
-  const campoDisplay = layerConfig.campo_display || campoBusqueda;
-  const textoBusqueda = props[campoBusqueda];
-  const textoDisplay = props[campoDisplay] || textoBusqueda;
+  const textosTerritoriales = construirTextoResultadoToSearch(props);
 
-  if (!textoBusqueda || !textoDisplay) return;
+  if (!textosTerritoriales.texto_localidad || !textosTerritoriales.texto_resultado) return;
 
   const bounds = obtenerBoundsFeatureToSearch(feature);
   if (!bounds || !bounds.isValid()) return;
 
   toSearchIndice.push({
-    texto_busqueda: normalizarTextoToSearch(textoBusqueda),
-    texto_display: String(textoDisplay),
+    ...textosTerritoriales,
+    texto_display: textosTerritoriales.texto_resultado,
     feature,
     layer_config: layerConfig,
     bounds
@@ -374,7 +405,7 @@ function buscarResultadosToSearch(texto) {
 
   return toSearchIndice
     .filter((item) => item.texto_busqueda.includes(query))
-    .sort((a, b) => a.texto_display.localeCompare(b.texto_display, "es"))
+    .sort((a, b) => a.texto_resultado.localeCompare(b.texto_resultado, "es"))
     .slice(0, 20);
 }
 
@@ -394,7 +425,7 @@ function mostrarResultadosToSearch(texto) {
     const boton = document.createElement("button");
     boton.type = "button";
     boton.className = "search-result-item";
-    boton.textContent = item.texto_display;
+    boton.textContent = item.texto_resultado;
     boton.addEventListener("click", () => seleccionarResultadoToSearch(item));
     contenedor.appendChild(boton);
   });
@@ -425,7 +456,7 @@ function seleccionarPrimerResultadoToSearch() {
 // ZOOM TO FEATURE
 function seleccionarResultadoToSearch(item) {
   const searchBox = document.getElementById("search-box");
-  if (searchBox) searchBox.value = item.texto_display;
+  if (searchBox) searchBox.value = item.texto_localidad;
   cerrarResultadosToSearch();
 
   if (!map || !item.bounds || !item.bounds.isValid()) return;
