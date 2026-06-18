@@ -109,17 +109,12 @@ button:hover {
   border-bottom: 1px solid #d9e2ec;
 }
 
-#control-bar select,
-#control-bar input {
+#control-bar select {
   height: 34px;
   border: 1px solid #bcccdc;
   border-radius: 8px;
   padding: 0 10px;
   font-size: 14px;
-}
-
-#search-box {
-  flex: 1;
 }
 
 #control-bar button {
@@ -258,7 +253,7 @@ button:hover {
 
   #territorial-panel {
     position: absolute;
-    top: 12px;
+    top: 66px;
     left: 12px;
     width: min(260px, calc(100% - 24px));
     max-height: 140px;
@@ -278,39 +273,68 @@ button:hover {
   }
 
   #btn-my-location {
-    top: 12px;
+    top: 64px;
     right: 12px;
     width: 40px;
     height: 40px;
   }
 }
 
-/* GEOFACTORY TOSEARCH */
+/* GEOFACTORY SEARCH SOBRE MAPA */
 #search-box-wrapper {
-  position: relative;
-  flex: 1;
-  min-width: 220px;
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, calc(100% - 320px));
+  z-index: 2001;
 }
 
 #search-box-wrapper #search-box {
   width: 100%;
+  height: 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0 18px;
+  font-size: 14px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
 }
 
 /* RESULTADOS SEARCH BOX */
 #search-results {
   display: none;
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   left: 0;
   right: 0;
-  z-index: 1000;
-  max-height: 260px;
+  z-index: 2002;
+  max-height: 240px;
   overflow-y: auto;
   background: #ffffff;
   border: 1px solid #bcccdc;
   border-radius: 10px;
   box-shadow: 0 16px 35px rgba(15, 23, 42, 0.18);
   padding: 6px;
+}
+
+/* SEARCH RESPONSIVE COMO GEOIPT */
+@media (max-width: 760px) {
+  #search-box-wrapper {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    transform: none;
+  }
+
+  #search-box-wrapper #search-box {
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  #search-results {
+    max-height: 220px;
+  }
 }
 
 #search-results.is-visible {
