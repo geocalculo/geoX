@@ -164,9 +164,51 @@ button:hover {
 
 #map-container {
   position: relative;
+  overflow: hidden;
   width: 100%;
   height: 100%;
   min-height: 0;
+}
+
+.map-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1005;
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.72);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+.map-toggle-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  color: #ffffff;
+  background: transparent;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.map-toggle-btn:hover {
+  background: transparent;
+  transform: translateY(-1px);
+}
+
+.map-toggle-btn.active {
+  color: #111111;
+  background: #ffffff;
+}
+
+.header-actions:empty {
+  display: none;
 }
 
 #map {
@@ -180,7 +222,7 @@ button:hover {
 /* GEOFACTORY MI UBICACIÓN */
 #btn-my-location {
   position: absolute;
-  top: 16px;
+  top: 64px;
   right: 16px;
   z-index: 1002;
   width: 42px;
@@ -245,7 +287,20 @@ button:hover {
   line-height: 1.35;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
+  .map-toggle {
+    top: 12px;
+    right: 12px;
+    gap: 4px;
+    padding: 3px;
+    z-index: 1005;
+  }
+
+  .map-toggle-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
   #main-layout {
     display: block;
     position: relative;
