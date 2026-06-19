@@ -41,10 +41,6 @@
         </div>
       </div>
 
-      <div class="header-actions">
-        <button id="btn-osm">OSM</button>
-        <button id="btn-sat">SAT</button>
-      </div>
     </header>
 
     <!-- BARRA SUPERIOR DE CONTROL -->
@@ -91,6 +87,10 @@
         </div>
 
         <div id="map"></div>
+        <div id="map-toggle" class="map-toggle">
+          <button id="btn-osm" class="map-toggle-btn active" data-map="osm">OSM</button>
+          <button id="btn-sat" class="map-toggle-btn" data-map="sat">SAT</button>
+        </div>
         <button id="btn-my-location" title="Centrar en mi ubicación" aria-label="Centrar en mi ubicación">
           📍
         </button>

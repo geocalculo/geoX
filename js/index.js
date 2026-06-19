@@ -109,9 +109,11 @@ function iniciarMapa(params) {
   if (params.mapa_base === "sat") {
     satLayer.addTo(map);
     currentBaseLayer = satLayer;
+    setMapToggleActive("sat");
   } else {
     osmLayer.addTo(map);
     currentBaseLayer = osmLayer;
+    setMapToggleActive("osm");
   }
 
   // GEOFACTORY ESCALA GRÁFICA
@@ -132,13 +134,22 @@ function conectarEventos() {
     regionSelector.addEventListener("change", () => moverViewportPorRegion(regionSelector.value));
   }
 
-  document.getElementById("btn-osm").addEventListener("click", () => {
-    cambiarBase(osmLayer);
-  });
+  const btnOsm = document.getElementById("btn-osm");
+  const btnSat = document.getElementById("btn-sat");
 
-  document.getElementById("btn-sat").addEventListener("click", () => {
-    cambiarBase(satLayer);
-  });
+  if (btnOsm) {
+    btnOsm.addEventListener("click", () => {
+      switchBaseMap("osm");
+      setMapToggleActive("osm");
+    });
+  }
+
+  if (btnSat) {
+    btnSat.addEventListener("click", () => {
+      switchBaseMap("sat");
+      setMapToggleActive("sat");
+    });
+  }
 
   document.getElementById("btn-clear").addEventListener("click", () => {
     document.getElementById("search-box").value = "";
@@ -259,13 +270,32 @@ function moverViewportPorRegion(codigoIne) {
   }
 }
 
-function cambiarBase(nuevaCapa) {
-  if (currentBaseLayer) {
-    map.removeLayer(currentBaseLayer);
+function setMapToggleActive(type) {
+  const btnOsm = document.getElementById("btn-osm");
+  const btnSat = document.getElementById("btn-sat");
+
+  if (!btnOsm || !btnSat) return;
+
+  btnOsm.classList.toggle("active", type === "osm");
+  btnSat.classList.toggle("active", type === "sat");
+}
+
+function switchBaseMap(type) {
+  if (!map) return;
+
+  if (type === "osm") {
+    if (satLayer && map.hasLayer(satLayer)) map.removeLayer(satLayer);
+    if (osmLayer && !map.hasLayer(osmLayer)) osmLayer.addTo(map);
+    currentBaseLayer = osmLayer;
   }
 
-  nuevaCapa.addTo(map);
-  currentBaseLayer = nuevaCapa;
+  if (type === "sat") {
+    if (osmLayer && map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
+    if (satLayer && !map.hasLayer(satLayer)) satLayer.addTo(map);
+    currentBaseLayer = satLayer;
+  }
+
+  setMapToggleActive(type);
   actualizarEstiloPerimetrosIptVisibles();
 }
 
