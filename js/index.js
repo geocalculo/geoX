@@ -709,21 +709,61 @@ async function cargarListadoPanelTerritorial() {
 
 function iniciarPanelTerritorial() {
   const toggle = document.getElementById("toggle-perimetros-ipt");
-  if (!toggle || !map) return;
+  const mobileToggle = document.getElementById("mobile-layer-toggle");
+  if (!map) return;
 
-  toggle.addEventListener("change", () => {
-    panelPerimetrosActivo = toggle.checked;
-    // ON/OFF PERÍMETROS IPT
-    if (panelPerimetrosActivo) {
-      actualizarPerimetrosIptVisibles();
-    } else {
-      removerTodosPerimetrosIpt();
-    }
-  });
+  if (toggle) {
+    toggle.addEventListener("change", () => {
+      alternarPerimetrosIpt(toggle.checked);
+    });
+  }
+
+  if (mobileToggle) {
+    mobileToggle.addEventListener("click", () => {
+      alternarPerimetrosIpt(!panelPerimetrosActivo);
+    });
+  }
+
+  sincronizarControlesPerimetrosIpt();
 
   map.on("moveend zoomend", () => {
     if (panelPerimetrosActivo) actualizarPerimetrosIptVisibles();
   });
+}
+
+function alternarPerimetrosIpt(activo) {
+  panelPerimetrosActivo = Boolean(activo);
+  sincronizarControlesPerimetrosIpt();
+
+  // ON/OFF PERÍMETROS IPT
+  if (panelPerimetrosActivo) {
+    actualizarPerimetrosIptVisibles();
+  } else {
+    removerTodosPerimetrosIpt();
+  }
+}
+
+function sincronizarControlesPerimetrosIpt() {
+  const toggle = document.getElementById("toggle-perimetros-ipt");
+  const mobileToggle = document.getElementById("mobile-layer-toggle");
+
+  if (toggle) {
+    toggle.checked = panelPerimetrosActivo;
+  }
+
+  if (!mobileToggle) return;
+
+  mobileToggle.classList.toggle("is-active", panelPerimetrosActivo);
+  mobileToggle.classList.toggle("is-inactive", !panelPerimetrosActivo);
+  mobileToggle.setAttribute("aria-pressed", String(panelPerimetrosActivo));
+
+  const accion = panelPerimetrosActivo ? "Ocultar" : "Mostrar";
+  const etiqueta = `${accion} Perímetros IPT`;
+  mobileToggle.setAttribute("aria-label", etiqueta);
+  mobileToggle.setAttribute("title", etiqueta);
+
+  const icono = mobileToggle.querySelector(".mobile-layer-toggle-icon");
+  if (icono) icono.textContent = panelPerimetrosActivo ? "👁️" : "🙈";
 }
 
 // FILTRO BBOX VIEWPORT
