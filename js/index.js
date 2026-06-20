@@ -58,7 +58,6 @@ function aplicarParametros(params) {
   const siteSubtitle = document.getElementById("site-subtitle");
   const panelTitle = document.getElementById("panel-title");
   const searchBox = document.getElementById("search-box");
-  const summaryBar = document.getElementById("summary-bar");
 
   siteTitle.textContent = params.titulo || "GeoX";
   siteSubtitle.textContent = params.subtitulo || "Molde territorial genérico";
@@ -66,20 +65,34 @@ function aplicarParametros(params) {
   searchBox.placeholder = params.search_placeholder || "Buscar...";
 
   if (Array.isArray(params.summary_items)) {
-    summaryBar.innerHTML = "";
-
-    params.summary_items.forEach((item) => {
-      const div = document.createElement("div");
-      div.className = "summary-item";
-
-      div.innerHTML = `
-        <span class="summary-value">${item.value}</span>
-        <span class="summary-label">${item.label}</span>
-      `;
-
-      summaryBar.appendChild(div);
-    });
+    actualizarSummaryEnDom(params.summary_items);
   }
+}
+
+function crearSummaryItem(item) {
+  const div = document.createElement("div");
+  div.className = "summary-item";
+
+  div.innerHTML = `
+    <span class="summary-value">${item.value}</span>
+    <span class="summary-label">${item.label}</span>
+  `;
+
+  return div;
+}
+
+function actualizarSummaryEnDom(items) {
+  const summaryBar = document.getElementById("summary-bar");
+  const mobileSummaryContent = document.getElementById("mobile-summary-content");
+
+  [summaryBar, mobileSummaryContent].forEach((container) => {
+    if (!container) return;
+
+    container.innerHTML = "";
+    items.forEach((item) => {
+      container.appendChild(crearSummaryItem(item));
+    });
+  });
 }
 
 function iniciarMapa(params) {
@@ -165,7 +178,24 @@ function conectarEventos() {
     btnMyLocation.addEventListener("click", centrarEnMiUbicacion);
   }
 
+  conectarMobileSummaryDrawer();
   conectarSearchBoxToSearch();
+}
+
+function conectarMobileSummaryDrawer() {
+  const mobileSummaryToggle = document.getElementById("mobile-summary-toggle");
+  const mobileSummaryDrawer = document.getElementById("mobile-summary-drawer");
+
+  if (!mobileSummaryToggle || !mobileSummaryDrawer) return;
+
+  mobileSummaryToggle.textContent = "Summary ▼";
+  mobileSummaryToggle.setAttribute("aria-expanded", "false");
+
+  mobileSummaryToggle.addEventListener("click", () => {
+    const isOpen = mobileSummaryDrawer.classList.toggle("is-open");
+    mobileSummaryToggle.setAttribute("aria-expanded", String(isOpen));
+    mobileSummaryToggle.textContent = isOpen ? "Summary ▲" : "Summary ▼";
+  });
 }
 
 // CENTRAR EN MI UBICACIÓN
@@ -640,16 +670,8 @@ function calcularYActualizarIndicadores() {
     return { id: ind.id, label: ind.label, value: mostrar };
   });
 
-  // Actualizar DOM central #summary-bar
-  const summaryBar = document.getElementById("summary-bar");
-  if (!summaryBar) return;
-  summaryBar.innerHTML = "";
-  resultados.forEach((r) => {
-    const div = document.createElement("div");
-    div.className = "summary-item";
-    div.innerHTML = `\n      <span class="summary-value">${r.value}</span>\n      <span class="summary-label">${r.label}</span>\n    `;
-    summaryBar.appendChild(div);
-  });
+  // Actualizar #summary-bar y el drawer mobile desde la misma fuente de datos.
+  actualizarSummaryEnDom(resultados);
 }
 // GEOFACTORY PANEL TERRITORIAL
 const PANEL_CAPAS_PATH = "capas_panel/listado_capas.json";

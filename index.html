@@ -86,26 +86,35 @@
           <div id="search-results" role="listbox" aria-label="Resultados de búsqueda"></div>
         </div>
 
-        <button
-          id="mobile-layer-toggle"
-          type="button"
-          class="mobile-layer-toggle is-inactive"
-          aria-pressed="false"
-          aria-label="Mostrar Perímetros IPT"
-          title="Mostrar Perímetros IPT"
-        >
-          <span class="mobile-layer-toggle-icon" aria-hidden="true">👁️</span>
-          <span class="mobile-layer-toggle-text">IPT</span>
-        </button>
-
         <div id="map"></div>
-        <div id="map-toggle" class="map-toggle">
-          <button id="btn-osm" class="map-toggle-btn active" data-map="osm">OSM</button>
-          <button id="btn-sat" class="map-toggle-btn" data-map="sat">SAT</button>
+
+        <div id="mobile-map-controls">
+          <div id="map-toggle" class="map-toggle">
+            <button id="btn-osm" class="map-toggle-btn active" data-map="osm">OSM</button>
+            <button id="btn-sat" class="map-toggle-btn" data-map="sat">SAT</button>
+          </div>
+          <button id="btn-my-location" title="Centrar en mi ubicación" aria-label="Centrar en mi ubicación">
+            📍
+          </button>
+          <button
+            id="mobile-layer-toggle"
+            type="button"
+            class="mobile-layer-toggle is-inactive"
+            aria-pressed="false"
+            aria-label="Mostrar Perímetros IPT"
+            title="Mostrar Perímetros IPT"
+          >
+            <span class="mobile-layer-toggle-icon" aria-hidden="true">👁️</span>
+            <span class="mobile-layer-toggle-text">IPT</span>
+          </button>
         </div>
-        <button id="btn-my-location" title="Centrar en mi ubicación" aria-label="Centrar en mi ubicación">
-          📍
-        </button>
+
+        <div id="mobile-summary-drawer">
+          <button id="mobile-summary-toggle" type="button" aria-expanded="false">
+            Summary ▼
+          </button>
+          <div id="mobile-summary-content" aria-live="polite"></div>
+        </div>
       </section>
 
     </main>
