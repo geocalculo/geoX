@@ -679,8 +679,16 @@ let panelCapasListado = [];
 let panelPerimetrosActivo = false;
 const panelCapasCargadas = new Map();
 // ETIQUETAS LOCALIDAD PANEL
-const panelLabelsCargados = new Map();
+const panelGeojsonCargados = new Map();
+let panelLabelsSmartLayer = null;
 const panelCapasEnCarga = new Set();
+
+const LABEL_RULES = {
+  desktop: { lowZoomMax: 12, midZoomMax: 25, highZoomMax: 45 },
+  mobile: { lowZoomMax: 6, midZoomMax: 12, highZoomMax: 20 }
+};
+
+const LABEL_ZOOM_BREAKPOINTS = { low: 10, high: 13 };
 
 // ESTILO DINÁMICO SEGÚN BASEMAP
 function obtenerEstiloPerimetrosSegunBase(itemStyle = {}) {
@@ -818,13 +826,9 @@ async function actualizarPerimetrosIptVisibles() {
     }
   });
 
-  panelLabelsCargados.forEach((layerLabels, id) => {
-    if (!idsCandidatas.has(id) && map.hasLayer(layerLabels)) {
-      map.removeLayer(layerLabels);
-    }
-  });
 
   await Promise.all(candidatas.map((item) => cargarCapaPanelSiCorresponde(item)));
+  renderizarLabelsInteligentesPerimetrosIpt(candidatas);
 }
 
 // CARGA DINÁMICA GEOJSON
@@ -835,8 +839,6 @@ async function cargarCapaPanelSiCorresponde(item) {
   if (capaExistente) {
     capaExistente.setStyle(obtenerEstiloPerimetrosSegunBase(item.style || {}));
     if (!map.hasLayer(capaExistente)) capaExistente.addTo(map);
-    const labelsExistentes = panelLabelsCargados.get(item.id);
-    if (labelsExistentes && !map.hasLayer(labelsExistentes)) labelsExistentes.addTo(map);
     return;
   }
 
@@ -851,13 +853,10 @@ async function cargarCapaPanelSiCorresponde(item) {
       style: obtenerEstiloPerimetrosSegunBase(item.style || {}),
       onEachFeature: (feature, featureLayer) => vincularPopupPanel(feature, featureLayer, item)
     });
-    const layerLabels = crearLabelsLocalidadParaGeoJSON(geojson);
-
     panelCapasCargadas.set(item.id, layer);
-    panelLabelsCargados.set(item.id, layerLabels);
+    panelGeojsonCargados.set(item.id, geojson);
     if (panelPerimetrosActivo && bboxIntersectaViewport(item.bbox, map.getBounds())) {
       layer.addTo(map);
-      layerLabels.addTo(map);
     }
   } catch (error) {
     console.warn("GEOFACTORY PANEL TERRITORIAL: error cargando GeoJSON regional.", item.archivo, error);
@@ -885,18 +884,6 @@ function removerTodosPerimetrosIpt() {
   removerTodosLabelsLocalidad();
 }
 
-function crearLabelsLocalidadParaGeoJSON(geojson) {
-  const layerLabels = L.layerGroup();
-  const features = Array.isArray(geojson?.features) ? geojson.features : [];
-
-  features.forEach((feature) => {
-    const center = obtenerCentroFeatureParaLabel(feature);
-    const marker = crearMarkerLabelLocalidad(feature, center);
-    if (marker) layerLabels.addLayer(marker);
-  });
-
-  return layerLabels;
-}
 
 function obtenerCentroFeatureParaLabel(feature) {
   if (!feature) return null;
@@ -922,11 +909,150 @@ function crearMarkerLabelLocalidad(feature, center) {
   });
 }
 
+function renderizarLabelsInteligentesPerimetrosIpt(candidatas) {
+  if (!map || !panelPerimetrosActivo) return;
+
+  if (!panelLabelsSmartLayer) panelLabelsSmartLayer = L.layerGroup();
+  panelLabelsSmartLayer.clearLayers();
+
+  const zoom = map.getZoom();
+  const esMobile = window.matchMedia("(max-width: 768px)").matches;
+  const maxLabels = obtenerMaximoLabelsPorZoom(zoom, esMobile);
+  const minArea = obtenerAreaMinimaLabelsPorZoom(zoom, esMobile);
+  const bounds = map.getBounds();
+  const candidatasIds = new Set(candidatas.map((item) => item.id));
+
+  const featuresVisibles = [];
+  panelGeojsonCargados.forEach((geojson, id) => {
+    if (!candidatasIds.has(id)) return;
+    const features = Array.isArray(geojson?.features) ? geojson.features : [];
+
+    features.forEach((feature) => {
+      const area = obtenerAreaFeature(feature);
+      if (area < minArea || !featureIntersectaViewport(feature, bounds)) return;
+      featuresVisibles.push({ feature, area });
+    });
+  });
+
+  featuresVisibles.sort((a, b) => b.area - a.area);
+
+  const labelsAceptados = [];
+  let labelsCreados = 0;
+
+  for (const item of featuresVisibles) {
+    if (labelsCreados >= maxLabels) break;
+
+    const labelText = obtenerTextoLabelFeature(item.feature);
+    const center = obtenerCentroFeatureParaLabel(item.feature);
+    if (!labelText || !center || !bounds.contains(center)) continue;
+
+    const labelBox = estimarCajaLabel(center, labelText);
+    if (!labelBox || colisionaConLabelsAceptados(labelBox, labelsAceptados)) continue;
+
+    const marker = crearMarkerLabelLocalidad(item.feature, center);
+    if (!marker) continue;
+
+    panelLabelsSmartLayer.addLayer(marker);
+    labelsAceptados.push(labelBox);
+    labelsCreados += 1;
+  }
+
+  if (!map.hasLayer(panelLabelsSmartLayer)) panelLabelsSmartLayer.addTo(map);
+}
+
+function obtenerMaximoLabelsPorZoom(zoom, esMobile) {
+  const reglas = esMobile ? LABEL_RULES.mobile : LABEL_RULES.desktop;
+  if (zoom < LABEL_ZOOM_BREAKPOINTS.low) return reglas.lowZoomMax;
+  if (zoom < LABEL_ZOOM_BREAKPOINTS.high) return reglas.midZoomMax;
+  return reglas.highZoomMax;
+}
+
+function obtenerAreaMinimaLabelsPorZoom(zoom, esMobile) {
+  const factorMobile = esMobile ? 1.7 : 1;
+  if (zoom < LABEL_ZOOM_BREAKPOINTS.low) return 0.01 * factorMobile;
+  if (zoom < LABEL_ZOOM_BREAKPOINTS.high) return 0.0025 * factorMobile;
+  return 0;
+}
+
+function featureIntersectaViewport(feature, bounds) {
+  const featureBounds = L.geoJSON(feature).getBounds();
+  return featureBounds.isValid() && featureBounds.intersects(bounds);
+}
+
+function obtenerTextoLabelFeature(feature) {
+  return feature?.properties?.localidad || "";
+}
+
+function estimarCajaLabel(latlng, labelText) {
+  if (!map || !latlng || !labelText) return null;
+
+  const point = map.latLngToContainerPoint(latlng);
+  const width = Math.max(44, String(labelText).length * 7 + 18);
+  const height = 24;
+  const padding = window.matchMedia("(max-width: 768px)").matches ? 10 : 6;
+
+  return {
+    minX: point.x - (width / 2) - padding,
+    maxX: point.x + (width / 2) + padding,
+    minY: point.y - (height / 2) - padding,
+    maxY: point.y + (height / 2) + padding
+  };
+}
+
+function colisionaConLabelsAceptados(labelBox, labelsAceptados) {
+  return labelsAceptados.some((accepted) => cajasIntersectan(labelBox, accepted));
+}
+
+function cajasIntersectan(a, b) {
+  return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
+}
+
+function obtenerAreaFeature(feature) {
+  const geometry = feature?.geometry;
+  if (!geometry) return 0;
+  return obtenerAreaGeometry(geometry);
+}
+
+function obtenerAreaGeometry(geometry) {
+  if (geometry.type === "Polygon") {
+    return Math.abs(obtenerAreaAnillos(geometry.coordinates));
+  }
+
+  if (geometry.type === "MultiPolygon") {
+    return geometry.coordinates.reduce((total, polygon) => total + Math.abs(obtenerAreaAnillos(polygon)), 0);
+  }
+
+  return 0;
+}
+
+function obtenerAreaAnillos(rings) {
+  if (!Array.isArray(rings) || !Array.isArray(rings[0])) return 0;
+
+  const exterior = Math.abs(obtenerAreaAnillo(rings[0]));
+  const interiores = rings.slice(1).reduce((total, ring) => total + Math.abs(obtenerAreaAnillo(ring)), 0);
+  return Math.max(exterior - interiores, 0);
+}
+
+function obtenerAreaAnillo(ring) {
+  if (!Array.isArray(ring) || ring.length < 3) return 0;
+
+  let area = 0;
+  for (let i = 0; i < ring.length; i += 1) {
+    const [x1, y1] = ring[i].map(Number);
+    const [x2, y2] = ring[(i + 1) % ring.length].map(Number);
+    if (![x1, y1, x2, y2].every(Number.isFinite)) continue;
+    area += (x1 * y2) - (x2 * y1);
+  }
+
+  return area / 2;
+}
+
 function removerTodosLabelsLocalidad() {
   // REMOVER LABELS LOCALIDAD
-  panelLabelsCargados.forEach((layerLabels) => {
-    if (map && map.hasLayer(layerLabels)) map.removeLayer(layerLabels);
-  });
+  if (map && panelLabelsSmartLayer && map.hasLayer(panelLabelsSmartLayer)) {
+    map.removeLayer(panelLabelsSmartLayer);
+  }
+  if (panelLabelsSmartLayer) panelLabelsSmartLayer.clearLayers();
 }
 
 function escapeHtml(value) {
