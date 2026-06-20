@@ -26,12 +26,11 @@ body,
   height: 76px;
   background: #102a43;
   color: #ffffff;
-  display: grid;
-  grid-template-columns: 280px 1fr 180px;
+  display: flex;
   align-items: center;
   padding: 0 18px;
-  gap: 16px;
   border-bottom: 3px solid #38bdf8;
+  flex: 0 0 auto;
 }
 
 .brand-block {
@@ -54,15 +53,26 @@ body,
 #summary-bar {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 14px;
+  padding: 6px 10px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  z-index: 900;
+  flex: 0 0 auto;
 }
 
-.summary-item {
+#summary-bar .summary-item,
+#summary-bar .kpi-item {
   min-width: 130px;
-  background: rgba(255, 255, 255, 0.08);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   text-align: center;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .summary-value {
@@ -75,6 +85,14 @@ body,
   display: block;
   font-size: 11px;
   color: #cbd5e1;
+}
+
+#summary-bar .summary-value {
+  color: #102a43;
+}
+
+#summary-bar .summary-label {
+  color: #64748b;
 }
 
 .header-actions {
@@ -107,6 +125,7 @@ button:hover {
   gap: 10px;
   padding: 8px 14px;
   border-bottom: 1px solid #d9e2ec;
+  flex: 0 0 auto;
 }
 
 #control-bar select {
@@ -285,6 +304,63 @@ button:hover {
 .panel-popup {
   font-size: 13px;
   line-height: 1.35;
+}
+
+@media (max-width: 768px) {
+  #main-header {
+    height: auto;
+    min-height: 64px;
+    padding: 12px 14px;
+  }
+
+  #site-title {
+    font-size: 22px;
+  }
+
+  #site-subtitle {
+    font-size: 12px;
+  }
+
+  #control-bar {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  #control-bar select {
+    flex: 1 1 150px;
+    min-width: 0;
+  }
+
+  #control-bar button {
+    flex: 1 1 90px;
+    min-width: 0;
+  }
+
+  #summary-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  #summary-bar .summary-item,
+  #summary-bar .kpi-item {
+    min-width: 0;
+    padding: 6px 4px;
+    font-size: 10.5px;
+    text-align: center;
+    white-space: normal;
+  }
+
+  #summary-bar .summary-value {
+    font-size: 16px;
+  }
+
+  #summary-bar .summary-label {
+    font-size: 10px;
+  }
 }
 
 @media (max-width: 768px) {
