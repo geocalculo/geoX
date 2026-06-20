@@ -467,3 +467,124 @@ button:hover {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* GEOFACTORY MOBILE MAP CONTROLS + SUMMARY */
+#mobile-summary-drawer {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  #mobile-summary-drawer {
+    display: none !important;
+  }
+
+  #mobile-map-controls {
+    display: contents;
+  }
+}
+
+@media (max-width: 768px) {
+  .leaflet-control-zoom {
+    display: none !important;
+  }
+
+  #mobile-map-controls {
+    position: absolute;
+    right: 10px;
+    bottom: 74px;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  #mobile-map-controls .map-toggle,
+  #mobile-map-controls #btn-my-location,
+  #mobile-map-controls #mobile-layer-toggle {
+    position: static;
+    pointer-events: auto;
+  }
+
+  #mobile-map-controls .map-toggle {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+  }
+
+  #mobile-map-controls #btn-my-location {
+    width: 40px;
+    height: 40px;
+  }
+
+  #mobile-map-controls #mobile-layer-toggle {
+    min-height: 38px;
+    padding: 8px 11px;
+  }
+
+  #mobile-summary-drawer {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 8px;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  #mobile-summary-toggle {
+    pointer-events: auto;
+    border: 1px solid rgba(16, 42, 67, 0.18);
+    background: rgba(255, 255, 255, 0.96);
+    color: #102a43;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  }
+
+  #mobile-summary-content {
+    pointer-events: auto;
+    width: 100%;
+    margin-top: 6px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(0, 0, 0, 0.10);
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    transform: translateY(12px);
+    max-height: 0;
+    overflow: hidden;
+    transition: opacity 180ms ease, transform 180ms ease, max-height 180ms ease;
+  }
+
+  #mobile-summary-content .summary-item {
+    min-width: 0;
+    padding: 6px 4px;
+    background: rgba(16, 42, 67, 0.06);
+  }
+
+  #mobile-summary-content .summary-value {
+    color: #102a43;
+    font-size: 16px;
+  }
+
+  #mobile-summary-content .summary-label {
+    color: #52606d;
+    font-size: 10px;
+  }
+
+  #mobile-summary-drawer.is-open #mobile-summary-content {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 88px;
+  }
+}
