@@ -335,6 +335,8 @@ const TOSEARCH_LISTADO_PATH = "capas_tosearch/listado_tosearch.json";
 const toSearchIndice = [];
 let toSearchResultadosActuales = [];
 let toSearchHighlightLayer = null;
+let selectedPRCHighlightLayer = null;
+let mapHintTimeoutId = null;
 let nearestPrcResultadosActuales = [];
 let lastConsultedLatLng = null;
 
@@ -483,19 +485,22 @@ function buscarPrcMasCercanos(latLng, cantidad = 3) {
 
 function mostrarPrcCercanosEnSearchBox(items, clickedLatLng) {
   const contenedor = document.getElementById("search-results");
-  const searchBox = document.getElementById("search-box");
   if (!contenedor) return;
 
   nearestPrcResultadosActuales = items;
   toSearchResultadosActuales = [];
   lastConsultedLatLng = clickedLatLng;
-  if (searchBox) searchBox.value = "PRC más cercanos";
   contenedor.innerHTML = "";
 
   if (!items.length) {
     contenedor.classList.remove("is-visible");
     return;
   }
+
+  const encabezado = document.createElement("div");
+  encabezado.className = "search-results-message";
+  encabezado.textContent = "No hay PRC en este punto. PRC más cercanos:";
+  contenedor.appendChild(encabezado);
 
   items.forEach((item, index) => {
     const boton = document.createElement("button");
@@ -513,11 +518,12 @@ function mostrarPrcCercanosEnSearchBox(items, clickedLatLng) {
 function seleccionarPrcCercano(item, clickedLatLng, rank) {
   const searchBox = document.getElementById("search-box");
   if (searchBox) searchBox.value = item.texto_localidad;
-  cerrarResultadosToSearch();
-  handlePRCSelection(item.feature, clickedLatLng, {
+  zoomToPRCFeature(item.feature, {
     source: "nearest",
     rank,
-    distanceMeters: item.distanceMeters
+    distanceMeters: item.distanceMeters,
+    bounds: item.bounds,
+    layerConfig: item.layer_config
   });
 }
 
@@ -586,6 +592,10 @@ function obtenerBoundsFeatureToSearch(feature) {
   }
 }
 
+function getFeatureBounds(feature) {
+  return obtenerBoundsFeatureToSearch(feature);
+}
+
 function conectarSearchBoxToSearch() {
   const searchBox = document.getElementById("search-box");
   if (!searchBox) return;
@@ -651,6 +661,30 @@ function cerrarResultadosToSearch() {
   }
 }
 
+function zoomToPRCFeature(feature, options = {}) {
+  if (!map || !feature) return;
+
+  const bounds = options.bounds?.isValid?.() ? options.bounds : getFeatureBounds(feature);
+
+  if (!bounds || !bounds.isValid || !bounds.isValid()) {
+    console.warn("No se pudo obtener bounds para el PRC seleccionado", feature);
+    return;
+  }
+
+  const layerConfig = options.layerConfig || {};
+  const padding = Array.isArray(layerConfig.padding) ? layerConfig.padding : [36, 36];
+  const maxZoom = Number.isFinite(Number(layerConfig.max_zoom)) ? Number(layerConfig.max_zoom) : 15;
+
+  map.fitBounds(bounds, {
+    padding,
+    maxZoom
+  });
+
+  highlightSelectedPRC(feature);
+  cerrarResultadosToSearch();
+  showMapHint("PRC localizado. Haga click dentro del área para consultar.");
+}
+
 function seleccionarPrimerResultadoToSearch() {
   const searchBox = document.getElementById("search-box");
   if (!toSearchResultadosActuales.length && searchBox) {
@@ -710,6 +744,57 @@ function resaltarTemporalmenteFeatureToSearch(feature) {
     }
     toSearchHighlightLayer = null;
   }, 2000);
+}
+
+function highlightSelectedPRC(feature) {
+  if (!map || !feature) return;
+
+  if (selectedPRCHighlightLayer && map.hasLayer(selectedPRCHighlightLayer)) {
+    map.removeLayer(selectedPRCHighlightLayer);
+  }
+
+  selectedPRCHighlightLayer = L.geoJSON(feature, {
+    interactive: false,
+    style: {
+      color: "#00aeef",
+      weight: 4,
+      opacity: 1,
+      fillColor: "#00aeef",
+      fillOpacity: 0.08
+    }
+  }).addTo(map);
+
+  window.setTimeout(() => {
+    if (selectedPRCHighlightLayer && map && map.hasLayer(selectedPRCHighlightLayer)) {
+      map.removeLayer(selectedPRCHighlightLayer);
+    }
+    selectedPRCHighlightLayer = null;
+  }, 3500);
+}
+
+function showMapHint(message) {
+  const mapElement = document.getElementById("map");
+  if (!mapElement) {
+    console.info(message);
+    return;
+  }
+
+  let hint = document.getElementById("map-hint");
+  if (!hint) {
+    hint = document.createElement("div");
+    hint.id = "map-hint";
+    hint.setAttribute("role", "status");
+    hint.setAttribute("aria-live", "polite");
+    mapElement.appendChild(hint);
+  }
+
+  hint.textContent = message;
+  hint.classList.add("is-visible");
+
+  if (mapHintTimeoutId) window.clearTimeout(mapHintTimeoutId);
+  mapHintTimeoutId = window.setTimeout(() => {
+    hint.classList.remove("is-visible");
+  }, 3500);
 }
 
 // --- Summary: carga y cálculo de indicadores ---

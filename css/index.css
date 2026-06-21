@@ -455,6 +455,38 @@ button:hover {
   outline: none;
 }
 
+.search-results-message {
+  padding: 8px 10px 6px;
+  color: #486581;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#map-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  z-index: 1200;
+  transform: translate(-50%, 10px);
+  max-width: min(520px, calc(100% - 32px));
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  padding: 10px 16px;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+#map-hint.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 .geofactory-localidad-label {
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(15, 23, 42, 0.25);
