@@ -340,6 +340,7 @@ let mapHintTimeoutId = null;
 let resultadosBusquedaActual = [];
 let searchActiveIndex = -1;
 let puntoConsultaMarker = null;
+let bloquearCierreBusquedaPorClickMapa = false;
 
 function normalizarTextoToSearch(value) {
   return String(value || "")
@@ -483,7 +484,9 @@ function colocarMarcadorPunto(clickedLatLng) {
 }
 
 function findDirectQueryableMatch(clickedLatLng) {
-  return buscarItemPrcContenedor(clickedLatLng);
+  // Perímetros IPT queda solo como capa visual y fuente para calcular cercanos;
+  // hasta contar con una capa consultable real distinta, forzamos fallback.
+  return null;
 }
 
 function mostrarMsgboxPuntoConsultado(clickedLatLng, match = null) {
@@ -522,6 +525,7 @@ function handleMapClick(event) {
   }
 
   const cercanos = obtenerPrcCercanosDesdePerimetros(lat, lon, 3);
+  bloquearCierreBusquedaPorClickMapa = true;
   renderFallbackResultadosCercanos(cercanos);
 }
 
@@ -536,9 +540,18 @@ function getSearchResultsElement() {
     || document.getElementById("prc-search-results");
 }
 
-function abrirResultadosBusqueda(contenedor) {
+function abrirResultadosBusqueda(contenedor = getSearchResultsElement()) {
+  if (!contenedor) {
+    console.warn("No existe contenedor de resultados del buscador");
+    return null;
+  }
+
   contenedor.hidden = false;
+  contenedor.removeAttribute("hidden");
   contenedor.classList.add("is-visible", "is-open");
+  contenedor.style.display = "block";
+
+  return contenedor;
 }
 
 function renderFallbackResultadosCercanos(items) {
@@ -835,8 +848,19 @@ function conectarSearchBoxToSearch() {
   });
 
   document.addEventListener("click", (event) => {
-    const wrapper = document.getElementById("search-box-wrapper");
-    if (wrapper && !wrapper.contains(event.target)) cerrarResultadosToSearch();
+    if (bloquearCierreBusquedaPorClickMapa) {
+      bloquearCierreBusquedaPorClickMapa = false;
+      return;
+    }
+
+    const wrapper = document.getElementById("map-search-wrap")
+      || document.getElementById("floating-search")
+      || document.getElementById("search-box-wrapper")
+      || document.querySelector(".map-search-wrap");
+
+    if (!wrapper) return;
+
+    if (!wrapper.contains(event.target)) cerrarResultadosToSearch();
   });
 }
 
@@ -861,6 +885,7 @@ function mostrarResultadosToSearch(texto) {
   if (!toSearchResultadosActuales.length) {
     contenedor.hidden = true;
     contenedor.classList.remove("is-visible", "is-open");
+    contenedor.style.display = "none";
     return;
   }
 
@@ -886,6 +911,7 @@ function ocultarResultadosBusqueda() {
     searchResults.innerHTML = "";
     searchResults.hidden = true;
     searchResults.classList.remove("is-visible", "is-open");
+    searchResults.style.display = "none";
   }
 }
 

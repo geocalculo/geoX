@@ -378,13 +378,19 @@ button:hover {
 }
 
 /* GEOFACTORY SEARCH SOBRE MAPA */
-#search-box-wrapper {
+#search-box-wrapper,
+#map-search-wrap,
+.map-search-wrap,
+#floating-search {
   position: absolute;
+  z-index: 2500;
+}
+
+#search-box-wrapper {
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
   width: min(620px, calc(100% - 320px));
-  z-index: 2001;
 }
 
 #search-box-wrapper #search-box {
@@ -398,13 +404,15 @@ button:hover {
 }
 
 /* RESULTADOS SEARCH BOX */
+.map-search-results,
+#prc-search-results,
 #search-results {
   display: none;
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 2002;
+  z-index: 3000;
   max-height: 240px;
   overflow-y: auto;
   background: #ffffff;
@@ -434,7 +442,12 @@ button:hover {
   }
 }
 
-#search-results.is-visible {
+.map-search-results.is-visible,
+.map-search-results.is-open,
+#prc-search-results.is-visible,
+#prc-search-results.is-open,
+#search-results.is-visible,
+#search-results.is-open {
   display: block;
 }
 
