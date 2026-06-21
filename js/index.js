@@ -483,26 +483,46 @@ function colocarMarcadorPunto(clickedLatLng) {
   }).addTo(map);
 }
 
-function findDirectQueryableMatch(clickedLatLng) {
-  // Perímetros IPT queda solo como capa visual y fuente para calcular cercanos;
-  // hasta contar con una capa consultable real distinta, forzamos fallback.
+function findContainingPRCFromPerimetros(latlng) {
+  const features = getPerimetrosIPTFeatures();
+  if (!Array.isArray(features) || !features.length || !latlng) return null;
+
+  if (window.turf?.point && window.turf?.booleanPointInPolygon) {
+    const point = window.turf.point([latlng.lng, latlng.lat]);
+
+    for (const feature of features) {
+      try {
+        if (window.turf.booleanPointInPolygon(point, feature)) {
+          return feature;
+        }
+      } catch (err) {
+        console.warn("No se pudo evaluar punto en polígono", err, feature);
+      }
+    }
+
+    return null;
+  }
+
+  for (const feature of features) {
+    try {
+      if (puntoEnFeature(latlng, feature)) return feature;
+    } catch (err) {
+      console.warn("No se pudo evaluar punto en polígono", err, feature);
+    }
+  }
+
   return null;
 }
 
-function mostrarMsgboxPuntoConsultado(clickedLatLng, match = null) {
+function mostrarMsgboxCoordenadas(clickedLatLng) {
   if (!clickedLatLng) return;
 
-  let msg =
+  alert(
     "Consulta territorial\n\n" +
     "Punto consultado:\n" +
     "Lat: " + clickedLatLng.lat.toFixed(6) + "\n" +
-    "Lng: " + clickedLatLng.lng.toFixed(6);
-
-  if (match) {
-    msg += "\n\nMatch directo:\n" + getPRCDisplayName(match.feature || match);
-  }
-
-  alert(msg);
+    "Lng: " + clickedLatLng.lng.toFixed(6)
+  );
 }
 
 function buscarItemPrcContenedor(latLng) {
@@ -518,9 +538,11 @@ function handleMapClick(event) {
 
   colocarMarcadorPunto(clickedLatLng);
 
-  const directMatch = findDirectQueryableMatch(clickedLatLng);
-  if (directMatch) {
-    mostrarMsgboxPuntoConsultado(clickedLatLng, directMatch);
+  const containingPRC = findContainingPRCFromPerimetros(clickedLatLng);
+
+  if (containingPRC) {
+    ocultarResultadosBusqueda();
+    mostrarMsgboxCoordenadas(clickedLatLng);
     return;
   }
 
