@@ -138,7 +138,7 @@ function iniciarMapa(params) {
   }).addTo(map);
 
   map.invalidateSize();
-  map.on("click", manejarClickConsultaPrc);
+  map.on("click", handleMapClick);
 }
 
 function conectarEventos() {
@@ -337,8 +337,9 @@ let toSearchResultadosActuales = [];
 let toSearchHighlightLayer = null;
 let selectedPRCHighlightLayer = null;
 let mapHintTimeoutId = null;
-let nearestPrcResultadosActuales = [];
-let lastConsultedLatLng = null;
+let resultadosBusquedaActual = [];
+let searchActiveIndex = -1;
+let puntoConsultaMarker = null;
 
 function normalizarTextoToSearch(value) {
   return String(value || "")
@@ -464,80 +465,303 @@ function puntoEnFeature(latLng, feature) {
   return false;
 }
 
-function calcularDistanciaPrcMetros(latLng, item) {
-  if (!latLng || !item?.bounds?.isValid?.()) return Infinity;
-  if (puntoEnFeature(latLng, item.feature)) return 0;
-  const center = item.bounds.getCenter();
-  return map.distance(latLng, center);
+function colocarMarcadorPunto(clickedLatLng) {
+  if (!map || !clickedLatLng) return;
+
+  if (puntoConsultaMarker && map.hasLayer(puntoConsultaMarker)) {
+    map.removeLayer(puntoConsultaMarker);
+  }
+
+  puntoConsultaMarker = L.circleMarker(clickedLatLng, {
+    radius: 6,
+    color: "#0f172a",
+    weight: 2,
+    opacity: 1,
+    fillColor: "#38bdf8",
+    fillOpacity: 0.9
+  }).addTo(map);
+}
+
+function findDirectQueryableMatch(clickedLatLng) {
+  return buscarItemPrcContenedor(clickedLatLng);
+}
+
+function mostrarMsgboxPuntoConsultado(clickedLatLng, match = null) {
+  if (!clickedLatLng) return;
+
+  let msg =
+    "Consulta territorial\n\n" +
+    "Punto consultado:\n" +
+    "Lat: " + clickedLatLng.lat.toFixed(6) + "\n" +
+    "Lng: " + clickedLatLng.lng.toFixed(6);
+
+  if (match) {
+    msg += "\n\nMatch directo:\n" + getPRCDisplayName(match.feature || match);
+  }
+
+  alert(msg);
 }
 
 function buscarItemPrcContenedor(latLng) {
   return toSearchIndice.find((item) => item?.bounds?.contains?.(latLng) && puntoEnFeature(latLng, item.feature)) || null;
 }
 
-function buscarPrcMasCercanos(latLng, cantidad = 3) {
-  return toSearchIndice
-    .map((item) => ({ ...item, distanceMeters: calcularDistanciaPrcMetros(latLng, item) }))
-    .filter((item) => Number.isFinite(item.distanceMeters))
-    .sort((a, b) => a.distanceMeters - b.distanceMeters)
-    .slice(0, cantidad);
-}
-
-function mostrarPrcCercanosEnSearchBox(items, clickedLatLng) {
-  const contenedor = document.getElementById("search-results");
-  if (!contenedor) return;
-
-  nearestPrcResultadosActuales = items;
-  toSearchResultadosActuales = [];
-  lastConsultedLatLng = clickedLatLng;
-  contenedor.innerHTML = "";
-
-  if (!items.length) {
-    contenedor.classList.remove("is-visible");
-    return;
-  }
-
-  const encabezado = document.createElement("div");
-  encabezado.className = "search-results-message";
-  encabezado.textContent = "No hay PRC en este punto. PRC más cercanos:";
-  contenedor.appendChild(encabezado);
-
-  items.forEach((item, index) => {
-    const boton = document.createElement("button");
-    boton.type = "button";
-    boton.className = "search-result-item";
-    const distancia = Math.round(item.distanceMeters).toLocaleString("es-CL");
-    boton.textContent = `${index + 1}. ${item.texto_resultado} · ${distancia} m`;
-    boton.addEventListener("click", () => seleccionarPrcCercano(item, clickedLatLng, index + 1));
-    contenedor.appendChild(boton);
-  });
-
-  contenedor.classList.add("is-visible");
-}
-
-function seleccionarPrcCercano(item, clickedLatLng, rank) {
-  const searchBox = document.getElementById("search-box");
-  if (searchBox) searchBox.value = item.texto_localidad;
-  zoomToPRCFeature(item.feature, {
-    source: "nearest",
-    rank,
-    distanceMeters: item.distanceMeters,
-    bounds: item.bounds,
-    layerConfig: item.layer_config
-  });
-}
-
-function manejarClickConsultaPrc(event) {
+function handleMapClick(event) {
   if (!event?.latlng) return;
-  const clickedLatLng = event.latlng;
-  const itemDirecto = buscarItemPrcContenedor(clickedLatLng);
 
-  if (itemDirecto) {
-    handlePRCSelection(itemDirecto.feature, clickedLatLng, { source: "direct" });
+  const clickedLatLng = event.latlng;
+  const lat = clickedLatLng.lat;
+  const lon = clickedLatLng.lng;
+
+  colocarMarcadorPunto(clickedLatLng);
+
+  const directMatch = findDirectQueryableMatch(clickedLatLng);
+  if (directMatch) {
+    mostrarMsgboxPuntoConsultado(clickedLatLng, directMatch);
     return;
   }
 
-  mostrarPrcCercanosEnSearchBox(buscarPrcMasCercanos(clickedLatLng, 3), clickedLatLng);
+  const cercanos = obtenerPrcCercanosDesdePerimetros(lat, lon, 3);
+  renderFallbackResultadosCercanos(cercanos);
+}
+
+function getSearchInputElement() {
+  return document.getElementById("search-input")
+    || document.getElementById("prc-search")
+    || document.getElementById("search-box");
+}
+
+function getSearchResultsElement() {
+  return document.getElementById("search-results")
+    || document.getElementById("prc-search-results");
+}
+
+function abrirResultadosBusqueda(contenedor) {
+  contenedor.hidden = false;
+  contenedor.classList.add("is-visible", "is-open");
+}
+
+function renderFallbackResultadosCercanos(items) {
+  resultadosBusquedaActual = items || [];
+  searchActiveIndex = -1;
+
+  const searchInput = getSearchInputElement();
+  const searchResults = getSearchResultsElement();
+
+  if (!searchResults) {
+    console.warn("No existe contenedor de resultados del buscador.");
+    return;
+  }
+
+  if (searchInput) {
+    searchInput.value = "";
+    searchInput.focus();
+  }
+
+  if (!items || !items.length) {
+    searchResults.innerHTML = `
+      <div class="map-search-empty search-empty search-results-message">
+        No encontramos un PRC exacto en ese punto, y no hay sugerencias disponibles.
+      </div>
+    `;
+    abrirResultadosBusqueda(searchResults);
+    return;
+  }
+
+  searchResults.innerHTML = `
+    <div class="map-search-empty search-empty search-results-message nearest-header" style="padding-bottom: 8px;">
+      No encontramos un PRC exacto en ese punto.<br>
+      Estos son los 3 PRC más cercanos:
+    </div>
+    ${items.map((item, idx) => {
+      const meta = [item.comuna, item.region_nombre].filter(Boolean).join(" · ");
+      const distancia = Number(item.distancia_km);
+      const distanciaTexto = Number.isFinite(distancia)
+        ? distancia.toFixed(1) + " km"
+        : "distancia no disponible";
+      const metaTexto = [meta, distanciaTexto].filter(Boolean).join(" · ");
+
+      return `
+        <button
+          type="button"
+          class="map-search-item search-result-item nearest-prc-item"
+          data-index="${idx}"
+        >
+          <span class="map-search-title search-result-title">
+            ${escapeHtml(item.nombre || "PRC sin nombre")}
+          </span>
+          <span class="map-search-meta search-result-meta">
+            ${escapeHtml(metaTexto)}
+          </span>
+        </button>
+      `;
+    }).join("")}
+  `;
+
+  abrirResultadosBusqueda(searchResults);
+
+  searchResults.querySelectorAll(".map-search-item, .search-result-item").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const idx = Number(btn.dataset.index);
+      const item = resultadosBusquedaActual[idx];
+      if (item) await seleccionarResultadoBusqueda(item, { source: "nearest" });
+    });
+  });
+}
+
+function bboxEsValido(bbox) {
+  return (
+    Array.isArray(bbox)
+    && bbox.length === 2
+    && Array.isArray(bbox[0])
+    && Array.isArray(bbox[1])
+    && bbox[0].length === 2
+    && bbox[1].length === 2
+    && bbox.every((par) => Array.isArray(par) && par.every((num) => Number.isFinite(Number(num))))
+  );
+}
+
+function fitBoundsDesdeBbox(bbox) {
+  if (!bboxEsValido(bbox) || !map) return false;
+
+  const sw = L.latLng(Number(bbox[0][0]), Number(bbox[0][1]));
+  const ne = L.latLng(Number(bbox[1][0]), Number(bbox[1][1]));
+  const bounds = L.latLngBounds(sw, ne);
+
+  if (!bounds.isValid()) return false;
+
+  map.fitBounds(bounds, {
+    padding: [30, 30],
+    maxZoom: 16
+  });
+
+  return true;
+}
+
+function getBboxFromFeature(feature) {
+  try {
+    const layer = L.geoJSON(feature);
+    const bounds = layer.getBounds();
+
+    if (!bounds || !bounds.isValid()) return null;
+
+    return [
+      [bounds.getSouth(), bounds.getWest()],
+      [bounds.getNorth(), bounds.getEast()]
+    ];
+  } catch (err) {
+    console.warn("No se pudo calcular bbox del feature", err);
+    return null;
+  }
+}
+
+function zoomToGeoJsonFeature(feature) {
+  if (!feature || !map) return false;
+
+  const bbox = getBboxFromFeature(feature);
+  return fitBoundsDesdeBbox(bbox);
+}
+
+function centroDesdeBbox(bbox) {
+  if (!bboxEsValido(bbox)) return null;
+
+  const south = Number(bbox[0][0]);
+  const west = Number(bbox[0][1]);
+  const north = Number(bbox[1][0]);
+  const east = Number(bbox[1][1]);
+
+  return {
+    lat: (south + north) / 2,
+    lon: (west + east) / 2
+  };
+}
+
+function distanciaAproximadaKm(a, b) {
+  if (!a || !b) return Infinity;
+
+  const dLat = Number(a.lat) - Number(b.lat);
+  const dLon = Number(a.lon) - Number(b.lon);
+
+  return Math.sqrt(dLat * dLat + dLon * dLon) * 111;
+}
+
+function obtenerPrcCercanosDesdePerimetros(lat, lon, limite = 3) {
+  const origen = { lat: Number(lat), lon: Number(lon) };
+
+  if (!Number.isFinite(origen.lat) || !Number.isFinite(origen.lon)) {
+    return [];
+  }
+
+  const features = getPerimetrosIPTFeatures();
+
+  if (!Array.isArray(features) || !features.length) {
+    console.warn("No hay features de Perímetros IPT disponibles para calcular cercanos.");
+    return [];
+  }
+
+  return features
+    .map((feature) => {
+      const props = feature.properties || {};
+      const bbox = normalizarBboxPerimetro(props.bbox || feature.bbox || getBboxFromFeature(feature));
+      const centro = centroDesdeBbox(bbox);
+
+      return {
+        nombre: getPRCDisplayName(feature),
+        comuna: props.comuna || props.COMUNA || props.Comuna || "",
+        region_nombre: props.region_nombre || props.region || props.REGION || props.Región || "",
+        region_codigo: props.region_codigo || props.codigo_region || props.cod_region || "",
+        archivo: props.archivo || props.file || props.kml || props.capa_kml || "",
+        carpeta: props.carpeta || "",
+        bbox,
+        feature,
+        distancia_km: centro ? distanciaAproximadaKm(origen, centro) : Infinity
+      };
+    })
+    .filter((item) => item.nombre && bboxEsValido(item.bbox) && Number.isFinite(item.distancia_km))
+    .sort((a, b) => a.distancia_km - b.distancia_km)
+    .slice(0, limite);
+}
+
+function normalizarBboxPerimetro(bbox) {
+  if (bboxEsValido(bbox)) return bbox;
+  if (Array.isArray(bbox) && bbox.length === 4) {
+    const [minLon, minLat, maxLon, maxLat] = bbox.map(Number);
+    if ([minLon, minLat, maxLon, maxLat].every(Number.isFinite)) {
+      return [[minLat, minLon], [maxLat, maxLon]];
+    }
+  }
+  return null;
+}
+
+function getPerimetrosIPTFeatures() {
+  if (window.perimetrosIPTData?.features) return window.perimetrosIPTData.features;
+  if (window.perimetrosData?.features) return window.perimetrosData.features;
+  if (Array.isArray(window.perimetrosIPTFeatures)) return window.perimetrosIPTFeatures;
+
+  const features = [];
+  panelGeojsonCargados.forEach((geojson) => {
+    if (Array.isArray(geojson?.features)) features.push(...geojson.features);
+  });
+
+  return features;
+}
+
+function getPRCDisplayName(feature) {
+  const p = feature?.properties || {};
+
+  return (
+    p.nombre
+    || p.NOMBRE
+    || p.nombre_prc
+    || p.prc
+    || p.PRC
+    || p.instrumento
+    || p.INSTRUMENTO
+    || p.localidad
+    || p.comuna
+    || p.COMUNA
+    || "PRC sin nombre"
+  );
 }
 
 // RESULTADO LOCALIDAD COMUNA REGION
@@ -635,7 +859,8 @@ function mostrarResultadosToSearch(texto) {
   contenedor.innerHTML = "";
 
   if (!toSearchResultadosActuales.length) {
-    contenedor.classList.remove("is-visible");
+    contenedor.hidden = true;
+    contenedor.classList.remove("is-visible", "is-open");
     return;
   }
 
@@ -648,17 +873,24 @@ function mostrarResultadosToSearch(texto) {
     contenedor.appendChild(boton);
   });
 
-  contenedor.classList.add("is-visible");
+  abrirResultadosBusqueda(contenedor);
+}
+
+function ocultarResultadosBusqueda() {
+  resultadosBusquedaActual = [];
+  toSearchResultadosActuales = [];
+  searchActiveIndex = -1;
+
+  const searchResults = getSearchResultsElement();
+  if (searchResults) {
+    searchResults.innerHTML = "";
+    searchResults.hidden = true;
+    searchResults.classList.remove("is-visible", "is-open");
+  }
 }
 
 function cerrarResultadosToSearch() {
-  const contenedor = document.getElementById("search-results");
-  toSearchResultadosActuales = [];
-  nearestPrcResultadosActuales = [];
-  if (contenedor) {
-    contenedor.innerHTML = "";
-    contenedor.classList.remove("is-visible");
-  }
+  ocultarResultadosBusqueda();
 }
 
 function zoomToPRCFeature(feature, options = {}) {
@@ -697,26 +929,35 @@ function seleccionarPrimerResultadoToSearch() {
 }
 
 // ZOOM TO FEATURE
+async function seleccionarResultadoBusqueda(item, options = {}) {
+  if (!item) return;
+
+  const searchInput = getSearchInputElement();
+  if (searchInput) {
+    searchInput.value = item.nombre || item.texto_localidad || item.texto_resultado || "";
+  }
+
+  ocultarResultadosBusqueda();
+
+  let hizoFit = false;
+  if (item.bbox) hizoFit = fitBoundsDesdeBbox(item.bbox);
+  if (!hizoFit && item.bounds?.isValid?.()) {
+    map.fitBounds(item.bounds, { padding: [40, 40], maxZoom: 15 });
+    hizoFit = true;
+  }
+  if (!hizoFit && item.feature) hizoFit = zoomToGeoJsonFeature(item.feature);
+
+  if (item.feature) resaltarTemporalmenteFeatureToSearch(item.feature);
+
+  if (hizoFit && typeof setMapMarkerAtCenter === "function") {
+    setMapMarkerAtCenter();
+  }
+
+  showMapHint("PRC localizado. Haga click dentro del área para consultar.");
+}
+
 function seleccionarResultadoToSearch(item, options = {}) {
-  const searchBox = document.getElementById("search-box");
-  if (searchBox) searchBox.value = item.texto_localidad;
-  cerrarResultadosToSearch();
-
-  const clickedLatLng = options.clickedLatLng || obtenerLatLngRepresentativoFeature(item.feature, item.bounds);
-  handlePRCSelection(item.feature, clickedLatLng, { source: options.source || "search" });
-
-  if (!map || !item.bounds || !item.bounds.isValid()) return;
-
-  const layerConfig = item.layer_config || {};
-  const padding = Array.isArray(layerConfig.padding) ? layerConfig.padding : [40, 40];
-  const maxZoom = Number.isFinite(Number(layerConfig.max_zoom)) ? Number(layerConfig.max_zoom) : 15;
-
-  map.fitBounds(item.bounds, {
-    padding,
-    maxZoom
-  });
-
-  resaltarTemporalmenteFeatureToSearch(item.feature);
+  return seleccionarResultadoBusqueda(item, options);
 }
 
 // HIGHLIGHT TEMPORAL
@@ -1088,7 +1329,7 @@ async function cargarCapaPanelSiCorresponde(item) {
     const geojson = await response.json();
     const layer = L.geoJSON(geojson, {
       style: obtenerEstiloPerimetrosSegunBase(item.style || {}),
-      onEachFeature: (feature, featureLayer) => vincularPopupPanel(feature, featureLayer, item)
+      interactive: false
     });
     panelCapasCargadas.set(item.id, layer);
     panelGeojsonCargados.set(item.id, geojson);
@@ -1100,18 +1341,6 @@ async function cargarCapaPanelSiCorresponde(item) {
   } finally {
     panelCapasEnCarga.delete(item.id);
   }
-}
-
-function vincularPopupPanel(feature, layer, item) {
-  const props = feature && feature.properties ? feature.properties : {};
-  const popup = item.popup || {};
-  const partes = [];
-  const titulo = popup.titulo && props[popup.titulo] ? props[popup.titulo] : "";
-  const subtitulo = popup.subtitulo && props[popup.subtitulo] ? props[popup.subtitulo] : "";
-
-  if (titulo) partes.push(`<strong>${escapeHtml(titulo)}</strong>`);
-  if (subtitulo && subtitulo !== titulo) partes.push(`<span>${escapeHtml(subtitulo)}</span>`);
-  if (partes.length) layer.bindPopup(`<div class="panel-popup">${partes.join("<br>")}</div>`);
 }
 
 function removerTodosPerimetrosIpt() {
