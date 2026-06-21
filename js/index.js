@@ -138,6 +138,7 @@ function iniciarMapa(params) {
   }).addTo(map);
 
   map.invalidateSize();
+  map.on("click", manejarClickConsultaPrc);
 }
 
 function conectarEventos() {
@@ -334,6 +335,8 @@ const TOSEARCH_LISTADO_PATH = "capas_tosearch/listado_tosearch.json";
 const toSearchIndice = [];
 let toSearchResultadosActuales = [];
 let toSearchHighlightLayer = null;
+let nearestPrcResultadosActuales = [];
+let lastConsultedLatLng = null;
 
 function normalizarTextoToSearch(value) {
   return String(value || "")
@@ -384,6 +387,151 @@ function obtenerPropTexto(props, nombresCampos) {
     }
   }
   return "";
+}
+
+
+function obtenerNombrePrc(feature) {
+  const props = feature?.properties || {};
+  return obtenerPropTexto(props, ["nombre_prc", "localidad", "LOC", "LOCALIDAD", "nombre", "NOMBRE"]) || "PRC sin nombre";
+}
+
+function normalizarLatLng(clickedLatLng) {
+  if (!clickedLatLng) return null;
+  if (Number.isFinite(clickedLatLng.lat) && Number.isFinite(clickedLatLng.lng)) return clickedLatLng;
+  if (Number.isFinite(clickedLatLng.lat) && Number.isFinite(clickedLatLng.lon)) return L.latLng(clickedLatLng.lat, clickedLatLng.lon);
+  if (Array.isArray(clickedLatLng) && clickedLatLng.length >= 2) return L.latLng(Number(clickedLatLng[0]), Number(clickedLatLng[1]));
+  return null;
+}
+
+function obtenerLatLngRepresentativoFeature(feature, bounds) {
+  if (bounds?.isValid?.()) return bounds.getCenter();
+  try {
+    const featureBounds = L.geoJSON(feature).getBounds();
+    if (featureBounds.isValid()) return featureBounds.getCenter();
+  } catch (error) {
+    console.warn("No se pudo obtener punto representativo para PRC.", error);
+  }
+  return null;
+}
+
+function handlePRCSelection(feature, clickedLatLng, options = {}) {
+  const punto = normalizarLatLng(clickedLatLng);
+  const nombrePrc = obtenerNombrePrc(feature);
+  const source = options.source || "direct";
+  const coords = punto
+    ? `${punto.lat.toFixed(6)}, ${punto.lng.toFixed(6)}`
+    : "Sin coordenadas disponibles";
+
+  const detalle = [
+    "Consulta PRC",
+    `Coordenadas consultadas: ${coords}`,
+    `PRC seleccionado: ${nombrePrc}`,
+    `Modo de selección: ${source}`
+  ];
+
+  if (Number.isFinite(options.rank)) detalle.push(`Ranking cercano: ${options.rank}`);
+  if (Number.isFinite(options.distanceMeters)) detalle.push(`Distancia: ${Math.round(options.distanceMeters).toLocaleString("es-CL")} m`);
+
+  alert(detalle.join("\n"));
+}
+
+function puntoEnAnillo(lonLat, ring) {
+  const [x, y] = lonLat;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const intersecta = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-12) + xi);
+    if (intersecta) inside = !inside;
+  }
+  return inside;
+}
+
+function puntoEnPoligono(lonLat, polygon) {
+  if (!Array.isArray(polygon?.[0])) return false;
+  if (!puntoEnAnillo(lonLat, polygon[0])) return false;
+  return !polygon.slice(1).some((hole) => puntoEnAnillo(lonLat, hole));
+}
+
+function puntoEnFeature(latLng, feature) {
+  const geometry = feature?.geometry;
+  if (!latLng || !geometry) return false;
+  const lonLat = [latLng.lng, latLng.lat];
+  if (geometry.type === "Polygon") return puntoEnPoligono(lonLat, geometry.coordinates);
+  if (geometry.type === "MultiPolygon") return geometry.coordinates.some((polygon) => puntoEnPoligono(lonLat, polygon));
+  return false;
+}
+
+function calcularDistanciaPrcMetros(latLng, item) {
+  if (!latLng || !item?.bounds?.isValid?.()) return Infinity;
+  if (puntoEnFeature(latLng, item.feature)) return 0;
+  const center = item.bounds.getCenter();
+  return map.distance(latLng, center);
+}
+
+function buscarItemPrcContenedor(latLng) {
+  return toSearchIndice.find((item) => item?.bounds?.contains?.(latLng) && puntoEnFeature(latLng, item.feature)) || null;
+}
+
+function buscarPrcMasCercanos(latLng, cantidad = 3) {
+  return toSearchIndice
+    .map((item) => ({ ...item, distanceMeters: calcularDistanciaPrcMetros(latLng, item) }))
+    .filter((item) => Number.isFinite(item.distanceMeters))
+    .sort((a, b) => a.distanceMeters - b.distanceMeters)
+    .slice(0, cantidad);
+}
+
+function mostrarPrcCercanosEnSearchBox(items, clickedLatLng) {
+  const contenedor = document.getElementById("search-results");
+  const searchBox = document.getElementById("search-box");
+  if (!contenedor) return;
+
+  nearestPrcResultadosActuales = items;
+  toSearchResultadosActuales = [];
+  lastConsultedLatLng = clickedLatLng;
+  if (searchBox) searchBox.value = "PRC más cercanos";
+  contenedor.innerHTML = "";
+
+  if (!items.length) {
+    contenedor.classList.remove("is-visible");
+    return;
+  }
+
+  items.forEach((item, index) => {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = "search-result-item";
+    const distancia = Math.round(item.distanceMeters).toLocaleString("es-CL");
+    boton.textContent = `${index + 1}. ${item.texto_resultado} · ${distancia} m`;
+    boton.addEventListener("click", () => seleccionarPrcCercano(item, clickedLatLng, index + 1));
+    contenedor.appendChild(boton);
+  });
+
+  contenedor.classList.add("is-visible");
+}
+
+function seleccionarPrcCercano(item, clickedLatLng, rank) {
+  const searchBox = document.getElementById("search-box");
+  if (searchBox) searchBox.value = item.texto_localidad;
+  cerrarResultadosToSearch();
+  handlePRCSelection(item.feature, clickedLatLng, {
+    source: "nearest",
+    rank,
+    distanceMeters: item.distanceMeters
+  });
+}
+
+function manejarClickConsultaPrc(event) {
+  if (!event?.latlng) return;
+  const clickedLatLng = event.latlng;
+  const itemDirecto = buscarItemPrcContenedor(clickedLatLng);
+
+  if (itemDirecto) {
+    handlePRCSelection(itemDirecto.feature, clickedLatLng, { source: "direct" });
+    return;
+  }
+
+  mostrarPrcCercanosEnSearchBox(buscarPrcMasCercanos(clickedLatLng, 3), clickedLatLng);
 }
 
 // RESULTADO LOCALIDAD COMUNA REGION
@@ -496,6 +644,7 @@ function mostrarResultadosToSearch(texto) {
 function cerrarResultadosToSearch() {
   const contenedor = document.getElementById("search-results");
   toSearchResultadosActuales = [];
+  nearestPrcResultadosActuales = [];
   if (contenedor) {
     contenedor.innerHTML = "";
     contenedor.classList.remove("is-visible");
@@ -514,10 +663,13 @@ function seleccionarPrimerResultadoToSearch() {
 }
 
 // ZOOM TO FEATURE
-function seleccionarResultadoToSearch(item) {
+function seleccionarResultadoToSearch(item, options = {}) {
   const searchBox = document.getElementById("search-box");
   if (searchBox) searchBox.value = item.texto_localidad;
   cerrarResultadosToSearch();
+
+  const clickedLatLng = options.clickedLatLng || obtenerLatLngRepresentativoFeature(item.feature, item.bounds);
+  handlePRCSelection(item.feature, clickedLatLng, { source: options.source || "search" });
 
   if (!map || !item.bounds || !item.bounds.isValid()) return;
 
