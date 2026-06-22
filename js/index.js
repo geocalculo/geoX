@@ -137,8 +137,11 @@ function iniciarMapa(params) {
     maxWidth: 120
   }).addTo(map);
 
+  territorialLabelsLayer = L.layerGroup().addTo(map);
+
   map.invalidateSize();
   map.on("click", handleMapClick);
+  map.on("moveend zoomend", scheduleTerritorialLabelUpdate);
 }
 
 function conectarEventos() {
@@ -1204,17 +1207,13 @@ const PANEL_CAPAS_PATH = "capas_panel/listado_capas.json";
 let panelCapasListado = [];
 let panelPerimetrosActivo = false;
 const panelCapasCargadas = new Map();
-// ETIQUETAS LOCALIDAD PANEL
+// ETIQUETAS DINÁMICAS PANEL TERRITORIAL
 const panelGeojsonCargados = new Map();
-let panelLabelsSmartLayer = null;
+let territorialLabelsLayer = null;
+let territorialLabelsUpdateTimer = null;
+const TERRITORIAL_LABELS_MAX = 50;
+const TERRITORIAL_LABELS_DEBOUNCE_MS = 200;
 const panelCapasEnCarga = new Set();
-
-const LABEL_RULES = {
-  desktop: { lowZoomMax: 12, midZoomMax: 25, highZoomMax: 45 },
-  mobile: { lowZoomMax: 6, midZoomMax: 12, highZoomMax: 20 }
-};
-
-const LABEL_ZOOM_BREAKPOINTS = { low: 10, high: 13 };
 
 // ESTILO DINÁMICO SEGÚN BASEMAP
 function obtenerEstiloPerimetrosSegunBase(itemStyle = {}) {
@@ -1341,7 +1340,10 @@ function obtenerCapasPanelCandidatas() {
 }
 
 async function actualizarPerimetrosIptVisibles() {
-  if (!panelPerimetrosActivo || !map) return;
+  if (!panelPerimetrosActivo || !map) {
+    scheduleTerritorialLabelUpdate();
+    return;
+  }
 
   const candidatas = obtenerCapasPanelCandidatas();
   const idsCandidatas = new Set(candidatas.map((item) => item.id));
@@ -1354,7 +1356,7 @@ async function actualizarPerimetrosIptVisibles() {
 
 
   await Promise.all(candidatas.map((item) => cargarCapaPanelSiCorresponde(item)));
-  renderizarLabelsInteligentesPerimetrosIpt(candidatas);
+  scheduleTerritorialLabelUpdate();
 }
 
 // CARGA DINÁMICA GEOJSON
@@ -1395,178 +1397,125 @@ function removerTodosPerimetrosIpt() {
   panelCapasCargadas.forEach((layer) => {
     if (map && map.hasLayer(layer)) map.removeLayer(layer);
   });
-  removerTodosLabelsLocalidad();
+  scheduleTerritorialLabelUpdate();
 }
 
 
-function obtenerCentroFeatureParaLabel(feature) {
-  if (!feature) return null;
 
-  const bounds = L.geoJSON(feature).getBounds();
-  if (!bounds.isValid()) return null;
+function getFeatureLabelText(feature) {
+  const props = feature?.properties || {};
+  const fields = ["LOC", "LOCALIDAD", "SECTOR", "COMUNA"];
 
-  return bounds.getCenter();
+  for (const field of fields) {
+    const value = props[field];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+
+  return null;
 }
 
-function crearMarkerLabelLocalidad(feature, center) {
-  // CREAR LABEL LOCALIDAD
-  const localidad = feature?.properties?.localidad;
-  if (!localidad || !center) return null;
+function layerIntersectsViewport(layer, mapBounds) {
+  if (!layer || !mapBounds) return false;
 
-  return L.marker(center, {
+  if (typeof layer.getLatLng === "function") {
+    const latlng = layer.getLatLng();
+    return latlng ? mapBounds.contains(latlng) : false;
+  }
+
+  if (typeof layer.getBounds === "function") {
+    const bounds = layer.getBounds();
+    return bounds?.isValid?.() ? bounds.intersects(mapBounds) : false;
+  }
+
+  return false;
+}
+
+function getVisibleLabelLatLng(layer, leafletMap) {
+  if (!layer || !leafletMap) return null;
+
+  const mapBounds = leafletMap.getBounds();
+
+  if (typeof layer.getLatLng === "function") {
+    const latlng = layer.getLatLng();
+    return latlng && mapBounds.contains(latlng) ? latlng : null;
+  }
+
+  if (typeof layer.getBounds !== "function") return null;
+
+  const layerBounds = layer.getBounds();
+  if (!layerBounds?.isValid?.() || !layerBounds.intersects(mapBounds)) return null;
+
+  const center = layerBounds.getCenter();
+  if (mapBounds.contains(center)) return center;
+
+  const south = Math.max(layerBounds.getSouth(), mapBounds.getSouth());
+  const north = Math.min(layerBounds.getNorth(), mapBounds.getNorth());
+  const west = Math.max(layerBounds.getWest(), mapBounds.getWest());
+  const east = Math.min(layerBounds.getEast(), mapBounds.getEast());
+
+  if (south > north || west > east) return null;
+  return L.latLng((south + north) / 2, (west + east) / 2);
+}
+
+function createTerritorialLabelMarker(labelText, latlng) {
+  if (!labelText || !latlng) return null;
+
+  return L.marker(latlng, {
     interactive: false,
+    keyboard: false,
     icon: L.divIcon({
-      className: "geofactory-localidad-label",
-      html: escapeHtml(localidad),
+      className: "territorial-label",
+      html: escapeHtml(labelText),
       iconSize: null
     })
   });
 }
 
-function renderizarLabelsInteligentesPerimetrosIpt(candidatas) {
-  if (!map || !panelPerimetrosActivo) return;
+function updateTerritorialLabels() {
+  if (!map) return;
 
-  if (!panelLabelsSmartLayer) panelLabelsSmartLayer = L.layerGroup();
-  panelLabelsSmartLayer.clearLayers();
+  if (!territorialLabelsLayer) territorialLabelsLayer = L.layerGroup().addTo(map);
+  territorialLabelsLayer.clearLayers();
 
-  const zoom = map.getZoom();
-  const esMobile = window.matchMedia("(max-width: 768px)").matches;
-  const maxLabels = obtenerMaximoLabelsPorZoom(zoom, esMobile);
-  const minArea = obtenerAreaMinimaLabelsPorZoom(zoom, esMobile);
-  const bounds = map.getBounds();
-  const candidatasIds = new Set(candidatas.map((item) => item.id));
+  if (!panelPerimetrosActivo) return;
 
-  const featuresVisibles = [];
-  panelGeojsonCargados.forEach((geojson, id) => {
-    if (!candidatasIds.has(id)) return;
-    const features = Array.isArray(geojson?.features) ? geojson.features : [];
+  const mapBounds = map.getBounds();
+  let labelCount = 0;
 
-    features.forEach((feature) => {
-      const area = obtenerAreaFeature(feature);
-      if (area < minArea || !featureIntersectaViewport(feature, bounds)) return;
-      featuresVisibles.push({ feature, area });
+  for (const item of panelCapasListado) {
+    if (labelCount >= TERRITORIAL_LABELS_MAX) break;
+
+    const panelLayer = panelCapasCargadas.get(item.id);
+    if (!panelLayer || !map.hasLayer(panelLayer)) continue;
+
+    panelLayer.eachLayer((featureLayer) => {
+      if (labelCount >= TERRITORIAL_LABELS_MAX) return;
+      if (!layerIntersectsViewport(featureLayer, mapBounds)) return;
+
+      const labelText = getFeatureLabelText(featureLayer.feature);
+      if (!labelText) return;
+
+      const latlng = getVisibleLabelLatLng(featureLayer, map);
+      if (!latlng || !mapBounds.contains(latlng)) return;
+
+      const marker = createTerritorialLabelMarker(labelText, latlng);
+      if (!marker) return;
+
+      marker.addTo(territorialLabelsLayer);
+      labelCount += 1;
     });
-  });
-
-  featuresVisibles.sort((a, b) => b.area - a.area);
-
-  const labelsAceptados = [];
-  let labelsCreados = 0;
-
-  for (const item of featuresVisibles) {
-    if (labelsCreados >= maxLabels) break;
-
-    const labelText = obtenerTextoLabelFeature(item.feature);
-    const center = obtenerCentroFeatureParaLabel(item.feature);
-    if (!labelText || !center || !bounds.contains(center)) continue;
-
-    const labelBox = estimarCajaLabel(center, labelText);
-    if (!labelBox || colisionaConLabelsAceptados(labelBox, labelsAceptados)) continue;
-
-    const marker = crearMarkerLabelLocalidad(item.feature, center);
-    if (!marker) continue;
-
-    panelLabelsSmartLayer.addLayer(marker);
-    labelsAceptados.push(labelBox);
-    labelsCreados += 1;
   }
-
-  if (!map.hasLayer(panelLabelsSmartLayer)) panelLabelsSmartLayer.addTo(map);
 }
 
-function obtenerMaximoLabelsPorZoom(zoom, esMobile) {
-  const reglas = esMobile ? LABEL_RULES.mobile : LABEL_RULES.desktop;
-  if (zoom < LABEL_ZOOM_BREAKPOINTS.low) return reglas.lowZoomMax;
-  if (zoom < LABEL_ZOOM_BREAKPOINTS.high) return reglas.midZoomMax;
-  return reglas.highZoomMax;
-}
+function scheduleTerritorialLabelUpdate() {
+  if (territorialLabelsUpdateTimer) window.clearTimeout(territorialLabelsUpdateTimer);
 
-function obtenerAreaMinimaLabelsPorZoom(zoom, esMobile) {
-  const factorMobile = esMobile ? 1.7 : 1;
-  if (zoom < LABEL_ZOOM_BREAKPOINTS.low) return 0.01 * factorMobile;
-  if (zoom < LABEL_ZOOM_BREAKPOINTS.high) return 0.0025 * factorMobile;
-  return 0;
-}
-
-function featureIntersectaViewport(feature, bounds) {
-  const featureBounds = L.geoJSON(feature).getBounds();
-  return featureBounds.isValid() && featureBounds.intersects(bounds);
-}
-
-function obtenerTextoLabelFeature(feature) {
-  return feature?.properties?.localidad || "";
-}
-
-function estimarCajaLabel(latlng, labelText) {
-  if (!map || !latlng || !labelText) return null;
-
-  const point = map.latLngToContainerPoint(latlng);
-  const width = Math.max(44, String(labelText).length * 7 + 18);
-  const height = 24;
-  const padding = window.matchMedia("(max-width: 768px)").matches ? 10 : 6;
-
-  return {
-    minX: point.x - (width / 2) - padding,
-    maxX: point.x + (width / 2) + padding,
-    minY: point.y - (height / 2) - padding,
-    maxY: point.y + (height / 2) + padding
-  };
-}
-
-function colisionaConLabelsAceptados(labelBox, labelsAceptados) {
-  return labelsAceptados.some((accepted) => cajasIntersectan(labelBox, accepted));
-}
-
-function cajasIntersectan(a, b) {
-  return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
-}
-
-function obtenerAreaFeature(feature) {
-  const geometry = feature?.geometry;
-  if (!geometry) return 0;
-  return obtenerAreaGeometry(geometry);
-}
-
-function obtenerAreaGeometry(geometry) {
-  if (geometry.type === "Polygon") {
-    return Math.abs(obtenerAreaAnillos(geometry.coordinates));
-  }
-
-  if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates.reduce((total, polygon) => total + Math.abs(obtenerAreaAnillos(polygon)), 0);
-  }
-
-  return 0;
-}
-
-function obtenerAreaAnillos(rings) {
-  if (!Array.isArray(rings) || !Array.isArray(rings[0])) return 0;
-
-  const exterior = Math.abs(obtenerAreaAnillo(rings[0]));
-  const interiores = rings.slice(1).reduce((total, ring) => total + Math.abs(obtenerAreaAnillo(ring)), 0);
-  return Math.max(exterior - interiores, 0);
-}
-
-function obtenerAreaAnillo(ring) {
-  if (!Array.isArray(ring) || ring.length < 3) return 0;
-
-  let area = 0;
-  for (let i = 0; i < ring.length; i += 1) {
-    const [x1, y1] = ring[i].map(Number);
-    const [x2, y2] = ring[(i + 1) % ring.length].map(Number);
-    if (![x1, y1, x2, y2].every(Number.isFinite)) continue;
-    area += (x1 * y2) - (x2 * y1);
-  }
-
-  return area / 2;
-}
-
-function removerTodosLabelsLocalidad() {
-  // REMOVER LABELS LOCALIDAD
-  if (map && panelLabelsSmartLayer && map.hasLayer(panelLabelsSmartLayer)) {
-    map.removeLayer(panelLabelsSmartLayer);
-  }
-  if (panelLabelsSmartLayer) panelLabelsSmartLayer.clearLayers();
+  territorialLabelsUpdateTimer = window.setTimeout(() => {
+    territorialLabelsUpdateTimer = null;
+    updateTerritorialLabels();
+  }, TERRITORIAL_LABELS_DEBOUNCE_MS);
 }
 
 function escapeHtml(value) {
