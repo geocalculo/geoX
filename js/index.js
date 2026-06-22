@@ -137,7 +137,7 @@ function iniciarMapa(params) {
     maxWidth: 120
   }).addTo(map);
 
-  territorialLabelsLayer = L.layerGroup().addTo(map);
+  ensureTerritorialLabelsLayer();
 
   map.invalidateSize();
   map.on("click", handleMapClick);
@@ -1213,6 +1213,8 @@ let territorialLabelsLayer = null;
 let territorialLabelsUpdateTimer = null;
 const TERRITORIAL_LABELS_MAX = 50;
 const TERRITORIAL_LABELS_DEBOUNCE_MS = 200;
+const TERRITORIAL_LABELS_PANE = "territorial-labels-pane";
+const TERRITORIAL_LABEL_FIELDS = ["LOC", "LOCALIDAD", "SECTOR", "COMUNA"];
 const panelCapasEnCarga = new Set();
 
 // ESTILO DINÁMICO SEGÚN BASEMAP
@@ -1402,12 +1404,36 @@ function removerTodosPerimetrosIpt() {
 
 
 
+function normalizeTerritorialFieldName(fieldName) {
+  return String(fieldName || "").trim().toUpperCase();
+}
+
+function ensureTerritorialLabelsLayer() {
+  if (!map) return null;
+
+  if (!map.getPane(TERRITORIAL_LABELS_PANE)) {
+    const pane = map.createPane(TERRITORIAL_LABELS_PANE);
+    pane.style.zIndex = 650;
+    pane.style.pointerEvents = "none";
+  }
+
+  if (!territorialLabelsLayer) territorialLabelsLayer = L.layerGroup().addTo(map);
+  return territorialLabelsLayer;
+}
+
 function getFeatureLabelText(feature) {
   const props = feature?.properties || {};
-  const fields = ["LOC", "LOCALIDAD", "SECTOR", "COMUNA"];
+  const normalizedFields = new Map();
 
-  for (const field of fields) {
-    const value = props[field];
+  Object.keys(props).forEach((field) => {
+    normalizedFields.set(normalizeTerritorialFieldName(field), field);
+  });
+
+  for (const field of TERRITORIAL_LABEL_FIELDS) {
+    const originalField = normalizedFields.get(normalizeTerritorialFieldName(field));
+    if (!originalField) continue;
+
+    const value = props[originalField];
     if (value !== undefined && value !== null && String(value).trim() !== "") {
       return String(value).trim();
     }
@@ -1463,6 +1489,7 @@ function createTerritorialLabelMarker(labelText, latlng) {
   if (!labelText || !latlng) return null;
 
   return L.marker(latlng, {
+    pane: TERRITORIAL_LABELS_PANE,
     interactive: false,
     keyboard: false,
     icon: L.divIcon({
@@ -1476,7 +1503,7 @@ function createTerritorialLabelMarker(labelText, latlng) {
 function updateTerritorialLabels() {
   if (!map) return;
 
-  if (!territorialLabelsLayer) territorialLabelsLayer = L.layerGroup().addTo(map);
+  ensureTerritorialLabelsLayer();
   territorialLabelsLayer.clearLayers();
 
   if (!panelPerimetrosActivo) return;
