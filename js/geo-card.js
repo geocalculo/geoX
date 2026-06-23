@@ -28,6 +28,9 @@ const regionParam = normalizarRegionId(urlParams.get("region"));
 const sitioParam = (urlParams.get("sitio") || "GeoIPT").trim();
 const zoomParam = parseInt(urlParams.get("zoom"), 10);
 const zoom = Number.isFinite(zoomParam) ? zoomParam : 14;
+const dominioPrc = urlParams.get("dominio_prc") === "1";
+const prcNombreParam = urlParams.get("prc_nombre") || "";
+const prcArchivoParam = urlParams.get("prc_archivo") || urlParams.get("capa_kml") || "";
 
 let btnKml = null;
 let matchLayer = null;
@@ -166,6 +169,13 @@ function escapeGeoCardStatusText(value) {
     .replace(/'/g, "&#39;");
 }
 
+function setEstadoGeoCard(texto, tipo = "ok") {
+  const el = document.getElementById("rp-estado");
+  if (!el) return;
+  el.textContent = texto;
+  el.className = tipo === "warn" ? "status-warn" : "status-ok";
+}
+
 function mostrarEstadoGeoCard(titulo, mensaje) {
   console.warn("[GeoCard]", titulo, mensaje);
 
@@ -188,6 +198,25 @@ function mostrarEstadoGeoCard(titulo, mensaje) {
 function bboxDesdeMapaActual() {
   const bounds = map.getBounds();
   return [bounds.getNorth(), bounds.getEast(), bounds.getSouth(), bounds.getWest()];
+}
+
+function textoFuenteDominioPrc(candidatos = []) {
+  const primero = candidatos.find((ipt) => ipt?.archivo || ipt?.nombre || ipt?.carpeta) || {};
+  const fuenteCandidato = [primero.carpeta, primero.archivo].filter(Boolean).join("/") || primero.nombre || "";
+  return prcNombreParam || prcArchivoParam || fuenteCandidato || "PRC candidato";
+}
+
+function poblarEncabezadoDominioPrc(candidatos = []) {
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val || "–";
+  };
+
+  set("rp-punto", "Punto dentro de PRC");
+  set("rp-coords", `${Number(lat).toFixed(6)}, ${Number(lon).toFixed(6)}`);
+  set("rp-zona", "Sin zona normativa exacta");
+  set("rp-fuente", textoFuenteDominioPrc(candidatos));
+  setEstadoGeoCard("Dentro de dominio PRC", "warn");
 }
 
 /* ---------------------------------------------
@@ -845,6 +874,7 @@ function actualizarTablaDesdeTexto(texto, carpeta, archivo) {
   const zonaFull = `${zona} · ${nombre}`;
   set("kpi-zona", zonaFull);
   set("rp-zona", zonaFull);
+  setEstadoGeoCard("Dentro de zona normativa", "ok");
   set("rp-punto", `${comuna}, ${region}`);
   set("rp-coords", `${Number(lat).toFixed(6)}, ${Number(lon).toFixed(6)}`);
   const interpretacion = `El terreno se encuentra en una zona ${nombre.toLowerCase()},\nlo que permite: ${uperm.toLowerCase()}.\n\nNo está permitido: ${uroh.toLowerCase()}.`;
@@ -1396,10 +1426,24 @@ async function ejecutarFlujo() {
 
       setTimeout(() => {
         hideLoadingOverlay();
-        mostrarEstadoGeoCard(
-          "Punto fuera de geometría normativa",
-          "Se encontraron instrumentos candidatos, pero ningún polígono contiene exactamente el punto consultado."
-        );
+
+        // GeoFactory:
+        // El perímetro IPT confirma dominio territorial.
+        // El KML normativo confirma zona normativa.
+        // Un punto puede estar dentro del dominio PRC y no caer en una zona normativa interna exacta.
+        if (dominioPrc) {
+          poblarEncabezadoDominioPrc(iptEnPantalla);
+          mostrarEstadoGeoCard(
+            "Punto dentro del dominio PRC",
+            "El punto consultado se encuentra dentro del perímetro del instrumento territorial, pero no se identificó una zona normativa interna exacta en el KML analizado. Esto puede ocurrir por vacíos de zonificación, bordes, diferencias geométricas o tolerancia espacial."
+          );
+        } else {
+          setEstadoGeoCard("Sin zona normativa", "warn");
+          mostrarEstadoGeoCard(
+            "Punto fuera de geometría normativa",
+            "Se encontraron instrumentos candidatos, pero ningún polígono contiene exactamente el punto consultado."
+          );
+        }
       }, 250);
 
       return;

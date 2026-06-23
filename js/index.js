@@ -540,6 +540,20 @@ function getRegionActualParaGeoCard() {
   return normalizarRegionGeoCard(window.regionActual);
 }
 
+
+function getPRCArchivoFromFeature(feature) {
+  const p = feature?.properties || {};
+  return (
+    p.archivo
+    || p.file
+    || p.kml
+    || p.capa_kml
+    || p.prc_archivo
+    || p.PRC_ARCHIVO
+    || ""
+  );
+}
+
 function getRegionFromFeatureOrSelector(feature) {
   const props = feature?.properties || {};
   const candidates = [
@@ -563,19 +577,28 @@ function abrirGeoCardDesdeClick(lat, lon, feature) {
   if (!map) return;
 
   const bounds = map.getBounds();
+  const bboxStr = [
+    bounds.getNorth(),
+    bounds.getEast(),
+    bounds.getSouth(),
+    bounds.getWest()
+  ].join(",");
+  const nombrePrc = getPRCDisplayName(feature);
+  const archivoPrc = getPRCArchivoFromFeature(feature);
+
   const params = new URLSearchParams({
     lat: String(lat),
     lon: String(lon),
     zoom: String(map.getZoom()),
-    bbox: [
-      bounds.getNorth(),
-      bounds.getEast(),
-      bounds.getSouth(),
-      bounds.getWest()
-    ].join(","),
+    bbox: bboxStr,
     sitio: "GeoIPT",
-    region: getRegionFromFeatureOrSelector(feature)
+    region: getRegionFromFeatureOrSelector(feature),
+    dominio_prc: "1",
+    prc_nombre: nombrePrc || "",
+    prc_archivo: archivoPrc || ""
   });
+
+  if (archivoPrc) params.set("capa_kml", archivoPrc);
 
   window.open(`geo-card.html?${params.toString()}`, "_blank");
 }

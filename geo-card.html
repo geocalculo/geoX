@@ -148,6 +148,7 @@
     }
     .report-header-grid strong { color: #f8fafc; }
     .status-ok { color: #22c55e; font-weight: 700; }
+    .status-warn { color: #f59e0b; font-weight: 700; }
     .report-body {
       display: grid;
       grid-template-columns: minmax(280px, 1fr) minmax(360px, 1.25fr);
@@ -272,6 +273,7 @@
     body.pdf-export-mode .info-card h3,
     body.pdf-export-mode .kpi-item strong,
     body.pdf-export-mode .status-ok,
+    body.pdf-export-mode .status-warn,
     body.pdf-export-mode .report-header-grid strong,
     body.pdf-export-mode .metadata-section summary {
       color: #000000 !important;
@@ -401,6 +403,7 @@
       .info-card h3,
       .kpi-item strong,
       .status-ok,
+      .status-warn,
       .report-header-grid strong,
       .metadata-section summary,
       .geo-stats-head h2,
@@ -499,7 +502,7 @@
             <p><strong>Punto consultado:</strong> <span id="rp-punto">–</span></p>
             <p><strong>Lat / Lon:</strong> <span id="rp-coords">–</span></p>
             <p><strong>Zona normativa:</strong> <span id="rp-zona">–</span></p>
-            <p><strong>Estado:</strong> <span class="status-ok">Dentro de zona normativa</span></p>
+            <p><strong>Estado:</strong> <span id="rp-estado" class="status-ok">–</span></p>
             <p><strong>Fuente PRC:</strong> <span id="rp-fuente">–</span></p>
           </div>
         </section>
