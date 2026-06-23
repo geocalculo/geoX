@@ -13,7 +13,7 @@
   </script>
   <!-- End Google Tag Manager -->
 
-  <title>GeoIPT - BBOX Test</title>
+  <title>Geo-Card / GeoQuery</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Leaflet CSS -->
@@ -307,6 +307,53 @@
     body.pdf-export-mode .geo-stat-card,
     body.pdf-export-mode .zone-share-card { break-inside: avoid; }
 
+
+    .geoquery-controls,
+    .match-section {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.72);
+    }
+
+    .geoquery-controls label {
+      display: block;
+      margin-bottom: 8px;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+
+    .geoquery-control-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .geoquery-control-row input[type=range] {
+      min-width: 220px;
+      flex: 1;
+    }
+
+    .geoquery-control-row button,
+    .btn-ficha {
+      border: 0;
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: #2563eb;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .match-table-wrap { overflow-x: auto; }
+    #tabla-match { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    #tabla-match th, #tabla-match td { border-bottom: 1px solid rgba(148, 163, 184, 0.25); padding: 8px; text-align: left; vertical-align: top; }
+    #tabla-match th { color: #93c5fd; }
+
     @media (max-width: 900px) {
       .report-body { grid-template-columns: 1fr; }
       .geo-stats-head { flex-direction: column; align-items: stretch; }
@@ -506,6 +553,29 @@
             </article>
           </div>
         </section>
+
+        <section class="geoquery-controls no-print" aria-label="Parámetros de análisis GeoQuery">
+          <label for="geoquery-radius">Radio de búsqueda / tolerancia espacial: <span id="geoquery-radius-value">1000 m</span></label>
+          <div class="geoquery-control-row">
+            <input id="geoquery-radius" type="range" min="100" max="10000" step="100" value="1000" />
+            <button id="btn-actualizar-consulta" type="button">Actualizar consulta</button>
+          </div>
+        </section>
+        <section class="match-section">
+          <h2>Tabla Match</h2>
+          <p>Evidencia técnica de objetos relacionados con el POI consultado.</p>
+          <div class="match-table-wrap">
+            <table id="tabla-match">
+              <thead>
+                <tr>
+                  <th>Nombre</th><th>Tipo</th><th>Categoría</th><th>Región</th><th>Comuna</th><th>Distancia</th><th>Superficie</th><th>Estado</th><th>Titular</th><th>Recurso</th><th>Normativa</th><th>URL</th><th>Ficha</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-match-body"><tr><td colspan="13">Sin resultados aún.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="report-actions no-print">
           <button id="btn-kml" class="kml-btn" type="button" disabled>⬇️ Descargar KML</button>
           <button id="btn-export-pdf"
@@ -573,7 +643,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script src="js/bbox_test.js?v=7c3694f"></script>
+    <script src="js/geo-card.js?v=20260623"></script>
 
     
 
@@ -859,7 +929,7 @@
       }
 
       document.addEventListener("DOMContentLoaded", setupPdfButtonActions);
-      console.warn("[DEPRECATED PDF FLOW] Export inline en bbox_test.html está congelado. Usar flujo oficial PDF v2 cuando se habilite.");
+      console.warn("[DEPRECATED PDF FLOW] Export inline en geo-card.html está congelado. Usar flujo oficial PDF v2 cuando se habilite.");
       (function () {
         const linkKml = document.getElementById("btn-kml");
         const msg = document.getElementById("msg-kml");

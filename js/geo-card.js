@@ -1,5 +1,5 @@
 /************************************************************
- * GeoIPT - bbox_test.js
+ * GeoFactory / GeoX - geo-card.js (GeoQuery)
  *
  * PASO 1: Regiones cuyo BBOX toca la pantalla
  * PASO 2: IPT cuyo BBOX toca la pantalla
@@ -24,6 +24,8 @@ const urlParams = new URLSearchParams(window.location.search);
 const lat = parseFloat(urlParams.get("lat"));
 const lon = parseFloat(urlParams.get("lon"));
 const bboxParam = urlParams.get("bbox");
+const regionParam = (urlParams.get("region") || "").trim();
+const sitioParam = (urlParams.get("sitio") || "GeoIPT").trim();
 const zoomParam = parseInt(urlParams.get("zoom"), 10);
 const zoom = Number.isFinite(zoomParam) ? zoomParam : 14;
 
@@ -46,7 +48,7 @@ function getTrackingMetadata() {
 
   const meta = {
     site: "geoipt",
-    page: "bbox_test"
+    page: "geo-card"
   };
 
   if (reg) meta.region = reg;
@@ -55,6 +57,8 @@ function getTrackingMetadata() {
   if (!Number.isNaN(lat)) meta.lat = Number(lat.toFixed(6));
   if (!Number.isNaN(lon)) meta.lon = Number(lon.toFixed(6));
   if (bboxParam) meta.bbox = bboxParam;
+  if (regionParam) meta.region_param = regionParam;
+  if (sitioParam) meta.sitio = sitioParam;
 
   return meta;
 }
@@ -138,22 +142,42 @@ function initKmlButton() {
 
 let bboxPantalla = null;
 if (bboxParam) {
-  const s = bboxParam.split(",");
-  bboxPantalla = [
-    parseFloat(s[0]), // N
-    parseFloat(s[1]), // E
-    parseFloat(s[2]), // S
-    parseFloat(s[3])  // W
-  ];
+  const s = bboxParam.split(",").map((value) => parseFloat(value));
+  if (s.length === 4 && s.every(Number.isFinite)) {
+    bboxPantalla = [s[0], s[1], s[2], s[3]]; // N,E,S,W
+  }
+}
+
+function bboxDesdeMapaActual() {
+  const bounds = map.getBounds();
+  return [bounds.getNorth(), bounds.getEast(), bounds.getSouth(), bounds.getWest()];
 }
 
 /* ---------------------------------------------
    2) MAPA LEAFLET
 --------------------------------------------- */
+const GEOQUERY_PATHS = {
+  legacyCapas: "capas",
+  analysisCapas: "capas_card",
+  parametros: "parametros",
+  fichas: "fichas_html"
+};
+
+const geoQueryState = {
+  sitio: sitioParam || "GeoIPT",
+  region: regionParam || "",
+  analysisRadiusM: 1000,
+  reglasTopologicas: null,
+  lastIptCandidates: [],
+  lastMatches: []
+};
+
+const hasValidPoi = Number.isFinite(lat) && Number.isFinite(lon);
+
 const map = L.map("map", {
   preferCanvas: true
 }).setView(
-  (!Number.isNaN(lat) && !Number.isNaN(lon)) ? [lat, lon] : [-27, -70],
+  hasValidPoi ? [lat, lon] : [-27, -70],
   zoom
 );
 
@@ -166,7 +190,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 initKmlButton();
 
-if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+if (hasValidPoi) {
   const marker = L.marker([lat, lon]).addTo(map);
 
   marker.bindPopup(
@@ -191,7 +215,9 @@ map.on("click", function (e) {
   const baseUrl = `${window.location.origin}${window.location.pathname}`;
   const nuevaUrl =
     `${baseUrl}?lat=${latClick}&lon=${lonClick}` +
-    `&zoom=${zoomClick}&bbox=${bboxStr}`;
+    `&zoom=${zoomClick}&bbox=${bboxStr}` +
+    `&sitio=${encodeURIComponent(geoQueryState.sitio)}` +
+    (geoQueryState.region ? `&region=${encodeURIComponent(geoQueryState.region)}` : "");
 
   window.open(nuevaUrl, "_blank");
 });
@@ -331,7 +357,11 @@ async function obtenerRegionesIntersectadas() {
   const resp = await fetch("capas/regiones.json");
   const regiones = await resp.json();
 
-  return regiones.filter((reg) => {
+  const regionesFiltradas = regionParam
+    ? regiones.filter((reg) => String(reg.region || reg.reg || reg.codigo || reg.id || reg.carpeta || "").padStart(2, "0").includes(regionParam.padStart(2, "0")) || String(reg.carpeta || "").includes(regionParam.padStart(2, "0")))
+    : regiones;
+
+  return regionesFiltradas.filter((reg) => {
     const bboxReg = normalizarBBoxSWNE(reg.bbox);
     return intersectaBbox(bboxReg, bboxPantalla);
   });
@@ -462,6 +492,8 @@ async function obtenerIptQueContienenElPunto(listaIpt) {
     actualizarEstadigrafosGeoIPT(statsGeo, zonaSeleccionada);
 
     featuresSeleccionadas = featuresParaDibujar;
+    geoQueryState.lastMatches = featuresParaDibujar;
+    renderTablaMatch(featuresParaDibujar);
 
     if (btnKml) {
       btnKml.disabled = false;
@@ -490,6 +522,8 @@ async function obtenerIptQueContienenElPunto(listaIpt) {
     }
 
     featuresSeleccionadas = [];
+    geoQueryState.lastMatches = [];
+    renderTablaMatch([]);
     actualizarEstadigrafosGeoIPT(null, "");
 
     if (btnKml) {
@@ -1024,6 +1058,113 @@ document.addEventListener("click", function (event) {
   console.log("Expediente histórico:", expediente);
 });
 
+
+/* ---------------------------------------------
+   GEOQUERY: reglas, slider y tabla Match
+--------------------------------------------- */
+async function cargarReglasTopologicas() {
+  const url = `${GEOQUERY_PATHS.parametros}/reglas_topologicas.json`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const reglas = await resp.json();
+    geoQueryState.reglasTopologicas = reglas?.[geoQueryState.sitio] || reglas;
+    return geoQueryState.reglasTopologicas;
+  } catch (error) {
+    console.info("Reglas topológicas no disponibles aún:", url);
+    return null;
+  }
+}
+
+function getProp(props, keys, fallback = "–") {
+  for (const key of keys) {
+    const value = props?.[key] ?? props?.[key.toLowerCase()] ?? props?.[key.toUpperCase()];
+    if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+  }
+  return fallback;
+}
+
+function resolveFichaUrl(urlFicha) {
+  const value = String(urlFicha || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  return value.startsWith("fichas_html/") ? value : `${GEOQUERY_PATHS.fichas}/${value}`;
+}
+
+function calcularDistanciaPoiFeature(feature) {
+  if (!hasValidPoi || !feature?.geometry || typeof turf === "undefined") return "–";
+  try {
+    const pt = turf.point([lon, lat]);
+    if (["Polygon", "MultiPolygon"].includes(feature.geometry.type) && turf.booleanPointInPolygon(pt, feature)) return "0 m";
+    const centroid = turf.centroid(feature);
+    return formatKm(turf.distance(pt, centroid, { units: "kilometers" }));
+  } catch (error) {
+    return "–";
+  }
+}
+
+function buildMatchRows(matches) {
+  return (matches || []).map((item) => {
+    const props = item.metadata || item.feature?.properties || {};
+    const ficha = resolveFichaUrl(getProp(props, ["url_ficha", "URL_FICHA"], ""));
+    return {
+      nombre: getProp(props, ["nombre", "NOMBRE", "NOM", "Name"], item.archivo || "–"),
+      tipo: getProp(props, ["tipo", "TIPO"], "Zona normativa"),
+      categoria: getProp(props, ["categoria", "CATEGORIA", "ZONA"], "–"),
+      region: getProp(props, ["region", "REG"], geoQueryState.region || "–"),
+      comuna: getProp(props, ["comuna", "COM"], "–"),
+      distancia: calcularDistanciaPoiFeature(item.feature),
+      superficie: Number.isFinite(Number(props.Shape_STAr)) ? formatArea(Number(props.Shape_STAr)) : "–",
+      estado: getProp(props, ["estado", "ESTADO"], "–"),
+      titular: getProp(props, ["titular", "TITULAR"], "–"),
+      recurso: getProp(props, ["recurso", "RECURSO"], "–"),
+      normativa: getProp(props, ["normativa", "NORMATIVA", "UPERM"], "–"),
+      url: getProp(props, ["url", "URL", "url_externa", "URL_EXTERNA"], ""),
+      ficha
+    };
+  });
+}
+
+function renderTablaMatch(matches) {
+  const tbody = document.getElementById("tabla-match-body");
+  if (!tbody) return;
+  const rows = buildMatchRows(matches);
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="13">Sin objetos relacionados para el POI consultado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.nombre)}</td><td>${escapeHtml(row.tipo)}</td><td>${escapeHtml(row.categoria)}</td>
+      <td>${escapeHtml(row.region)}</td><td>${escapeHtml(row.comuna)}</td><td>${escapeHtml(row.distancia)}</td>
+      <td>${escapeHtml(row.superficie)}</td><td>${escapeHtml(row.estado)}</td><td>${escapeHtml(row.titular)}</td>
+      <td>${escapeHtml(row.recurso)}</td><td>${escapeHtml(row.normativa)}</td>
+      <td>${row.url ? `<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener">Abrir</a>` : "–"}</td>
+      <td>${row.ficha ? `<a class="btn-ficha" href="${escapeHtml(row.ficha)}" target="_blank" rel="noopener">Ver ficha</a>` : "–"}</td>
+    </tr>`).join("");
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+}
+
+function initGeoQueryControls() {
+  const slider = document.getElementById("geoquery-radius");
+  const value = document.getElementById("geoquery-radius-value");
+  const btn = document.getElementById("btn-actualizar-consulta");
+  if (!slider) return;
+  const sync = () => {
+    geoQueryState.analysisRadiusM = Number(slider.value) || 1000;
+    if (value) value.textContent = `${geoQueryState.analysisRadiusM.toLocaleString("es-CL")} m`;
+  };
+  slider.addEventListener("input", sync);
+  btn?.addEventListener("click", () => {
+    sync();
+    ejecutarFlujo();
+  });
+  sync();
+}
+
 /* ---------------------------------------------
    FLUJO PRINCIPAL
 --------------------------------------------- */
@@ -1042,6 +1183,17 @@ async function ejecutarFlujo() {
       btn.onclick = null;
     }
 
+    if (!hasValidPoi) {
+      if (preMeta) preMeta.textContent = "GeoQuery espera lat/lon desde GeoIndex. Carga segura sin POI.";
+      renderTablaMatch([]);
+      setLoadingProgress(100, "Sin POI");
+      setTimeout(() => hideLoadingOverlay(), 250);
+      return;
+    }
+
+    bboxPantalla = bboxPantalla || bboxDesdeMapaActual();
+    await cargarReglasTopologicas();
+
     if (pre1) pre1.textContent = "(Cargando regiones que intersectan el BBOX...)";
     if (pre2) pre2.textContent = "";
     if (preMeta) preMeta.textContent = "(sin datos aún)";
@@ -1054,6 +1206,7 @@ async function ejecutarFlujo() {
 
     if (pre1) pre1.textContent = "(Cargando IPT de las regiones intersectadas...)";
     const iptEnPantalla = await obtenerIptEnPantalla(regiones);
+    geoQueryState.lastIptCandidates = iptEnPantalla;
 
     if (pre1) pre1.textContent = JSON.stringify(iptEnPantalla, null, 2);
 
@@ -1136,4 +1289,5 @@ async function ejecutarFlujo() {
   }
 }
 
+initGeoQueryControls();
 ejecutarFlujo();
