@@ -24,7 +24,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const lat = parseFloat(urlParams.get("lat"));
 const lon = parseFloat(urlParams.get("lon"));
 const bboxParam = urlParams.get("bbox");
-const regionParam = (urlParams.get("region") || "").trim();
+const regionParam = normalizarRegionId(urlParams.get("region"));
 const sitioParam = (urlParams.get("sitio") || "GeoIPT").trim();
 const zoomParam = parseInt(urlParams.get("zoom"), 10);
 const zoom = Number.isFinite(zoomParam) ? zoomParam : 14;
@@ -142,10 +142,7 @@ function initKmlButton() {
 
 let bboxPantalla = null;
 if (bboxParam) {
-  const s = bboxParam.split(",").map((value) => parseFloat(value));
-  if (s.length === 4 && s.every(Number.isFinite)) {
-    bboxPantalla = [s[0], s[1], s[2], s[3]]; // N,E,S,W
-  }
+  bboxPantalla = normalizarBBoxA_NESW(bboxParam);
 }
 
 
@@ -265,11 +262,63 @@ map.on("click", function (e) {
 /* ---------------------------------------------
    UTILIDADES DE BBOX
 --------------------------------------------- */
-function normalizarBBoxSWNE(b) {
-  if (!b || b.length !== 2) return null;
-  const sw = b[0];
-  const ne = b[1];
-  return [ne[0], ne[1], sw[0], sw[1]];
+function normalizarRegionId(region) {
+  if (!region) return "";
+  const clean = String(region).trim().replace(/\D/g, "");
+  if (!clean) return "";
+  return clean.padStart(2, "0");
+}
+
+function getRegionUrlParam() {
+  return normalizarRegionId(urlParams.get("region"));
+}
+
+function normalizarBBoxA_NESW(bbox) {
+  if (!bbox) return null;
+
+  if (typeof bbox === "string") {
+    bbox = bbox.split(",").map(Number);
+  }
+
+  if (
+    Array.isArray(bbox) &&
+    bbox.length === 2 &&
+    Array.isArray(bbox[0]) &&
+    Array.isArray(bbox[1])
+  ) {
+    const sw = bbox[0];
+    const ne = bbox[1];
+    const south = Number(sw[0]);
+    const west = Number(sw[1]);
+    const north = Number(ne[0]);
+    const east = Number(ne[1]);
+
+    if ([north, east, south, west].every(Number.isFinite)) {
+      return [north, east, south, west];
+    }
+  }
+
+  if (Array.isArray(bbox) && bbox.length === 4) {
+    const a = bbox.map(Number);
+    if (!a.every(Number.isFinite)) return null;
+
+    const [v0, v1, v2, v3] = a;
+
+    if (v0 > v2 && v1 > v3) {
+      return [v0, v1, v2, v3];
+    }
+
+    if (v2 > v0 && v3 > v1) {
+      const west = v0;
+      const south = v1;
+      const east = v2;
+      const north = v3;
+      return [north, east, south, west];
+    }
+  }
+
+  console.warn("[GeoCard] BBOX no reconocido:", bbox);
+  return null;
 }
 
 function intersectaBbox(a, b) {
@@ -394,36 +443,57 @@ function actualizarEstadigrafosGeoIPT(stats, zona) {
    PASO 1: Regiones que intersectan el BBOX
 --------------------------------------------- */
 async function obtenerRegionesIntersectadas() {
+  const regionUrlParam = getRegionUrlParam();
+
+  if (regionUrlParam) {
+    console.log("[GeoCard] Usando región desde URL:", regionUrlParam);
+    return [{
+      id: regionUrlParam,
+      codigo: regionUrlParam,
+      carpeta: `capas_${regionUrlParam}`,
+      fuente: "url_param"
+    }];
+  }
+
   const resp = await fetch("capas/regiones.json");
   const regiones = await resp.json();
 
-  const regionesFiltradas = regionParam
-    ? regiones.filter((reg) => String(reg.region || reg.reg || reg.codigo || reg.id || reg.carpeta || "").padStart(2, "0").includes(regionParam.padStart(2, "0")) || String(reg.carpeta || "").includes(regionParam.padStart(2, "0")))
-    : regiones;
-
-  return regionesFiltradas.filter((reg) => {
-    const bboxReg = normalizarBBoxSWNE(reg.bbox);
+  const regionesIntersectadas = regiones.filter((reg) => {
+    const bboxReg = normalizarBBoxA_NESW(reg.bbox);
     return intersectaBbox(bboxReg, bboxPantalla);
   });
+
+  console.log("[GeoCard] Regiones intersectadas:", regionesIntersectadas);
+  return regionesIntersectadas;
 }
 
 /* ---------------------------------------------
    PASO 2: IPT cuyo BBOX intersecta el BBOX
 --------------------------------------------- */
+function getCarpetaRegion(reg) {
+  const regionId = normalizarRegionId(reg?.id || reg?.codigo || reg?.region || reg?.reg);
+  return reg?.carpeta || (regionId ? `capas_${regionId}` : "");
+}
+
 async function obtenerIptEnPantalla(regiones) {
   const lista = [];
+  const listadosRegional = [];
 
   for (const reg of regiones) {
-    const carpeta = reg.carpeta;
+    const carpeta = getCarpetaRegion(reg);
+    if (!carpeta) continue;
     const urlListado = `capas/${carpeta}/listado.json`;
+    console.log("[GeoCard] Leyendo listado:", urlListado);
 
     try {
       const resp = await fetch(urlListado);
       const datos = await resp.json();
       const instrumentos = datos.instrumentos || [];
+      console.log("[GeoCard] Instrumentos en listado:", instrumentos.length);
+      listadosRegional.push({ carpeta, instrumentos });
 
       for (const ipt of instrumentos) {
-        const bboxNorm = normalizarBBoxSWNE(ipt.bbox);
+        const bboxNorm = normalizarBBoxA_NESW(ipt.bbox);
         if (intersectaBbox(bboxNorm, bboxPantalla)) {
           lista.push({
             carpeta,
@@ -433,10 +503,26 @@ async function obtenerIptEnPantalla(regiones) {
         }
       }
     } catch (e) {
-      console.warn("No se pudo leer listado:", urlListado, e);
+      console.warn("[GeoCard] No se pudo leer listado:", urlListado, e);
     }
   }
 
+  if (!lista.length && regiones.length) {
+    console.warn("[GeoCard] No hubo IPT por BBOX. Aplicando fallback regional.");
+
+    for (const { carpeta, instrumentos } of listadosRegional) {
+      instrumentos.forEach((ipt) => {
+        lista.push({
+          carpeta,
+          archivo: ipt.archivo,
+          bboxNorm: normalizarBBoxA_NESW(ipt.bbox),
+          fallbackRegional: true
+        });
+      });
+    }
+  }
+
+  console.log("[GeoCard] IPT candidatos en pantalla:", lista);
   return lista;
 }
 

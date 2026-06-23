@@ -517,6 +517,11 @@ function findContainingPRCFromPerimetros(latlng) {
   return null;
 }
 
+function normalizarRegionGeoCard(region) {
+  const digits = String(region || "").trim().replace(/\D/g, "");
+  return digits ? digits.padStart(2, "0") : "";
+}
+
 function getRegionActualParaGeoCard() {
   const possibleIds = [
     "region-selector",
@@ -528,15 +533,33 @@ function getRegionActualParaGeoCard() {
 
   for (const id of possibleIds) {
     const el = document.getElementById(id);
-    if (el && el.value) return el.value;
+    const region = normalizarRegionGeoCard(el?.value);
+    if (region) return region;
   }
 
-  if (window.regionActual) return window.regionActual;
-
-  return "";
+  return normalizarRegionGeoCard(window.regionActual);
 }
 
-function abrirGeoCardDesdeClick(lat, lon) {
+function getRegionFromFeatureOrSelector(feature) {
+  const props = feature?.properties || {};
+  const candidates = [
+    props.REG,
+    props.region,
+    props.REGION,
+    props.cod_region,
+    props.region_id,
+    props.id_region
+  ];
+
+  for (const value of candidates) {
+    const region = normalizarRegionGeoCard(value);
+    if (region) return region;
+  }
+
+  return getRegionActualParaGeoCard();
+}
+
+function abrirGeoCardDesdeClick(lat, lon, feature) {
   if (!map) return;
 
   const bounds = map.getBounds();
@@ -551,7 +574,7 @@ function abrirGeoCardDesdeClick(lat, lon) {
       bounds.getWest()
     ].join(","),
     sitio: "GeoIPT",
-    region: getRegionActualParaGeoCard()
+    region: getRegionFromFeatureOrSelector(feature)
   });
 
   window.open(`geo-card.html?${params.toString()}`, "_blank");
@@ -587,7 +610,7 @@ function handleMapClick(event) {
   if (containingPRC) {
     ocultarResultadosBusqueda();
     if (confirmarConsultaGeoCard(clickedLatLng)) {
-      abrirGeoCardDesdeClick(lat, lon);
+      abrirGeoCardDesdeClick(lat, lon, containingPRC);
     }
     return;
   }
