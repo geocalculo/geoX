@@ -517,14 +517,55 @@ function findContainingPRCFromPerimetros(latlng) {
   return null;
 }
 
-function mostrarMsgboxCoordenadas(clickedLatLng) {
-  if (!clickedLatLng) return;
+function getRegionActualParaGeoCard() {
+  const possibleIds = [
+    "region-selector",
+    "region-select",
+    "regionSelector",
+    "select-region",
+    "region"
+  ];
 
-  alert(
+  for (const id of possibleIds) {
+    const el = document.getElementById(id);
+    if (el && el.value) return el.value;
+  }
+
+  if (window.regionActual) return window.regionActual;
+
+  return "";
+}
+
+function abrirGeoCardDesdeClick(lat, lon) {
+  if (!map) return;
+
+  const bounds = map.getBounds();
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    zoom: String(map.getZoom()),
+    bbox: [
+      bounds.getNorth(),
+      bounds.getEast(),
+      bounds.getSouth(),
+      bounds.getWest()
+    ].join(","),
+    sitio: "GeoIPT",
+    region: getRegionActualParaGeoCard()
+  });
+
+  window.open(`geo-card.html?${params.toString()}`, "_blank");
+}
+
+function confirmarConsultaGeoCard(clickedLatLng) {
+  if (!clickedLatLng) return false;
+
+  return confirm(
     "Consulta territorial\n\n" +
     "Punto consultado:\n" +
     "Lat: " + clickedLatLng.lat.toFixed(6) + "\n" +
-    "Lng: " + clickedLatLng.lng.toFixed(6)
+    "Lng: " + clickedLatLng.lng.toFixed(6) + "\n\n" +
+    "¿Abrir GeoCard para analizar este punto?"
   );
 }
 
@@ -545,7 +586,9 @@ function handleMapClick(event) {
 
   if (containingPRC) {
     ocultarResultadosBusqueda();
-    mostrarMsgboxCoordenadas(clickedLatLng);
+    if (confirmarConsultaGeoCard(clickedLatLng)) {
+      abrirGeoCardDesdeClick(lat, lon);
+    }
     return;
   }
 
