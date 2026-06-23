@@ -5,7 +5,7 @@
  * PASO 2: IPT cuyo BBOX toca la pantalla
  * PASO 3: IPT cuya GEOMETRÍA contiene el clic
  * PASO 4: Si hay IPT → habilitar KML / metadata
- *         Si no hay  → mensaje + cerrar pestaña automáticamente
+ *         Si no hay  → mensaje de diagnóstico en GeoCard
  *
  * Tracking:
  *  - geoipt_consulta_iniciada
@@ -145,6 +145,46 @@ if (bboxParam) {
   const s = bboxParam.split(",").map((value) => parseFloat(value));
   if (s.length === 4 && s.every(Number.isFinite)) {
     bboxPantalla = [s[0], s[1], s[2], s[3]]; // N,E,S,W
+  }
+}
+
+
+if (!bboxPantalla && Number.isFinite(lat) && Number.isFinite(lon)) {
+  const delta = 0.05;
+  bboxPantalla = [
+    lat + delta,
+    lon + delta,
+    lat - delta,
+    lon - delta
+  ];
+  console.warn("[GeoCard] bbox no informado. Usando bbox fallback alrededor del POI:", bboxPantalla);
+}
+
+function escapeGeoCardStatusText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function mostrarEstadoGeoCard(titulo, mensaje) {
+  console.warn("[GeoCard]", titulo, mensaje);
+
+  const statusBox =
+    document.getElementById("geo-card-status") ||
+    document.getElementById("msg-kml") ||
+    null;
+
+  if (statusBox) {
+    statusBox.style.display = "block";
+    statusBox.innerHTML = `
+      <strong>${escapeGeoCardStatusText(titulo)}</strong><br>
+      ${escapeGeoCardStatusText(mensaje)}
+    `;
+  } else {
+    alert(`${titulo}\n\n${mensaje}`);
   }
 }
 
@@ -845,35 +885,24 @@ setTimeout(() => {
    PASO 4: Navegación / cierre pestaña
 --------------------------------------------- */
 function cerrarPestana() {
-  if (window.opener && !window.opener.closed) {
-    window.close();
-  } else {
-    window.open(location.href, "_self");
-    window.close();
-  }
+  mostrarEstadoGeoCard(
+    "GeoCard permanece abierto",
+    "El cierre automático de la pestaña está desactivado durante la etapa de estabilización."
+  );
 }
 
 function volverAIndexConFallback() {
-  const url = new URL("index.html", window.location.href);
-  url.searchParams.set("fallback", "no_match");
-  url.searchParams.set("lat", lat);
-  url.searchParams.set("lon", lon);
-  if (Number.isFinite(zoom)) {
-    url.searchParams.set("zoom", zoom);
-  }
-  appendAttributionParams(url);
-  window.location.href = url.toString();
+  mostrarEstadoGeoCard(
+    "GeoCard permanece abierto",
+    "El retorno automático a GeoIndex está desactivado durante la etapa de estabilización."
+  );
 }
 
 function volverAIndex() {
-  const url = new URL("index.html", window.location.href);
-  url.searchParams.set("lat", lat);
-  url.searchParams.set("lon", lon);
-  if (Number.isFinite(zoom)) {
-    url.searchParams.set("zoom", zoom);
-  }
-  appendAttributionParams(url);
-  window.location.href = url.toString();
+  mostrarEstadoGeoCard(
+    "GeoCard permanece abierto",
+    "La redirección automática a GeoIndex está desactivada durante la etapa de estabilización."
+  );
 }
 
 
@@ -1175,6 +1204,21 @@ async function ejecutarFlujo() {
   const btn = document.getElementById("btn-reporte");
 
   try {
+    console.log("[GeoCard] Parámetros recibidos:", {
+      lat,
+      lon,
+      zoom,
+      bboxParam,
+      bboxPantalla,
+      region: urlParams.get("region"),
+      sitio: urlParams.get("sitio")
+    });
+
+    mostrarEstadoGeoCard(
+      "Consultando",
+      "GeoCard está consultando instrumentos y geometrías para el punto recibido."
+    );
+
     trackConsultaIniciada();
 
     if (btn) {
@@ -1185,6 +1229,10 @@ async function ejecutarFlujo() {
 
     if (!hasValidPoi) {
       if (preMeta) preMeta.textContent = "GeoQuery espera lat/lon desde GeoIndex. Carga segura sin POI.";
+      mostrarEstadoGeoCard(
+        "Parámetros incompletos",
+        "GeoCard necesita parámetros lat y lon válidos desde GeoIndex. La página permanecerá abierta para revisión."
+      );
       renderTablaMatch([]);
       setLoadingProgress(100, "Sin POI");
       setTimeout(() => hideLoadingOverlay(), 250);
@@ -1216,7 +1264,7 @@ async function ejecutarFlujo() {
       if (pre2) {
         pre2.textContent =
           "⚠ No hay IPT cuyo BBOX intersecte la pantalla en este clic.\n" +
-          "Volviendo al mapa principal con sugerencias cercanas...";
+          "La página permanecerá abierta para revisión.";
       }
 
       if (preMeta) {
@@ -1229,7 +1277,10 @@ async function ejecutarFlujo() {
 
       setTimeout(() => {
         hideLoadingOverlay();
-        volverAIndexConFallback();
+        mostrarEstadoGeoCard(
+          "Sin IPT en el BBOX",
+          "No se encontraron instrumentos territoriales intersectando el viewport recibido desde GeoIndex."
+        );
       }, 250);
 
       return;
@@ -1246,7 +1297,7 @@ async function ejecutarFlujo() {
       if (pre2) {
         pre2.textContent =
           "⚠ Ningún IPT tiene polígonos que contengan exactamente el punto clic.\n" +
-          "Volviendo al mapa principal con sugerencias cercanas...";
+          "La página permanecerá abierta para revisión.";
       }
 
       if (preMeta) {
@@ -1259,7 +1310,10 @@ async function ejecutarFlujo() {
 
       setTimeout(() => {
         hideLoadingOverlay();
-        volverAIndexConFallback();
+        mostrarEstadoGeoCard(
+          "Punto fuera de geometría normativa",
+          "Se encontraron instrumentos candidatos, pero ningún polígono contiene exactamente el punto consultado."
+        );
       }, 250);
 
       return;
@@ -1272,6 +1326,10 @@ async function ejecutarFlujo() {
     setLoadingProgress(92, "Generando reporte...");
 
     prepararBotonReporte(iptConPunto);
+    mostrarEstadoGeoCard(
+      "Resultado encontrado",
+      "Se encontraron instrumentos y geometrías normativas para el punto consultado."
+    );
 
     setLoadingProgress(100, "Listo");
 
@@ -1283,6 +1341,10 @@ async function ejecutarFlujo() {
     console.error("Error en ejecutarFlujo():", err);
     trackResultadoVacio("error_ejecucion");
     setLoadingProgress(100, "Error");
+    mostrarEstadoGeoCard(
+      "Error en GeoCard",
+      "Ocurrió un error durante la consulta. Revisar consola para más detalles."
+    );
     setTimeout(() => {
       hideLoadingOverlay();
     }, 250);
