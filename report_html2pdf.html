@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GeoCard IPT | Reporte PDF</title>
+  <link rel="stylesheet" href="css/report_html2pdf.css" />
+</head>
+<body>
+  <main class="pdf-shell">
+    <div id="pdf-status" class="pdf-status" role="status"></div>
+    <div class="pdf-toolbar no-print">
+      <button id="btn-download-pdf" type="button">Descargar PDF</button>
+    </div>
+    <article id="report-root" class="pdf-report" aria-live="polite"></article>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="report_html2pdf.js?v=20260624-pdfv2"></script>
+</body>
+</html>

@@ -156,6 +156,31 @@ function initKmlButton() {
   });
 }
 
+function setPdfButtonEnabled(enabled) {
+  const btn = document.getElementById("btn-export-pdf");
+  if (!btn) return;
+
+  btn.disabled = !enabled;
+  btn.classList.toggle("pdf-btn-disabled", !enabled);
+
+  if (enabled) {
+    btn.textContent = "📄 Descargar PDF";
+    btn.title = "Descargar reporte PDF";
+  } else {
+    btn.textContent = "📄 PDF no disponible";
+    btn.title = "PDF no disponible para esta consulta";
+  }
+}
+
+function setupPdfButtonActions() {
+  const btn = document.getElementById("btn-export-pdf");
+  if (!btn || btn.dataset.pdfHandlerReady === "1") return;
+
+  btn.dataset.pdfHandlerReady = "1";
+  btn.addEventListener("click", exportarPdfGeoCard);
+  setPdfButtonEnabled(false);
+}
+
 let bboxPantalla = null;
 if (bboxParam) {
   bboxPantalla = normalizarBBoxA_NESW(bboxParam);
@@ -695,6 +720,7 @@ async function obtenerIptQueContienenElPunto(listaIpt) {
     featuresSeleccionadas = featuresParaDibujar;
     geoQueryState.lastMatches = featuresParaDibujar;
     renderTablaMatch(featuresParaDibujar);
+    setPdfButtonEnabled(true);
 
     if (btnKml) {
       btnKml.disabled = false;
@@ -726,6 +752,7 @@ async function obtenerIptQueContienenElPunto(listaIpt) {
     geoQueryState.lastMatches = [];
     renderTablaMatch([]);
     actualizarEstadigrafosGeoIPT(null, "");
+    setPdfButtonEnabled(false);
 
     if (btnKml) {
       btnKml.disabled = true;
@@ -1076,74 +1103,146 @@ function volverAIndex() {
 }
 
 
-function buildGeoIptPdfPayload() {
+function textFromSelector(selector, fallback = "–") {
+  const value = document.querySelector(selector)?.textContent?.trim();
+  return value || fallback;
+}
+
+function extractTableRows(tableSelector) {
+  const table = document.querySelector(tableSelector);
+  if (!table) return [];
+
+  const headers = Array.from(table.querySelectorAll("thead th"))
+    .map((th) => th.textContent.trim());
+
+  return Array.from(table.querySelectorAll("tbody tr"))
+    .filter((tr) => !tr.querySelector("td[colspan]"))
+    .map((tr) => {
+      const cells = Array.from(tr.querySelectorAll("td"));
+      const row = {};
+      headers.forEach((h, i) => {
+        row[h] = cells[i]?.textContent.trim() || "";
+      });
+      return row;
+    });
+}
+
+function extractKeyValueTable(selector) {
+  const table = document.querySelector(selector);
+  if (!table) return {};
+
+  const data = {};
+  table.querySelectorAll("tbody tr").forEach((tr) => {
+    const cells = tr.querySelectorAll("td");
+    if (cells.length >= 2) {
+      const key = cells[0].textContent.trim();
+      const value = cells[1].textContent.trim();
+      if (key) data[key] = value;
+    }
+  });
+
+  return data;
+}
+
+async function buildGeoIptPdfPayloadV2() {
   const first = (featuresSeleccionadas && featuresSeleccionadas[0]) || {};
   const props = first.metadata || {};
-  const zona = props.ZONA || "–";
-  const nombreNormativo = props.NOMBRE || props.NOM || "–";
-  const tipoZona = nombreNormativo;
-  const usosPermitidos = document.getElementById("md-uperm")?.textContent?.trim() || props.UPERM || "–";
-  const restricciones = document.getElementById("md-uproh")?.textContent?.trim() || props.UPROH || "–";
-  const interpretacion = document.getElementById("md-interpretacion")?.textContent?.trim() || "Sin resumen disponible.";
-  const stats = {
-    poligono: {
-      area: document.getElementById("stat-poly-area")?.textContent?.trim() || "–",
-      perimetro: document.getElementById("stat-poly-perimeter")?.textContent?.trim() || "–",
-      diametroEquivalente: document.getElementById("stat-poly-diameter")?.textContent?.trim() || "–",
-      porcentajePrc: document.getElementById("stat-poly-pct")?.textContent?.trim() || "–"
-    },
-    categoria: {
-      zona: document.getElementById("stat-cat-zone")?.textContent?.trim() || zona,
-      areaTotal: document.getElementById("stat-cat-area")?.textContent?.trim() || "–",
-      numeroPoligonos: document.getElementById("stat-cat-count")?.textContent?.trim() || "–",
-      diametroEquivalente: document.getElementById("stat-cat-diameter")?.textContent?.trim() || "–",
-      porcentajePrc: document.getElementById("stat-cat-pct")?.textContent?.trim() || "–"
-    },
-    presenciaEnPrcTexto: document.getElementById("zone-share-text")?.textContent?.trim() || `La zona ${zona} representa el – de la superficie total del PRC.`
+  const zona = textFromSelector("#md-zona", props.ZONA || "–");
+  const nombreNormativo = textFromSelector("#md-nombre", props.NOMBRE || props.NOM || "–");
+  const metadata = {
+    ...extractKeyValueTable("#tabla-metadata"),
+    Shape_STAr_ha: Number.isFinite(Number(props.Shape_STAr)) ? `${(Number(props.Shape_STAr) / 10000).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha` : undefined,
+    Shape_STLe_km: Number.isFinite(Number(props.Shape_STLe)) ? `${(Number(props.Shape_STLe) / 1000).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km` : undefined
   };
+  Object.keys(metadata).forEach((key) => {
+    if (!metadata[key]) delete metadata[key];
+  });
 
-  const metadataTecnica = {
-    REG: props.REG || "–",
-    COM: props.COM || "–",
-    LOCALIDAD: props.LOCALIDAD || props.LOC || "–",
-    ZONA: zona,
-    NOMBRE: nombreNormativo,
-    UPERM: props.UPERM || "–",
-    UPROH: props.UPROH || "–",
-    Capa: document.getElementById("md-capa")?.textContent?.trim() || "–",
-    CUT: props.CUT || "–",
-    Shape_STAr_ha: Number.isFinite(Number(props.Shape_STAr)) ? `${(Number(props.Shape_STAr) / 10000).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha` : "–",
-    Shape_STLe_km: Number.isFinite(Number(props.Shape_STLe)) ? `${(Number(props.Shape_STLe) / 1000).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km` : "–"
-  };
+  let mapPng = null;
+  try {
+    mapPng = await captureGeoIptMapPng();
+  } catch (error) {
+    console.warn("[GeoCard PDF] Captura de mapa omitida; el PDF se generará sin mapa.", error);
+  }
 
-  const payload = {
-    site: "GeoCard IPT",
-    generatedAt: new Date().toISOString(),
-    poi: {
+  return {
+    version: "GeoCard IPT PDF v2",
+    generado_en: new Date().toISOString(),
+    punto: {
       lat: Number.isFinite(lat) ? Number(lat.toFixed(6)) : null,
       lon: Number.isFinite(lon) ? Number(lon.toFixed(6)) : null,
-      utmEste: props.UTM_E || props.UTM_ESTE || null,
-      utmNorte: props.UTM_N || props.UTM_NORTE || null
+      texto: textFromSelector("#rp-punto", "–")
     },
-    prc: {
-      comuna: props.COM || "–",
-      region: props.REG || "–",
+    contexto: {
+      comuna: textFromSelector("#md-com", props.COM || "–"),
+      region: props.REG || textFromSelector("#md-reg", "–"),
+      localidad: textFromSelector("#md-loc", props.LOCALIDAD || props.LOC || "–"),
+      fuente_prc: textFromSelector("#rp-fuente", textFromSelector("#md-capa", "–")),
       instrumento: obtenerNombrePRC(first.archivo),
-      zona,
-      estado: props.ESTADO || "Vigente",
-      nombre: nombreNormativo,
-      tipoZona,
-      fuente: document.getElementById("rp-fuente")?.textContent?.trim() || document.getElementById("md-capa")?.textContent?.trim() || "–"
+      estado: textFromSelector("#rp-estado", props.ESTADO || "–")
     },
-    summary: interpretacion,
-    usosPermitidos,
-    restricciones,
-    stats,
-    metadataTecnica,
-    mapImage: null
+    resultado: {
+      zona,
+      nombre_normativo: nombreNormativo,
+      tipo_zona: nombreNormativo,
+      usos_permitidos: textFromSelector("#md-uperm", props.UPERM || "–"),
+      restricciones: textFromSelector("#md-uproh", props.UPROH || "–"),
+      interpretacion: textFromSelector("#md-interpretacion", "Sin resumen disponible.")
+    },
+    estadigrafos: {
+      poligono: {
+        area_ha: textFromSelector("#stat-poly-area"),
+        perimetro_km: textFromSelector("#stat-poly-perimeter"),
+        diametro_equivalente_m: textFromSelector("#stat-poly-diameter"),
+        porcentaje_prc: textFromSelector("#stat-poly-pct")
+      },
+      categoria: {
+        zona: textFromSelector("#stat-cat-zone", zona),
+        area_total_ha: textFromSelector("#stat-cat-area"),
+        numero_poligonos: textFromSelector("#stat-cat-count"),
+        diametro_equivalente_km: textFromSelector("#stat-cat-diameter"),
+        porcentaje_prc: textFromSelector("#stat-cat-pct")
+      }
+    },
+    tabla_match: extractTableRows("#tabla-match"),
+    metadata,
+    mapa: {
+      png: mapPng,
+      nota: mapPng ? "Mapa capturado desde GeoCard" : "Mapa no disponible en esta exportación."
+    }
   };
+}
 
-  return payload;
+function buildGeoIptPdfPayload() {
+  return buildGeoIptPdfPayloadV2();
+}
+
+async function exportarPdfGeoCard() {
+  const btn = document.getElementById("btn-export-pdf");
+
+  try {
+    if (!featuresSeleccionadas || !featuresSeleccionadas.length) {
+      throw new Error("No existe resultado normativo para exportar.");
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Generando PDF...";
+    }
+
+    const payload = await buildGeoIptPdfPayloadV2();
+
+    // Mantener payload en sessionStorage durante etapa de depuración PDF v2.
+    sessionStorage.setItem("geoipt_pdf_payload", JSON.stringify(payload));
+
+    window.open("report_html2pdf.html?autodownload=1", "_blank", "noopener");
+
+    setPdfButtonEnabled(true);
+  } catch (err) {
+    console.error("[GeoCard PDF] Error generando payload PDF:", err);
+    setPdfButtonEnabled(Boolean(featuresSeleccionadas && featuresSeleccionadas.length));
+    alert("No se pudo preparar el PDF. Revise la consola para más detalle.");
+  }
 }
 
 
@@ -1198,13 +1297,13 @@ async function captureGeoIptMapPng() {
   }
 }
 
-function openGeoIptPdfReportV2() {
-  const payload = buildGeoIptPdfPayload();
-  sessionStorage.setItem("geoipt_pdf_payload", JSON.stringify(payload));
-  window.open("report_html2pdf.html", "_blank");
+async function openGeoIptPdfReportV2() {
+  await exportarPdfGeoCard();
 }
 
 window.buildGeoIptPdfPayload = buildGeoIptPdfPayload;
+window.buildGeoIptPdfPayloadV2 = buildGeoIptPdfPayloadV2;
+window.exportarPdfGeoCard = exportarPdfGeoCard;
 window.openGeoIptPdfReportV2 = openGeoIptPdfReportV2;
 window.captureGeoIptMapPng = captureGeoIptMapPng;
 function prepararBotonReporte(iptsConPunto) {
@@ -1426,6 +1525,7 @@ async function ejecutarFlujo() {
   const btn = document.getElementById("btn-reporte");
 
   try {
+    setPdfButtonEnabled(false);
     console.log("[GeoCard] Parámetros recibidos:", {
       lat,
       lon,
@@ -1456,6 +1556,7 @@ async function ejecutarFlujo() {
         "GeoCard necesita parámetros lat y lon válidos desde GeoIndex. La página permanecerá abierta para revisión."
       );
       renderTablaMatch([]);
+      setPdfButtonEnabled(false);
       setLoadingProgress(100, "Sin POI");
       setTimeout(() => hideLoadingOverlay(), 250);
       return;
@@ -1495,6 +1596,7 @@ async function ejecutarFlujo() {
       }
 
       prepararBotonReporte([]);
+      setPdfButtonEnabled(false);
       setEstadoGeoCard("Sin zona normativa", "warn");
       trackResultadoVacio("sin_ipt_en_bbox");
 
@@ -1529,6 +1631,7 @@ async function ejecutarFlujo() {
       }
 
       prepararBotonReporte([]);
+      setPdfButtonEnabled(false);
       trackResultadoVacio("sin_poligono_contiene_punto");
 
       setTimeout(() => {
@@ -1590,4 +1693,5 @@ async function ejecutarFlujo() {
 }
 
 initGeoQueryControls();
+setupPdfButtonActions();
 ejecutarFlujo();
