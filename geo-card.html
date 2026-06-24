@@ -254,7 +254,6 @@
 
     body.pdf-export-mode .report-actions,
     body.pdf-export-mode #msg-kml,
-    body.pdf-export-mode .home-global-btn,
     body.pdf-export-mode footer,
     body.pdf-export-mode #loading-overlay {
       display: none !important;
@@ -383,7 +382,6 @@
       .no-print,
       button,
       nav,
-      .home-global-btn,
       #loading-overlay,
       footer { display: none !important; }
       .print-header,
@@ -433,39 +431,10 @@
     }
   </style>
 
-  <style>
-    .home-global-btn {
-      position: fixed;
-      top: 12px;
-      left: 12px;
-      z-index: 9999;
-      min-width: 42px;
-      height: 42px;
-      padding: 0 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255,255,255,0.95);
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-      text-decoration: none;
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: #0f172a;
-      line-height: 1;
-      transition: transform 0.15s ease;
-    }
-
-    .home-global-btn:hover {
-      transform: scale(1.05);
-    }
-  </style>
 
 </head>
 
 <body>
-
-  <a href="index.html" class="home-global-btn" id="btn-volver-mapa" title="Volver al mapa" aria-label="Volver al mapa">← Volver al mapa</a>
 
   <div id="loading-overlay" class="loading-overlay" aria-live="polite" aria-busy="true">
     <div class="loading-card">
@@ -601,10 +570,9 @@
           <button id="btn-kml" class="kml-btn" type="button" disabled>⬇️ Descargar KML</button>
           <button id="btn-export-pdf"
                   type="button"
-                  class="btn-secondary disabled"
+                  class="btn-secondary pdf-btn-disabled"
                   disabled
-                  title="PDF temporalmente deshabilitado"
-                  aria-label="PDF temporalmente deshabilitado">📄 PDF próximamente</button>
+                  title="PDF próximamente">📄 PDF próximamente</button>
           <a id="link-prc" href="#" target="_blank" rel="noopener">📚 Ver PRC</a>
           <a id="link-kml" href="#" style="display:none;">Descargar KML</a>
         </section>
@@ -893,65 +861,18 @@
 
       function setupPdfButtonActions() {
         const pdfBtn = document.getElementById("btn-export-pdf");
+        if (!pdfBtn) return;
 
-        if (pdfBtn) {
-          pdfBtn.classList.remove("disabled", "pdf-btn-disabled");
-          pdfBtn.disabled = false;
-          pdfBtn.title = "Descargar reporte PDF";
-          pdfBtn.innerHTML = "📄 Descargar PDF";
-
-          pdfBtn.onclick = async function () {
-            console.log("[GeoIPT PDF V2][CLICK] generando payload con mapa");
-
-            const originalLabel = "📄 Descargar PDF";
-            pdfBtn.disabled = true;
-            pdfBtn.innerHTML = "Preparando PDF...";
-
-            try {
-              const payload = buildGeoIptPdfPayload();
-              payload.mapImage = await captureGeoIptMapPng();
-
-              sessionStorage.setItem(
-                "geoipt_pdf_payload",
-                JSON.stringify(payload)
-              );
-
-              const iframe = document.createElement("iframe");
-              iframe.style.position = "fixed";
-              iframe.style.right = "0";
-              iframe.style.bottom = "0";
-              iframe.style.width = "0";
-              iframe.style.height = "0";
-              iframe.style.border = "0";
-              iframe.setAttribute("aria-hidden", "true");
-              iframe.tabIndex = -1;
-              document.body.appendChild(iframe);
-
-              const cleanup = () => {
-                if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-                window.removeEventListener("message", onPdfMessage);
-              };
-
-              const onPdfMessage = (event) => {
-                if (event?.data?.type === "geoipt_pdf_download_complete") {
-                  cleanup();
-                }
-              };
-
-              window.addEventListener("message", onPdfMessage);
-              setTimeout(cleanup, 30000);
-
-              iframe.src = "report_html2pdf.html?autodownload=1";
-            } finally {
-              pdfBtn.disabled = false;
-              pdfBtn.innerHTML = originalLabel;
-            }
-          };
-        }
+        pdfBtn.disabled = true;
+        pdfBtn.classList.remove("disabled");
+        pdfBtn.classList.add("pdf-btn-disabled");
+        pdfBtn.title = "PDF próximamente";
+        pdfBtn.innerHTML = "📄 PDF próximamente";
+        pdfBtn.onclick = null;
       }
 
       document.addEventListener("DOMContentLoaded", setupPdfButtonActions);
-      console.warn("[DEPRECATED PDF FLOW] Export inline en geo-card.html está congelado. Usar flujo oficial PDF v2 cuando se habilite.");
+      console.warn("[DEPRECATED PDF FLOW] Export inline en geo-card.html está congelado. PDF deshabilitado hasta incorporar report_html2pdf.html.");
       (function () {
         const linkKml = document.getElementById("btn-kml");
         const msg = document.getElementById("msg-kml");
