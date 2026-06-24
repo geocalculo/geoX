@@ -1,0 +1,6 @@
+/* GeoCard IPT module stylesheet.
+   Keeps the legacy dark look while decoupling GeoCard from bbox_test naming. */
+.status-ok { color: #22c55e; font-weight: 700; }
+.status-warn { color: #facc15; font-weight: 700; }
+.status-error { color: #f87171; font-weight: 700; }
+.geoquery-controls.is-placeholder { display: none; }
