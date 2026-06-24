@@ -130,6 +130,19 @@ function appendAttributionParams(targetUrl) {
   });
 }
 
+
+function initVolverMapaButton() {
+  const btn = document.getElementById("btn-volver-mapa");
+  if (!btn) return;
+
+  const target = new URL("index.html", window.location.href);
+  if (Number.isFinite(lat)) target.searchParams.set("lat", lat.toFixed(6));
+  if (Number.isFinite(lon)) target.searchParams.set("lon", lon.toFixed(6));
+  if (Number.isFinite(zoom)) target.searchParams.set("zoom", String(zoom));
+  appendAttributionParams(target);
+  btn.href = `${target.pathname.split("/").pop()}${target.search}`;
+}
+
 function initKmlButton() {
   btnKml = document.getElementById("btn-kml");
   if (!btnKml) return;
@@ -172,8 +185,40 @@ function escapeGeoCardStatusText(value) {
 function setEstadoGeoCard(texto, tipo = "ok") {
   const el = document.getElementById("rp-estado");
   if (!el) return;
+
   el.textContent = texto;
-  el.className = tipo === "warn" ? "status-warn" : "status-ok";
+  el.classList.remove("status-ok", "status-warn", "status-error");
+
+  if (tipo === "warn") el.classList.add("status-warn");
+  else if (tipo === "error") el.classList.add("status-error");
+  else el.classList.add("status-ok");
+}
+
+function normalizarTextoZona(zona, nombre) {
+  const nombreTexto = String(nombre || "").trim();
+  const zonaTexto = String(zona || "").trim();
+
+  if (!nombreTexto && !zonaTexto) return "zona normativa";
+  if (!nombreTexto || nombreTexto === "–") return zonaTexto || "zona normativa";
+  if (/^zona\b/i.test(nombreTexto)) return nombreTexto;
+
+  return `${zonaTexto} ${nombreTexto}`.trim();
+}
+
+function limpiarFraseGeoCard(texto) {
+  return String(texto || "")
+    .replace(/\bzona\s+zona\b/gi, "zona")
+    .replace(/\s+([.,;:])/g, "$1")
+    .replace(/([.!?]){2,}/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function setMensajeKml(texto) {
+  const msg = document.getElementById("msg-kml");
+  if (!msg) return;
+  msg.textContent = texto || "";
+  msg.style.display = texto ? "block" : "none";
 }
 
 function mostrarEstadoGeoCard(titulo, mensaje) {
@@ -254,6 +299,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   crossOrigin: true
 }).addTo(map);
 
+initVolverMapaButton();
 initKmlButton();
 
 if (hasValidPoi) {
@@ -871,13 +917,19 @@ function actualizarTablaDesdeTexto(texto, carpeta, archivo) {
   const comuna = mapValores.COM || "–";
   const region = mapValores.REG || "–";
 
-  const zonaFull = `${zona} · ${nombre}`;
+  const zonaFull = [zona, nombre].filter((value) => value && value !== "–").join(" · ") || "–";
+  const textoZona = normalizarTextoZona(zona, nombre);
   set("kpi-zona", zonaFull);
   set("rp-zona", zonaFull);
   setEstadoGeoCard("Dentro de zona normativa", "ok");
   set("rp-punto", `${comuna}, ${region}`);
   set("rp-coords", `${Number(lat).toFixed(6)}, ${Number(lon).toFixed(6)}`);
-  const interpretacion = `El terreno se encuentra en una zona ${nombre.toLowerCase()},\nlo que permite: ${uperm.toLowerCase()}.\n\nNo está permitido: ${uroh.toLowerCase()}.`;
+  const interpretacion = limpiarFraseGeoCard(
+    `El terreno se encuentra en ${textoZona},
+lo que permite: ${uperm}.
+
+No está permitido: ${uroh}.`
+  );
   set("md-interpretacion", interpretacion);
 
   const capaEl = document.getElementById("md-capa");
@@ -994,6 +1046,8 @@ setTimeout(() => {
 
 }, 300);
 
+  setMensajeKml("✅ KML generado correctamente.");
+
   URL.revokeObjectURL(url);
 }
 
@@ -1063,7 +1117,7 @@ function buildGeoIptPdfPayload() {
   };
 
   const payload = {
-    site: "GeoIPT",
+    site: "GeoCard IPT",
     generatedAt: new Date().toISOString(),
     poi: {
       lat: Number.isFinite(lat) ? Number(lat.toFixed(6)) : null,
@@ -1248,6 +1302,32 @@ function calcularDistanciaPoiFeature(feature) {
   }
 }
 
+function getVisibleMatchColumns(rows, preferredColumns) {
+  return preferredColumns.filter((col) =>
+    rows.some((row) => {
+      const value = row[col.key];
+      return value !== undefined && value !== null && String(value).trim() !== "" && String(value).trim() !== "–";
+    })
+  );
+}
+
+function calcularSuperficieMatch(item, props) {
+  const shapeArea = Number(getProp(props, ["Shape_STAr", "SHAPE_STAR"], NaN));
+  if (Number.isFinite(shapeArea) && shapeArea > 0) return formatArea(shapeArea);
+
+  if (item?.feature?.geometry && typeof turf !== "undefined") {
+    try {
+      const turfArea = turf.area(item.feature);
+      if (Number.isFinite(turfArea) && turfArea > 0) return formatArea(turfArea);
+    } catch (error) {
+      // Mantener tabla estable si Turf no puede calcular esta geometría.
+    }
+  }
+
+  const statsArea = Number(item?.stats?.areaPoligono || item?.estadigrafos?.areaPoligono);
+  return Number.isFinite(statsArea) && statsArea > 0 ? formatArea(statsArea) : "–";
+}
+
 function buildMatchRows(matches) {
   return (matches || []).map((item) => {
     const props = item.metadata || item.feature?.properties || {};
@@ -1259,7 +1339,8 @@ function buildMatchRows(matches) {
       region: getProp(props, ["region", "REG"], geoQueryState.region || "–"),
       comuna: getProp(props, ["comuna", "COM"], "–"),
       distancia: calcularDistanciaPoiFeature(item.feature),
-      superficie: Number.isFinite(Number(props.Shape_STAr)) ? formatArea(Number(props.Shape_STAr)) : "–",
+      localidad: getProp(props, ["localidad", "LOCALIDAD", "LOC"], "–"),
+      superficie: calcularSuperficieMatch(item, props),
       estado: getProp(props, ["estado", "ESTADO"], "–"),
       titular: getProp(props, ["titular", "TITULAR"], "–"),
       recurso: getProp(props, ["recurso", "RECURSO"], "–"),
@@ -1271,22 +1352,47 @@ function buildMatchRows(matches) {
 }
 
 function renderTablaMatch(matches) {
+  const table = document.getElementById("tabla-match");
   const tbody = document.getElementById("tabla-match-body");
-  if (!tbody) return;
+  if (!table || !tbody) return;
+
+  const preferredColumns = [
+    { key: "nombre", label: "Nombre" },
+    { key: "tipo", label: "Tipo" },
+    { key: "categoria", label: "Categoría / Zona" },
+    { key: "region", label: "Región" },
+    { key: "comuna", label: "Comuna" },
+    { key: "localidad", label: "Localidad" },
+    { key: "distancia", label: "Distancia" },
+    { key: "superficie", label: "Superficie" },
+    { key: "estado", label: "Estado" },
+    { key: "normativa", label: "Normativa" },
+    { key: "url", label: "URL externa" },
+    { key: "ficha", label: "url_ficha" }
+  ];
+
   const rows = buildMatchRows(matches);
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="13">Sin objetos relacionados para el POI consultado.</td></tr>';
+  const visibleColumns = getVisibleMatchColumns(rows, preferredColumns);
+  const thead = table.querySelector("thead");
+  if (thead) {
+    thead.innerHTML = `<tr>${visibleColumns.map((col) => `<th>${escapeHtml(col.label)}</th>`).join("")}</tr>`;
+  }
+
+  if (!rows.length || !visibleColumns.length) {
+    tbody.innerHTML = '<tr><td colspan="1">Sin objetos relacionados para el POI consultado.</td></tr>';
     return;
   }
+
   tbody.innerHTML = rows.map((row) => `
-    <tr>
-      <td>${escapeHtml(row.nombre)}</td><td>${escapeHtml(row.tipo)}</td><td>${escapeHtml(row.categoria)}</td>
-      <td>${escapeHtml(row.region)}</td><td>${escapeHtml(row.comuna)}</td><td>${escapeHtml(row.distancia)}</td>
-      <td>${escapeHtml(row.superficie)}</td><td>${escapeHtml(row.estado)}</td><td>${escapeHtml(row.titular)}</td>
-      <td>${escapeHtml(row.recurso)}</td><td>${escapeHtml(row.normativa)}</td>
-      <td>${row.url ? `<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener">Abrir</a>` : "–"}</td>
-      <td>${row.ficha ? `<a class="btn-ficha" href="${escapeHtml(row.ficha)}" target="_blank" rel="noopener">Ver ficha</a>` : "–"}</td>
-    </tr>`).join("");
+    <tr>${visibleColumns.map((col) => {
+      if (col.key === "url") {
+        return `<td>${row.url ? `<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener">Abrir</a>` : "–"}</td>`;
+      }
+      if (col.key === "ficha") {
+        return `<td>${row.ficha ? `<a class="btn-ficha" href="${escapeHtml(row.ficha)}" target="_blank" rel="noopener">Ver ficha</a>` : "–"}</td>`;
+      }
+      return `<td>${escapeHtml(row[col.key])}</td>`;
+    }).join("")}</tr>`).join("");
 }
 
 function escapeHtml(value) {
@@ -1302,11 +1408,11 @@ function initGeoQueryControls() {
     geoQueryState.analysisRadiusM = Number(slider.value) || 1000;
     if (value) value.textContent = `${geoQueryState.analysisRadiusM.toLocaleString("es-CL")} m`;
   };
+  const controls = slider.closest(".geoquery-controls");
+  if (controls) controls.classList.add("is-placeholder");
+  if (btn) btn.disabled = true;
+  slider.disabled = true;
   slider.addEventListener("input", sync);
-  btn?.addEventListener("click", () => {
-    sync();
-    ejecutarFlujo();
-  });
   sync();
 }
 
@@ -1389,6 +1495,7 @@ async function ejecutarFlujo() {
       }
 
       prepararBotonReporte([]);
+      setEstadoGeoCard("Sin zona normativa", "warn");
       trackResultadoVacio("sin_ipt_en_bbox");
 
       setTimeout(() => {
@@ -1471,8 +1578,9 @@ async function ejecutarFlujo() {
     console.error("Error en ejecutarFlujo():", err);
     trackResultadoVacio("error_ejecucion");
     setLoadingProgress(100, "Error");
+    setEstadoGeoCard("Error de consulta", "error");
     mostrarEstadoGeoCard(
-      "Error en GeoCard",
+      "Error de consulta",
       "Ocurrió un error durante la consulta. Revisar consola para más detalles."
     );
     setTimeout(() => {
