@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Google Tag Manager -->
+  <script>
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-PM7NMT4G');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Cloudflare Web Analytics -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js?v=gtm-events-20260425"
+    data-cf-beacon='{"token": "6bc7cef62da440a4b477a416c3cd250d"}'>
+  </script>
+  <!-- End Cloudflare Web Analytics -->
+
+  <title>GeoEVA | Explora proyectos SEA y permisología territorial en Chile</title>
+  <meta name="description" content="Explora proyectos del SEA, su ubicación y contexto territorial. Analiza iniciativas, permisología y entorno geográfico en un mapa interactivo.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript>
+    <iframe
+      src="https://www.googletagmanager.com/ns.html?id=GTM-PM7NMT4G"
+      height="0"
+      width="0"
+      style="display:none;visibility:hidden"></iframe>
+  </noscript>
+  <!-- End Google Tag Manager (noscript) -->
+
+  <div id="loading-overlay" class="loading-overlay" aria-live="polite" aria-busy="true">
+    <div class="loading-card">
+      <div class="loading-ring-wrap">
+        <div class="loading-ring"></div>
+        <div id="loading-percent" class="loading-percent">0%</div>
+      </div>
+      <div id="loading-text" class="loading-text">Cargando mapa...</div>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header__content">
+        <div class="app-branding">
+          <h1 class="app-title">GeoEVA</h1>
+          <h2 class="app-subtitle">Proyectos y Evaluación Ambiental</h2>
+          <p class="app-description">Explora proyectos SEA, inversión y contexto territorial</p>
+        </div>
+
+        <div class="desktop-summary" id="desktopSummary" aria-label="Resumen por estado">
+          <span class="ds-inline ds-aprobados">Aprobados <strong data-key="aprobados">—</strong></span>
+          <span class="ds-inline ds-calificacion">En revisión <strong data-key="calificacion">—</strong></span>
+          <span class="ds-inline ds-rechazados">Rechazados <strong data-key="rechazados">—</strong></span>
+        </div>
+
+        <div class="app-toolbar">
+          <div class="region-selector-container">
+            <label for="region-select" class="region-label">Explorar región</label>
+            <select id="region-select" class="region-select">
+              <option value="">Cargando regiones...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="mobile-summary compact" id="mobileSummary" aria-label="Resumen por estado">
+        <span class="ms-inline ms-aprobados">Aprobados <strong data-key="aprobados">—</strong></span>
+        <span class="ms-inline ms-calificacion">En revisión <strong data-key="calificacion">—</strong></span>
+        <span class="ms-inline ms-rechazados">Rechazados <strong data-key="rechazados">—</strong></span>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <aside class="geoeva-side-banner geoeva-side-banner--left" aria-hidden="true"></aside>
+
+      <section class="map-section" aria-label="Mapa principal GeoEVA">
+        <div class="map-stage">
+          <div id="project-search-wrap" class="project-search" role="search" aria-label="Buscar proyecto">
+            <label for="project-search" class="project-search__label">Buscar proyecto</label>
+            <input
+              id="project-search"
+              class="project-search__input"
+              type="search"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Buscar proyecto SEA, titular o comuna..."
+              aria-expanded="false"
+              aria-controls="project-search-results"
+            />
+            <div id="project-search-results" class="project-search__results" role="listbox" hidden></div>
+          </div>
+
+          <a class="home-floating-btn" href="https://geoeva.cl" aria-label="Ir al inicio">⌂</a>
+
+          <div id="map" class="map-main"></div>
+
+          <div id="desktop-map-hint" class="map-hint map-hint--desktop" aria-hidden="true">
+            Haz clic en el mapa para abrir el análisis ambiental del punto consultado.
+          </div>
+
+          <div id="mobile-map-hint" class="map-hint map-hint--mobile" aria-hidden="true">
+            Toca el mapa para abrir el análisis ambiental del punto.
+          </div>
+        </div>
+      </section>
+
+      <aside class="geoeva-side-banner geoeva-side-banner--right" aria-hidden="true"></aside>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js?v=gtm-events-20260425"></script>
+  <script type="module" src="js/app/index.js?v=gtm-events-20260425"></script>
+
+  <div id="map-hint-cursor">
+    Haz clic en el mapa y descubre proyectos + su permisología
+  </div>
+
+  <div id="visitor-counter">Visitas:
+    <img src="https://api.visitorbadge.io/api/visitors?path=geoeva.cl&countColor=%2322c55e" alt="contador visitas" style="vertical-align:middle;">
+  </div>
+
+  <div id="ecosystem-bar">
+    <a data-site="geoipt" data-cross-site="ecosystem-ribbon" href="https://geoipt.cl/?utm_source=geoeva&utm_medium=ribbon&utm_campaign=cruce_portales&utm_content=geoipt">
+      <span class="eco-name">GeoIPT</span><span class="eco-sub">Planificación urbana</span>
+    </a>
+    <a data-site="geoeva" data-cross-site="ecosystem-ribbon" class="is-active" href="https://geoeva.cl/?utm_source=geoeva&utm_medium=ribbon&utm_campaign=cruce_portales&utm_content=geoeva">
+      <span class="eco-name">GeoEVA</span><span class="eco-sub">Evaluación ambiental</span>
+    </a>
+    <a data-site="geonemo" data-cross-site="ecosystem-ribbon" href="https://geonemo.cl/?utm_source=geoeva&utm_medium=ribbon&utm_campaign=cruce_portales&utm_content=geonemo">
+      <span class="eco-name">GeoNEMO</span><span class="eco-sub">Sitios protegidos</span>
+    </a>
+    <a data-site="geonoxa" data-cross-site="ecosystem-ribbon" href="https://geonoxa.cl/?utm_source=geoeva&utm_medium=ribbon&utm_campaign=cruce_portales&utm_content=geonoxa">
+      <span class="eco-name">GeoNOXA</span><span class="eco-sub">Riesgo territorial</span>
+    </a>
+  </div>
+
+  <div id="welcomeModal" class="welcome-modal" hidden role="dialog" aria-modal="true" aria-labelledby="welcomeModalTitle">
+    <div class="welcome-modal__content">
+      <h2>¿Qué proyectos SEA afectan este lugar?</h2>
+
+      <p>
+        Haz clic en el mapa y descubre al instante proyectos cercanos,
+        su estado ambiental, inversión y contexto territorial.
+      </p><br>
+
+      <p class="pdf-line">
+        📄 Informe PDF profesional en segundos
+      </p><br>
+
+      <div class="modal-steps">
+        <img src="assets/modal-3-pasos.png" class="modal-3-pasos" alt="Cómo usar la plataforma">
+      </div>
+      <br>
+      <button id="btn-ver-proyectos" class="cta-primary">Ver proyectos en este punto</button>
+      <br><br>
+      <label>
+        <input id="dontShowAgain" type="checkbox">
+        No mostrar nuevamente
+      </label>
+    </div>
+  </div>
+</body>
+</html>

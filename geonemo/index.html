@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+
+  <!-- Google Tag Manager -->
+  <script>
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;
+    f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-PDTL4LG2');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Cloudflare Web Analytics -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "af680a7f5f124793802b740c74ae6fea"}'></script>
+  <!-- End Cloudflare Web Analytics -->
+
+  <title>GeoNEMO | Mapa de sitios protegidos y restricciones territoriales en Chile</title>
+  <meta name="description" content="Explora áreas protegidas, restricciones y sensibilidad territorial en Chile. Analiza por punto, proximidad y contexto espacial en un mapa interactivo.">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/index.css" />
+</head>
+<body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PDTL4LG2" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+  </noscript>
+  <!-- End Google Tag Manager (noscript) -->
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand-inline">
+        <div class="logo-box">🛡️</div>
+        <div class="brand-text">
+          <div class="brand-name">GeoNEMO</div>
+          <div class="brand-subtitle">Áreas Protegidas en Chile</div>
+          <div class="brand-tagline">Sitios protegidos, restricciones y sensibilidad territorial</div>
+        </div>
+      </div>
+
+      <div class="summary-panel" aria-label="Resumen de sitios en vista">
+        <article class="kpi-card">
+          <span class="kpi-label">Sitios en vista</span>
+          <strong id="groupSummaryTotalN_top">—</strong>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Superficie protegida</span>
+          <strong id="groupSummaryTotalArea_top">—</strong>
+        </article>
+      </div>
+
+      <div class="controls-inline">
+        <div class="region-card">
+          <label for="selRegion">Región</label>
+          <select id="selRegion">
+            <option value="">Selecciona región…</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <div id="map-hint-cursor" class="map-hint">Haz clic en el mapa para abrir el CARD PRO del punto consultado.</div>
+
+  <div class="sr-summary" aria-hidden="true">
+    <table>
+      <tbody id="groupSummaryBody"><tr><td colspan="3" class="muted">—</td></tr></tbody>
+      <tfoot><tr><td>TOTAL</td><td id="groupSummaryTotalN">—</td><td id="groupSummaryTotalArea">—</td></tr></tfoot>
+    </table>
+  </div>
+
+  <main class="main">
+    <section class="mapwrap">
+      <div id="map"></div>
+      <div id="mapSearch" class="map-search" role="search">
+        <label for="mapSearchInput" class="sr-only">Buscar sitios</label>
+        <input id="mapSearchInput" type="search" autocomplete="off" placeholder="Buscar sitio protegido, humedal, salar, parque..." />
+        <ul id="mapSearchResults" class="map-search-results" aria-live="polite"></ul>
+      </div>
+      <div id="toast" class="toast" aria-live="polite"></div>
+      <aside class="territorial-panel is-collapsed" id="territorialPanel" aria-label="Panel territorial">
+        <button class="territorial-panel__toggle" id="territorialPanelToggle" type="button" aria-expanded="false" aria-controls="territorialPanelBody">
+          <span class="territorial-panel__chevron">▾</span>
+          <span>PANEL TERRITORIAL</span>
+        </button>
+        <div class="territorial-panel__body" id="territorialPanelBody" hidden>
+          <section class="territorial-block">
+            <h3>Escala territorial (radio de búsqueda)</h3>
+            <div class="searchRadiusGroup" id="searchRadiusGroup">
+              <label><input type="radio" name="searchRadius" value="25" checked> Local (25 km)</label>
+              <label><input type="radio" name="searchRadius" value="100"> Regional (100 km)</label>
+              <label><input type="radio" name="searchRadius" value="250"> Macro (250 km)</label>
+            </div>
+          </section>
+          <p class="territorial-note">El radio define qué sitios se analizan y el framing del mapa.</p>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <nav class="geo-switch" id="geo-switch" aria-label="GeoSwitch">
+    <a data-site="geoipt" href="#" onclick="return goToGeoIPT(event)">
+      <span class="site-icon">🧭</span><span class="site-main">GeoIPT</span><span class="site-sub">Planificación urbana</span>
+    </a>
+    <a data-site="geoeva" href="#" onclick="return goToGeoEVA(event)">
+      <span class="site-icon">🌿</span><span class="site-main">GeoEVA</span><span class="site-sub">Evaluación ambiental</span>
+    </a>
+    <a data-site="geonemo" class="active" href="#">
+      <span class="site-icon">🛡️</span><span class="site-main">GeoNEMO</span><span class="site-sub">Sitios protegidos</span>
+    </a>
+    <a data-site="geonoxa" href="https://geonoxa.cl/?utm_source=geonemo&utm_medium=ribbon&utm_campaign=cruce_portales&utm_content=geonoxa">
+      <span class="site-icon">⚠️</span><span class="site-main">GeoNOXA</span><span class="site-sub">Riesgo territorial</span>
+    </a>
+  </nav>
+
+  <div id="visitor-counter">Visitas:
+    <img src="https://api.visitorbadge.io/api/visitors?path=geonemo.cl&countColor=%2322c55e" alt="contador visitas" style="vertical-align:middle;">
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="js/index.js?v=gtm-events-20260425"></script>
+
+  <script>
+    (function () {
+      const totalN = document.getElementById('groupSummaryTotalN');
+      const totalArea = document.getElementById('groupSummaryTotalArea');
+      const totalNTop = document.getElementById('groupSummaryTotalN_top');
+      const totalAreaTop = document.getElementById('groupSummaryTotalArea_top');
+      if (!totalN || !totalArea || !totalNTop || !totalAreaTop) return;
+      const syncTotals = () => {
+        totalNTop.textContent = totalN.textContent || '—';
+        totalAreaTop.textContent = totalArea.textContent || '—';
+      };
+      syncTotals();
+      const observer = new MutationObserver(syncTotals);
+      observer.observe(totalN, { childList: true, subtree: true, characterData: true });
+      observer.observe(totalArea, { childList: true, subtree: true, characterData: true });
+    })();
+  </script>
+
+  <div id="welcomeModal" class="welcome-modal" hidden role="dialog" aria-modal="true" aria-labelledby="welcomeModalTitle">
+    <div class="welcome-modal__content">
+      <h2 id="welcomeModalTitle">Detecta áreas protegidas y restricciones ambientales antes de avanzar</h2>
+      <p class="welcome-modal__lead">Haz clic en cualquier punto del mapa y GeoNEMO revisa el entorno territorial: áreas protegidas, humedales, salares, parques y zonas sensibles.</p>
+      <img class="modal-3-pasos" src="assets/modal-3-pasos.png" alt="Flujo GeoNEMO: mapa, clic, análisis territorial y descarga KML" loading="eager" />
+      <p class="welcome-modal__support">Obtén contexto inmediato y descarga geometrías KML para continuar tu análisis en GIS.</p>
+      <button id="startBtn" class="welcome-btn" type="button">Explorar GeoNEMO</button>
+      <br><br>
+      <label class="welcome-checkbox"><input type="checkbox" id="dontShowAgain">No mostrar nuevamente</label>
+    </div>
+  </div>
+</body>
+</html>
