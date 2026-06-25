@@ -151,3 +151,106 @@ function setBaseMapToggleActive(type) {
     btnSat.setAttribute("aria-pressed", String(type === "sat"));
   }
 }
+
+(function initGeoFactoryIntroModal() {
+  const MODAL_CONFIG_PATH = "./parametros/log-modal.json";
+  const MODAL_CONFIG_FALLBACK_PATH = "./assets/log-modal.json";
+
+  async function loadModalConfig() {
+    const response = await fetch(MODAL_CONFIG_PATH);
+    if (response.ok) return response.json();
+
+    const fallbackResponse = await fetch(MODAL_CONFIG_FALLBACK_PATH);
+    if (!fallbackResponse.ok) throw new Error(`No se pudo cargar ${MODAL_CONFIG_PATH}`);
+    return fallbackResponse.json();
+  }
+
+  function ensureModalStyles() {
+    if (document.getElementById("geofactory-intro-modal-styles")) return;
+
+    const style = document.createElement("style");
+    style.id = "geofactory-intro-modal-styles";
+    style.textContent = `
+      .geofactory-intro-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(3,7,18,.68)}
+      .geofactory-intro-modal{width:min(92vw,560px);max-height:90vh;overflow-y:auto;border-radius:18px;background:#fff;color:#071225;padding:24px;box-shadow:0 28px 80px rgba(0,0,0,.38);text-align:center;font-family:inherit}
+      .geofactory-intro-image{display:block;width:100%;max-width:480px;height:auto;margin:0 auto 20px;border-radius:12px}
+      .geofactory-intro-actions{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap}
+      .geofactory-intro-button{border:0;border-radius:12px;padding:14px 26px;background:#071225;color:#fff;font-weight:800;font-size:.95rem;cursor:pointer;box-shadow:0 12px 28px rgba(7,18,37,.22)}
+      .geofactory-intro-button:hover{transform:translateY(-1px)}
+      .geofactory-intro-button:focus-visible,.geofactory-intro-check input:focus-visible{outline:3px solid rgba(37,99,235,.35);outline-offset:3px}
+      .geofactory-intro-check{display:inline-flex;align-items:center;gap:8px;color:#4b5563;font-size:.95rem;cursor:pointer}
+      .geofactory-intro-check input{width:16px;height:16px}
+      @media(max-width:640px){.geofactory-intro-overlay{padding:12px}.geofactory-intro-modal{width:min(94vw,420px);padding:20px;border-radius:16px}.geofactory-intro-actions{flex-direction:column;gap:12px}.geofactory-intro-button{width:100%}.geofactory-intro-image{max-width:100%;margin-bottom:18px}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function localStorageHas(storageKey) {
+    return Boolean(storageKey && window.localStorage.getItem(storageKey));
+  }
+
+  function buildModal(modalIntro) {
+    const imageConfig = modalIntro.imagen || {};
+    const imageSrc = `${imageConfig.ruta || ""}${imageConfig.archivo || ""}`;
+    if (!imageSrc) return null;
+
+    const existingHardcodedOverlay = document.getElementById("geoipt-intro-overlay");
+    if (existingHardcodedOverlay) existingHardcodedOverlay.remove();
+
+    const overlay = document.createElement("div");
+    overlay.className = "geofactory-intro-overlay";
+
+    const modal = document.createElement("div");
+    modal.className = "geofactory-intro-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-label", "Modal introductorio");
+
+    const image = document.createElement("img");
+    image.className = "geofactory-intro-image";
+    image.src = imageSrc;
+    image.alt = imageConfig.alt || "Instrucciones de uso";
+
+    const actions = document.createElement("div");
+    actions.className = "geofactory-intro-actions";
+
+    const button = document.createElement("button");
+    button.className = "geofactory-intro-button";
+    button.type = "button";
+    button.textContent = modalIntro.botonTexto || "Comenzar";
+
+    const label = document.createElement("label");
+    label.className = "geofactory-intro-check";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+
+    label.append(checkbox, document.createTextNode("No volver a mostrar"));
+    actions.append(button, label);
+    modal.append(image, actions);
+    overlay.appendChild(modal);
+
+    button.addEventListener("click", () => {
+      if (checkbox.checked && modalIntro.storageKey) {
+        window.localStorage.setItem(modalIntro.storageKey, "true");
+      }
+      overlay.remove();
+    });
+
+    return overlay;
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    try {
+      const config = await loadModalConfig();
+      const modalIntro = config && config.modalIntro;
+      if (!modalIntro || modalIntro.activo !== true || localStorageHas(modalIntro.storageKey)) return;
+
+      ensureModalStyles();
+      const modal = buildModal(modalIntro);
+      if (modal) document.body.appendChild(modal);
+    } catch (error) {
+      console.warn("GeoFactory modal inicial no disponible.", error);
+    }
+  });
+})();
