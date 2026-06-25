@@ -1643,3 +1643,41 @@ function escapeHtml(value) {
     '"': "&quot;"
   }[char]));
 }
+
+
+(function initGeoIPTIntroModal() {
+  const STORAGE_KEY = "geoipt_intro_modal_hidden_v1";
+
+  function showModal() {
+    const overlay = document.getElementById("geoipt-intro-overlay");
+    if (!overlay) return;
+
+    const alreadyHidden = localStorage.getItem(STORAGE_KEY) === "true";
+    if (alreadyHidden) return;
+
+    overlay.classList.add("is-visible");
+  }
+
+  function closeModal() {
+    const overlay = document.getElementById("geoipt-intro-overlay");
+    const dontShow = document.getElementById("geoiptIntroDontShow");
+
+    if (!overlay) return;
+
+    if (dontShow && dontShow.checked) {
+      localStorage.setItem(STORAGE_KEY, "true");
+    }
+
+    overlay.classList.remove("is-visible");
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const startBtn = document.getElementById("geoiptIntroStartBtn");
+
+    if (startBtn) {
+      startBtn.addEventListener("click", closeModal);
+    }
+
+    showModal();
+  });
+})();
