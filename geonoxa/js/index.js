@@ -2,9 +2,13 @@ let map;
 let osmLayer;
 let satLayer;
 let currentBaseLayer;
+const REGIONES_PATH = "capas_selector/regiones.json";
+let regionesSelector = [];
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   iniciarMapa();
+  await cargarRegionesSelector();
+  conectarRegionSelector();
   conectarBaseMapToggle();
 });
 
@@ -28,6 +32,63 @@ function iniciarMapa() {
   L.control.scale({
     imperial: false
   }).addTo(map);
+}
+
+// GEOFACTORY SELECTOR REGIÓN
+// CARGA regiones.json
+async function cargarRegionesSelector() {
+  const selector = document.getElementById("region-selector");
+  if (!selector) return;
+
+  try {
+    const response = await fetch(REGIONES_PATH);
+    if (!response.ok) throw new Error(`No se pudo cargar ${REGIONES_PATH}`);
+
+    const data = await response.json();
+    regionesSelector = Array.isArray(data)
+      ? data.filter((region) => region && region.activo === true)
+      : [];
+
+    if (!regionesSelector.length) {
+      throw new Error(`${REGIONES_PATH} no contiene regiones activas`);
+    }
+
+    selector.innerHTML = "";
+    regionesSelector.forEach((region) => {
+      const option = document.createElement("option");
+      option.value = String(region.codigo_ine || "");
+      option.textContent = region.nombre || "Región sin nombre";
+      selector.appendChild(option);
+    });
+  } catch (error) {
+    regionesSelector = [];
+    console.warn("GEOFACTORY SELECTOR REGIÓN: regiones.json no disponible. Se mantiene el selector actual como respaldo.", error);
+  }
+}
+
+function conectarRegionSelector() {
+  const regionSelector = document.getElementById("region-selector");
+  if (!regionSelector) return;
+
+  regionSelector.addEventListener("change", () => moverViewportPorRegion(regionSelector.value));
+}
+
+// MOVER VIEWPORT POR REGIÓN
+function moverViewportPorRegion(codigoIne) {
+  if (!map || !codigoIne || !regionesSelector.length) return;
+
+  const region = regionesSelector.find((item) => String(item.codigo_ine) === String(codigoIne));
+  if (!region) return;
+
+  if (Array.isArray(region.bbox) && region.bbox.length === 2) {
+    map.fitBounds(region.bbox);
+    return;
+  }
+
+  if (Array.isArray(region.centro) && region.centro.length === 2) {
+    const zoom = Number.isFinite(Number(region.zoom)) ? Number(region.zoom) : map.getZoom();
+    map.setView(region.centro, zoom);
+  }
 }
 
 function conectarBaseMapToggle() {
