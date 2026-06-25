@@ -126,6 +126,43 @@
 
   </div>
 
+
+  <div id="geoipt-intro-overlay" class="geoipt-intro-overlay">
+    <div class="geoipt-intro-modal" role="dialog" aria-modal="true" aria-labelledby="geoiptIntroTitle">
+      <h2 id="geoiptIntroTitle">Normativa urbana y usos de suelo</h2>
+
+      <p>
+        Haz clic en cualquier punto del mapa y descubre al instante la normativa urbana aplicable,
+        usos permitidos y restricciones reales.
+      </p>
+
+      <p>
+        Accede a más de 250 Planes Reguladores, explora su alcance y descarga los archivos oficiales en KML.
+      </p>
+
+      <p>
+        Convierte cualquier ubicación en una decisión informada.
+      </p>
+
+      <img
+        src="./assets/geoipt-intro-flow.svg"
+        alt="Flujo de uso de GeoIPT"
+        class="geoipt-intro-image"
+      />
+
+      <div class="geoipt-intro-actions">
+        <button id="geoiptIntroStartBtn" class="geoipt-intro-button" type="button">
+          Analizar terreno ahora
+        </button>
+
+        <label class="geoipt-intro-check">
+          <input type="checkbox" id="geoiptIntroDontShow" />
+          No volver a mostrar
+        </label>
+      </div>
+    </div>
+  </div>
+
   <!-- Leaflet -->
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
