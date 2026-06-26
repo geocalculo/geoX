@@ -23,10 +23,23 @@ function getInitialViewportFromUrl() {
   return null;
 }
 
-function getCurrentViewportParams() {
-  const mapInstance = window.map || map;
+function getGeoXMapInstance() {
+  if (window.geoxMap && typeof window.geoxMap.getCenter === "function") {
+    return window.geoxMap;
+  }
 
-  if (!mapInstance || typeof mapInstance.getCenter !== "function") {
+  if (window.map && typeof window.map.getCenter === "function") {
+    return window.map;
+  }
+
+  return null;
+}
+
+function getCurrentViewportParams() {
+  const mapInstance = getGeoXMapInstance();
+
+  if (!mapInstance) {
+    console.warn("GeoX: no se encontró instancia Leaflet para capturar viewport.");
     return "";
   }
 
@@ -36,30 +49,53 @@ function getCurrentViewportParams() {
   const params = new URLSearchParams();
   params.set("lat", center.lat.toFixed(6));
   params.set("lon", center.lng.toFixed(6));
-  params.set("zoom", zoom);
+  params.set("zoom", String(zoom));
 
   return params.toString();
 }
 
+function isGeoXPortalLink(link) {
+  if (!link) return false;
+
+  const href = link.getAttribute("href") || "";
+  const target = link.getAttribute("data-geox-target") || "";
+
+  const value = `${href} ${target}`.toLowerCase();
+
+  return (
+    value.includes("geoipt") ||
+    value.includes("geoeva") ||
+    value.includes("geonemo") ||
+    value.includes("geonoxa")
+  );
+}
+
 function initGeoXCrossPortalNavigation() {
-  const portalLinks = document.querySelectorAll("[data-geox-target]");
+  document.addEventListener("click", function (event) {
+    const link = event.target.closest("a");
 
-  portalLinks.forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
+    if (!isGeoXPortalLink(link)) return;
 
-      const targetUrl = link.getAttribute("data-geox-target");
-      if (!targetUrl) return;
+    const rawTarget =
+      link.getAttribute("data-geox-target") ||
+      link.getAttribute("href");
 
-      const viewportParams = getCurrentViewportParams();
-      const separator = targetUrl.includes("?") ? "&" : "?";
+    if (!rawTarget) return;
 
-      const finalUrl = viewportParams
-        ? `${targetUrl}${separator}${viewportParams}`
-        : targetUrl;
+    event.preventDefault();
 
-      window.location.href = finalUrl;
-    });
+    const viewportParams = getCurrentViewportParams();
+    const url = new URL(rawTarget, window.location.href);
+
+    if (viewportParams) {
+      const params = new URLSearchParams(viewportParams);
+
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
+    }
+
+    window.location.href = url.toString();
   });
 }
 
@@ -73,6 +109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function iniciarMapa() {
   map = L.map("map").setView([-30.0, -71.0], 5);
+  window.geoxMap = map;
 
   const urlViewport = getInitialViewportFromUrl();
   if (urlViewport) {
