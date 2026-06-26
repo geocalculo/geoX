@@ -1,7 +1,7 @@
 {
-  "sitio": "GeoX",
-  "titulo": "GeoSitio Territorial",
-  "subtitulo": "Molde territorial genérico para GeoFactory",
+  "sitio": "GeoIPT",
+  "titulo": "GeoIPT",
+  "subtitulo": "Normativa urbana y usos de suelo",
   "pais_default": "CL",
   "region_default": "03",
   "centro_mapa": [-27.3668, -70.3323],
