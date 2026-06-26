@@ -23,6 +23,150 @@ function getInitialViewportFromUrl() {
   return null;
 }
 
+
+let userLocationMarker = null;
+
+function getLocationByGps() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Geolocation no disponible"));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        });
+      },
+      (error) => {
+        reject(error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 60000
+      }
+    );
+  });
+}
+
+async function getLocationByIp() {
+  try {
+    const response = await fetch("https://ipapi.co/json/", {
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error("No se pudo obtener ubicación por IP");
+    }
+
+    const data = await response.json();
+
+    const lat = parseFloat(data.latitude);
+    const lon = parseFloat(data.longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      throw new Error("IP sin coordenadas válidas");
+    }
+
+    return { lat, lon };
+  } catch (error) {
+    console.warn("GeoX: ubicación por IP no disponible", error);
+    return null;
+  }
+}
+
+function applyUserLocation(mapInstance, location, zoomLevel = 14) {
+  if (!mapInstance || !location) return;
+
+  const lat = parseFloat(location.lat);
+  const lon = parseFloat(location.lon);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+  mapInstance.setView([lat, lon], zoomLevel);
+
+  if (userLocationMarker) {
+    userLocationMarker.setLatLng([lat, lon]);
+  } else {
+    userLocationMarker = L.marker([lat, lon]).addTo(mapInstance);
+  }
+
+  userLocationMarker.bindPopup("Mi ubicación aproximada").openPopup();
+}
+
+async function initGeoXInitialLocation(mapInstance) {
+  const incomingViewport = getInitialViewportFromUrl();
+
+  if (incomingViewport) {
+    mapInstance.setView(
+      [incomingViewport.lat, incomingViewport.lon],
+      incomingViewport.zoom
+    );
+    return;
+  }
+
+  try {
+    const gpsLocation = await getLocationByGps();
+
+    if (gpsLocation) {
+      applyUserLocation(mapInstance, gpsLocation, 14);
+      return;
+    }
+  } catch (error) {
+    console.warn("GeoX: GPS no disponible o no autorizado", error);
+  }
+
+  const ipLocation = await getLocationByIp();
+
+  if (ipLocation) {
+    applyUserLocation(mapInstance, ipLocation, 10);
+    return;
+  }
+
+  console.warn("GeoX: se mantiene ubicación default del sitio");
+}
+
+function initGeoXMyLocationButton(mapInstance) {
+  const button =
+    document.getElementById("my-location-btn") ||
+    document.getElementById("locate-btn") ||
+    document.getElementById("btn-my-location") ||
+    document.querySelector(".my-location-btn") ||
+    document.querySelector(".locate-btn") ||
+    document.querySelector("[data-action='my-location']");
+
+  if (!button) {
+    console.warn("GeoX: botón Mi ubicación no encontrado");
+    return;
+  }
+
+  button.addEventListener("click", async () => {
+    try {
+      const gpsLocation = await getLocationByGps();
+
+      if (gpsLocation) {
+        applyUserLocation(mapInstance, gpsLocation, 14);
+        return;
+      }
+    } catch (error) {
+      console.warn("GeoX: GPS no disponible desde botón", error);
+    }
+
+    const ipLocation = await getLocationByIp();
+
+    if (ipLocation) {
+      applyUserLocation(mapInstance, ipLocation, 10);
+      return;
+    }
+
+    console.warn("GeoX: no se pudo determinar ubicación");
+  });
+}
+
 function getGeoXMapInstance() {
   if (window.geoxMap && typeof window.geoxMap.getCenter === "function") {
     return window.geoxMap;
@@ -104,6 +248,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await cargarRegionesSelector();
   conectarRegionSelector();
   conectarBaseMapToggle();
+  initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
 });
 
@@ -111,10 +256,7 @@ function iniciarMapa() {
   map = L.map("map").setView([-30.0, -71.0], 5);
   window.geoxMap = map;
 
-  const urlViewport = getInitialViewportFromUrl();
-  if (urlViewport) {
-    map.setView([urlViewport.lat, urlViewport.lon], urlViewport.zoom);
-  }
+  initGeoXInitialLocation(map);
 
   osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
