@@ -5,15 +5,79 @@ let currentBaseLayer;
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
+function getInitialViewportFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+
+  const lat = parseFloat(params.get("lat"));
+  const lon = parseFloat(params.get("lon"));
+  const zoom = parseInt(params.get("zoom"), 10);
+
+  if (
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    Number.isFinite(zoom)
+  ) {
+    return { lat, lon, zoom };
+  }
+
+  return null;
+}
+
+function getCurrentViewportParams() {
+  const mapInstance = window.map || map;
+
+  if (!mapInstance || typeof mapInstance.getCenter !== "function") {
+    return "";
+  }
+
+  const center = mapInstance.getCenter();
+  const zoom = mapInstance.getZoom();
+
+  const params = new URLSearchParams();
+  params.set("lat", center.lat.toFixed(6));
+  params.set("lon", center.lng.toFixed(6));
+  params.set("zoom", zoom);
+
+  return params.toString();
+}
+
+function initGeoXCrossPortalNavigation() {
+  const portalLinks = document.querySelectorAll("[data-geox-target]");
+
+  portalLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      const targetUrl = link.getAttribute("data-geox-target");
+      if (!targetUrl) return;
+
+      const viewportParams = getCurrentViewportParams();
+      const separator = targetUrl.includes("?") ? "&" : "?";
+
+      const finalUrl = viewportParams
+        ? `${targetUrl}${separator}${viewportParams}`
+        : targetUrl;
+
+      window.location.href = finalUrl;
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   iniciarMapa();
   await cargarRegionesSelector();
   conectarRegionSelector();
   conectarBaseMapToggle();
+  initGeoXCrossPortalNavigation();
 });
 
 function iniciarMapa() {
   map = L.map("map").setView([-30.0, -71.0], 5);
+
+  const urlViewport = getInitialViewportFromUrl();
+  if (urlViewport) {
+    map.setView([urlViewport.lat, urlViewport.lon], urlViewport.zoom);
+  }
 
   osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
