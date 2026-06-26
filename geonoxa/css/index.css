@@ -1,0 +1,142 @@
+:root {
+  --site-bg: #2A1F1B;
+  --site-bg-dark: #1A120F;
+  --site-accent: #F59E0B;
+  --site-accent-soft: rgba(245, 158, 11, 0.18);
+  --site-button: #EA7A00;
+  --site-button-hover: #C45F00;
+}
+
+
+/* GEOX SITE BRANDING */
+#main-header,
+.site-header,
+.header,
+.app-header {
+  background: linear-gradient(135deg, var(--site-bg-dark), var(--site-bg));
+  border-bottom-color: var(--site-accent);
+}
+
+.summary-item,
+.site-kpi,
+.kpi-card,
+.summary-card {
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#site-title,
+.site-title,
+.header-title,
+h1 {
+  color: #ffffff;
+}
+
+#site-subtitle,
+#site-description,
+.site-subtitle,
+.header-subtitle,
+.site-description,
+.header-description {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+#btn-search,
+button.primary,
+.btn-primary,
+.search-button,
+#searchBtn,
+.buscar-btn {
+  background: var(--site-button);
+  color: #ffffff;
+  border-color: var(--site-button);
+}
+
+#btn-search:hover,
+button.primary:hover,
+.btn-primary:hover,
+.search-button:hover,
+#searchBtn:hover,
+.buscar-btn:hover {
+  background: var(--site-button-hover);
+  border-color: var(--site-button-hover);
+}
+
+#main-footer,
+.portal-footer,
+.footer,
+.bottom-nav,
+.geox-footer {
+  background: var(--site-bg-dark);
+  border-top: 1px solid var(--site-accent);
+}
+
+#main-footer a:hover,
+.portal-footer a:hover,
+.bottom-nav a:hover,
+.geox-footer a:hover {
+  color: var(--site-accent);
+}
+
+#territorial-panel h3,
+#territorial-panel strong,
+.panel-territorial strong,
+.panel-title,
+.layer-group-title {
+  color: var(--site-bg);
+}
+
+input[type="checkbox"]:checked {
+  accent-color: var(--site-accent);
+}
+
+.is-active,
+.active,
+.selected,
+.portal-link.active {
+  color: var(--site-accent);
+}
+
+.badge,
+.site-badge,
+.layer-badge {
+  background: var(--site-accent-soft);
+  color: var(--site-bg);
+}
+
+.home-link,
+.geox-button,
+#geoxBtn,
+.btn-geox {
+  border-color: var(--site-accent);
+  color: var(--site-bg);
+}
+
+.home-link:hover {
+  background: var(--site-accent-soft);
+  color: var(--site-bg);
+}
+
+.mobile-layer-toggle.is-active,
+#mobile-layer-toggle.is-active {
+  border-color: var(--site-accent);
+  background: var(--site-accent-soft);
+  color: var(--site-bg);
+}
+
+.toggle-row input {
+  accent-color: var(--site-accent);
+}
+
+.search-result-item:hover,
+.search-result-item:focus {
+  background: var(--site-accent-soft);
+}
+
+.geoipt-intro-button {
+  background: var(--site-button);
+}
+
+.geoipt-intro-button:hover {
+  background: var(--site-button-hover);
+}
