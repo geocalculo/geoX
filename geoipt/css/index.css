@@ -23,13 +23,13 @@ body,
 /* HEADER */
 
 #main-header {
-  height: 76px;
+  min-height: 86px;
   background: #102a43;
   color: #ffffff;
   display: grid;
-  grid-template-columns: 280px 1fr 180px;
+  grid-template-columns: minmax(260px, 420px) 1fr;
   align-items: center;
-  padding: 0 18px;
+  padding: 12px 18px;
   gap: 16px;
   border-bottom: 3px solid #38bdf8;
 }
@@ -41,14 +41,22 @@ body,
 }
 
 #site-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 #site-subtitle {
-  font-size: 13px;
+  font-size: 14px;
   color: #cbd5e1;
+  font-weight: 700;
+}
+
+#site-description {
+  margin: 0;
+  color: #dbeafe;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 #summary-bar {
@@ -83,7 +91,8 @@ body,
   gap: 8px;
 }
 
-button {
+button,
+.home-link {
   border: none;
   border-radius: 8px;
   padding: 8px 11px;
@@ -93,14 +102,15 @@ button {
   font-weight: 600;
 }
 
-button:hover {
+button:hover,
+.home-link:hover {
   background: #bae6fd;
 }
 
 /* CONTROL BAR */
 
 #control-bar {
-  height: 52px;
+  min-height: 52px;
   background: #ffffff;
   display: flex;
   align-items: center;
@@ -343,6 +353,23 @@ button:hover {
 }
 
 @media (max-width: 768px) {
+  #main-header {
+    grid-template-columns: 1fr;
+  }
+
+  #summary-bar {
+    justify-content: flex-start;
+    overflow: auto;
+  }
+
+  .summary-item {
+    min-width: 112px;
+  }
+
+  #control-bar {
+    overflow: auto;
+  }
+
   .map-toggle {
     top: 12px;
     right: 12px;
@@ -396,7 +423,7 @@ button:hover {
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(620px, calc(100% - 320px));
+  width: min(620px, calc(100% - 360px));
 }
 
 #search-box-wrapper #search-box {
@@ -562,10 +589,10 @@ button:hover {
   }
 
   #mobile-map-controls .map-toggle {
-    left: 12px;
-    right: auto;
-    top: auto;
-    bottom: 72px;
+    top: 66px;
+    right: 12px;
+    left: auto;
+    bottom: auto;
     display: flex;
     gap: 4px;
     padding: 3px;
@@ -573,18 +600,18 @@ button:hover {
   }
 
   #mobile-map-controls #btn-my-location {
+    top: 116px;
     right: 12px;
-    top: auto;
-    bottom: 118px;
+    bottom: auto;
     width: 40px;
     height: 40px;
   }
 
   #mobile-map-controls #mobile-layer-toggle {
-    right: 12px;
-    left: auto;
-    top: auto;
-    bottom: 72px;
+    top: 116px;
+    left: 12px;
+    right: auto;
+    bottom: auto;
     z-index: 1100;
     min-height: 38px;
     padding: 8px 11px;
