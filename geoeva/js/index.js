@@ -19,6 +19,10 @@ async function initGeoEVASummary(mapInstance) {
   await loadSummaryLayers(summaryConfig);
   updateGeoEVASummary(mapInstance);
 
+  setTimeout(() => {
+    updateGeoEVASummary(mapInstance);
+  }, 500);
+
   mapInstance.on("moveend zoomend", () => {
     updateGeoEVASummary(mapInstance);
   });
@@ -26,15 +30,25 @@ async function initGeoEVASummary(mapInstance) {
 
 async function loadSummaryConfig() {
   try {
-    const response = await fetch("./parametros/summary_config.json", {
-      cache: "no-store"
-    });
+    const configPaths = [
+      "./parametros/summary_config.json",
+      "./capas_summary/summary_config.json"
+    ];
 
-    if (!response.ok) {
-      throw new Error("No se pudo cargar summary_config.json");
+    for (const configPath of configPaths) {
+      const configUrl = new URL(configPath, window.location.href).toString();
+      const response = await fetch(configUrl, {
+        cache: "no-store"
+      });
+
+      if (!response.ok) continue;
+
+      const config = await response.json();
+      console.log("GeoEVA summary config:", config);
+      return config;
     }
 
-    return await response.json();
+    throw new Error("No se pudo cargar summary_config.json");
   } catch (error) {
     console.warn("GeoEVA: error cargando summary_config.json", error);
     return null;
@@ -46,21 +60,51 @@ async function loadSummaryLayers(config) {
 
   for (const capa of config.capas || []) {
     try {
-      const response = await fetch(capa.archivo, { cache: "no-store" });
+      const layerUrl = new URL(capa.archivo, window.location.href).toString();
+      const response = await fetch(layerUrl, { cache: "no-store" });
 
       if (!response.ok) {
         throw new Error(`No se pudo cargar ${capa.archivo}`);
       }
 
       const geojson = await response.json();
-      summaryFeaturesByLayer[capa.id] = Array.isArray(geojson.features)
+      const features = Array.isArray(geojson.features)
         ? geojson.features
         : [];
+
+      summaryFeaturesByLayer[capa.id] = features;
+      console.log("GeoEVA summary layer loaded:", capa.id, capa.archivo, features.length);
     } catch (error) {
       console.warn(`GeoEVA: error cargando capa summary ${capa.id}`, error);
       summaryFeaturesByLayer[capa.id] = [];
     }
   }
+}
+
+function getFeatureLatLon(feature) {
+  if (
+    feature &&
+    feature.geometry &&
+    feature.geometry.type === "Point" &&
+    Array.isArray(feature.geometry.coordinates)
+  ) {
+    const lon = Number(feature.geometry.coordinates[0]);
+    const lat = Number(feature.geometry.coordinates[1]);
+
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      return { lat, lon };
+    }
+  }
+
+  const props = feature.properties || {};
+  const lat = Number(props.lat);
+  const lon = Number(props.lon);
+
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    return { lat, lon };
+  }
+
+  return null;
 }
 
 function getVisibleSummaryFeatures(mapInstance, layerIds) {
@@ -74,21 +118,16 @@ function getVisibleSummaryFeatures(mapInstance, layerIds) {
     const features = summaryFeaturesByLayer[layerId] || [];
 
     features.forEach((feature) => {
-      if (!feature.geometry || feature.geometry.type !== "Point") return;
+      const point = getFeatureLatLon(feature);
+      if (!point) return;
 
-      const coords = feature.geometry.coordinates;
-      if (!Array.isArray(coords) || coords.length < 2) return;
-
-      const lon = Number(coords[0]);
-      const lat = Number(coords[1]);
-
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-
-      if (bounds.contains([lat, lon])) {
+      if (bounds.contains(L.latLng(point.lat, point.lon))) {
         visible.push(feature);
       }
     });
   });
+
+  console.log("GeoEVA summary visible features:", visible.length);
 
   return visible;
 }
@@ -191,7 +230,7 @@ function updateSummaryKpiDom(indicatorId, value, label) {
   const card = document.querySelector(`[data-summary-id="${indicatorId}"]`);
 
   if (!card) {
-    console.warn(`GeoEVA: KPI no encontrado para ${indicatorId}`);
+    console.warn("GeoEVA KPI no encontrado:", indicatorId);
     return;
   }
 
@@ -453,8 +492,9 @@ function iniciarMapa() {
   map = L.map("map").setView([-30.0, -71.0], 5);
   window.geoxMap = map;
 
-  initGeoEVASummary(map);
-  initGeoXInitialLocation(map);
+  initGeoXInitialLocation(map).finally(() => {
+    initGeoEVASummary(map);
+  });
 
   osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
