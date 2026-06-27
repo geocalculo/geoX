@@ -2,6 +2,8 @@ let map;
 let osmLayer;
 let satLayer;
 let currentBaseLayer;
+let summaryConfig = null;
+let summaryFeaturesByLayer = {};
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
@@ -256,7 +258,10 @@ function iniciarMapa() {
   map = L.map("map").setView([-30.0, -71.0], 5);
   window.geoxMap = map;
 
-  initGeoXInitialLocation(map);
+  const initialLocationPromise = initGeoXInitialLocation(map);
+  initialLocationPromise.finally(() => {
+    initGeoNOXASummary(map);
+  });
 
   osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -275,6 +280,236 @@ function iniciarMapa() {
   L.control.scale({
     imperial: false
   }).addTo(map);
+}
+
+
+async function initGeoNOXASummary(mapInstance) {
+  summaryConfig = await loadSummaryConfig();
+
+  if (!summaryConfig || summaryConfig.activo !== true) {
+    console.warn("GeoNOXA summary no activo o no disponible");
+    return;
+  }
+
+  await loadSummaryLayers(summaryConfig);
+
+  updateGeoNOXASummary(mapInstance);
+
+  mapInstance.on("moveend zoomend", () => {
+    updateGeoNOXASummary(mapInstance);
+  });
+
+  setTimeout(() => updateGeoNOXASummary(mapInstance), 400);
+  setTimeout(() => updateGeoNOXASummary(mapInstance), 1000);
+}
+
+async function loadSummaryConfig() {
+  try {
+    const response = await fetch("./parametros/summary_config.json", {
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error("No se pudo cargar summary_config.json");
+    }
+
+    const config = await response.json();
+    console.log("GeoNOXA summary config:", config);
+    return config;
+  } catch (error) {
+    console.warn("GeoNOXA: error cargando summary_config.json", error);
+    return null;
+  }
+}
+
+async function loadSummaryLayers(config) {
+  summaryFeaturesByLayer = {};
+
+  for (const capa of config.capas || []) {
+    try {
+      const layerUrl = new URL(capa.archivo, window.location.href).toString();
+
+      const response = await fetch(layerUrl, {
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error(`No se pudo cargar ${capa.archivo}`);
+      }
+
+      const geojson = await response.json();
+      const features = Array.isArray(geojson.features) ? geojson.features : [];
+
+      summaryFeaturesByLayer[capa.id] = features;
+
+      console.log(
+        "GeoNOXA summary layer loaded:",
+        capa.id,
+        features.length,
+        layerUrl
+      );
+    } catch (error) {
+      console.warn(`GeoNOXA: error cargando capa summary ${capa.id}`, error);
+      summaryFeaturesByLayer[capa.id] = [];
+    }
+  }
+}
+
+function getFeatureLatLon(feature) {
+  if (
+    feature &&
+    feature.geometry &&
+    feature.geometry.type === "Point" &&
+    Array.isArray(feature.geometry.coordinates)
+  ) {
+    const lon = Number(feature.geometry.coordinates[0]);
+    const lat = Number(feature.geometry.coordinates[1]);
+
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      return { lat, lon };
+    }
+  }
+
+  const props = feature.properties || {};
+
+  const lat = Number(
+    props.lat ??
+    props.latitude ??
+    props.latitud
+  );
+
+  const lon = Number(
+    props.lon ??
+    props.lng ??
+    props.longitude ??
+    props.longitud
+  );
+
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    return { lat, lon };
+  }
+
+  return null;
+}
+
+function getSummaryFeaturesInViewport(mapInstance, layerIds) {
+  const bounds = mapInstance.getBounds();
+  const result = [];
+
+  (layerIds || []).forEach((layerId) => {
+    const features = summaryFeaturesByLayer[layerId] || [];
+
+    features.forEach((feature) => {
+      const point = getFeatureLatLon(feature);
+      if (!point) return;
+
+      const latLng = L.latLng(point.lat, point.lon);
+
+      if (bounds.contains(latLng)) {
+        result.push(feature);
+      }
+    });
+  });
+
+  console.log("GeoNOXA summary features in viewport:", {
+    bounds: bounds.toBBoxString(),
+    layerIds,
+    count: result.length
+  });
+
+  return result;
+}
+
+function parseSummaryNumber(value, decimalSeparator = ".") {
+  if (value === null || value === undefined || value === "") return 0;
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  let normalized = String(value).trim();
+
+  if (decimalSeparator === ",") {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  }
+
+  const number = Number(normalized);
+
+  return Number.isFinite(number) ? number : 0;
+}
+
+function formatSummaryNumber(value, indicador = {}) {
+  const decimals = Number.isInteger(indicador.decimales)
+    ? indicador.decimales
+    : 0;
+
+  const formatted = Number(value).toLocaleString("es-CL", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+
+  const prefijo = indicador.prefijo ? `${indicador.prefijo} ` : "";
+  const sufijo = indicador.sufijo ? ` ${indicador.sufijo}` : "";
+
+  return `${prefijo}${formatted}${sufijo}`;
+}
+
+function calculateSummaryIndicator(indicador, features) {
+  if (indicador.operacion === "count") {
+    return features.length;
+  }
+
+  if (indicador.operacion === "sum") {
+    const factor = Number.isFinite(Number(indicador.factor))
+      ? Number(indicador.factor)
+      : 1;
+
+    const total = features.reduce((acc, feature) => {
+      const props = feature.properties || {};
+      const rawValue = props[indicador.campo];
+      const value = parseSummaryNumber(rawValue, indicador.decimal || ".");
+
+      return acc + value * factor;
+    }, 0);
+
+    return formatSummaryNumber(total, indicador);
+  }
+
+  return "—";
+}
+
+function updateGeoNOXASummary(mapInstance) {
+  if (!summaryConfig || !Array.isArray(summaryConfig.indicadores)) return;
+
+  summaryConfig.indicadores.forEach((indicador) => {
+    const layerIds = indicador.capas || [];
+    const featuresInViewport = getSummaryFeaturesInViewport(mapInstance, layerIds);
+    const value = calculateSummaryIndicator(indicador, featuresInViewport);
+
+    console.log("GeoNOXA KPI:", indicador.id, value);
+
+    updateSummaryKpiDom(indicador.id, value, indicador.label);
+  });
+}
+
+function updateSummaryKpiDom(indicatorId, value, label) {
+  const card = document.querySelector(`[data-summary-id="${indicatorId}"]`);
+
+  if (!card) {
+    console.warn("GeoNOXA KPI no encontrado:", indicatorId);
+    return;
+  }
+
+  const valueEl =
+    card.querySelector(".kpi-value") ||
+    card.querySelector(".summary-value");
+
+  const labelEl =
+    card.querySelector(".kpi-label") ||
+    card.querySelector(".summary-label");
+
+  if (valueEl) valueEl.textContent = value;
+  if (labelEl && label) labelEl.textContent = label;
 }
 
 // GEOFACTORY SELECTOR REGIÓN
