@@ -1,0 +1,58 @@
+{
+  "activo": true,
+  "capas": [
+    {
+      "id": "relaves_geonoxa_summary",
+      "nombre": "Relaves mineros",
+      "archivo": "capas_summary/relaves_geonoxa_lite.geojson",
+      "tipo": "point"
+    },
+    {
+      "id": "zonas_geonoxa_summary",
+      "nombre": "Zonas saturadas y latentes",
+      "archivo": "capas_summary/geonoxa_zonas_summary.geojson",
+      "tipo": "point"
+    }
+  ],
+  "indicadores": [
+    {
+      "id": "total_relaves",
+      "label": "Relaves",
+      "operacion": "count",
+      "capas": [
+        "relaves_geonoxa_summary"
+      ]
+    },
+    {
+      "id": "area_relaves",
+      "label": "Área relaves",
+      "operacion": "sum",
+      "campo": "shape_area_m2",
+      "capas": [
+        "relaves_geonoxa_summary"
+      ],
+      "factor": 0.0001,
+      "sufijo": "ha",
+      "decimales": 0
+    },
+    {
+      "id": "total_zonas",
+      "label": "Zonas",
+      "operacion": "count",
+      "capas": [
+        "zonas_geonoxa_summary"
+      ]
+    },
+    {
+      "id": "area_zonas",
+      "label": "Área zonas",
+      "operacion": "sum",
+      "campo": "superficie",
+      "capas": [
+        "zonas_geonoxa_summary"
+      ],
+      "sufijo": "ha",
+      "decimales": 0
+    }
+  ]
+}
