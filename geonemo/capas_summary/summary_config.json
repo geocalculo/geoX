@@ -1,0 +1,58 @@
+{
+  "activo": true,
+  "capas": [
+    {
+      "id": "nemo_snaspe_summary",
+      "nombre": "Áreas SNASPE",
+      "archivo": "capas_summary/nemo_snaspe_summary.geojson",
+      "tipo": "point"
+    },
+    {
+      "id": "nemo_ramsar_summary",
+      "nombre": "Sitios Ramsar",
+      "archivo": "capas_summary/nemo_ramsar_summary.geojson",
+      "tipo": "point"
+    }
+  ],
+  "indicadores": [
+    {
+      "id": "total_snaspe",
+      "label": "SNASPE",
+      "operacion": "count",
+      "capas": [
+        "nemo_snaspe_summary"
+      ]
+    },
+    {
+      "id": "area_snaspe",
+      "label": "Área SNASPE",
+      "operacion": "sum",
+      "campo": "SUPERFICIE",
+      "capas": [
+        "nemo_snaspe_summary"
+      ],
+      "decimal": ",",
+      "sufijo": "ha",
+      "decimales": 0
+    },
+    {
+      "id": "total_ramsar",
+      "label": "Ramsar",
+      "operacion": "count",
+      "capas": [
+        "nemo_ramsar_summary"
+      ]
+    },
+    {
+      "id": "area_ramsar",
+      "label": "Área Ramsar",
+      "operacion": "sum",
+      "campo": "superficie",
+      "capas": [
+        "nemo_ramsar_summary"
+      ],
+      "sufijo": "ha",
+      "decimales": 0
+    }
+  ]
+}
