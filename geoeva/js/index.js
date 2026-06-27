@@ -5,6 +5,203 @@ let currentBaseLayer;
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
+let summaryConfig = null;
+let summaryFeaturesByLayer = {};
+
+async function initGeoEVASummary(mapInstance) {
+  summaryConfig = await loadSummaryConfig();
+
+  if (!summaryConfig || summaryConfig.activo !== true) {
+    console.warn("GeoEVA summary no activo o no disponible");
+    return;
+  }
+
+  await loadSummaryLayers(summaryConfig);
+  updateGeoEVASummary(mapInstance);
+
+  mapInstance.on("moveend zoomend", () => {
+    updateGeoEVASummary(mapInstance);
+  });
+}
+
+async function loadSummaryConfig() {
+  try {
+    const response = await fetch("./parametros/summary_config.json", {
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error("No se pudo cargar summary_config.json");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.warn("GeoEVA: error cargando summary_config.json", error);
+    return null;
+  }
+}
+
+async function loadSummaryLayers(config) {
+  summaryFeaturesByLayer = {};
+
+  for (const capa of config.capas || []) {
+    try {
+      const response = await fetch(capa.archivo, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(`No se pudo cargar ${capa.archivo}`);
+      }
+
+      const geojson = await response.json();
+      summaryFeaturesByLayer[capa.id] = Array.isArray(geojson.features)
+        ? geojson.features
+        : [];
+    } catch (error) {
+      console.warn(`GeoEVA: error cargando capa summary ${capa.id}`, error);
+      summaryFeaturesByLayer[capa.id] = [];
+    }
+  }
+}
+
+function getVisibleSummaryFeatures(mapInstance, layerIds) {
+  if (!mapInstance || typeof mapInstance.getBounds !== "function") return [];
+
+  const bounds = mapInstance.getBounds();
+  const visible = [];
+  const ids = Array.isArray(layerIds) ? layerIds : [];
+
+  ids.forEach((layerId) => {
+    const features = summaryFeaturesByLayer[layerId] || [];
+
+    features.forEach((feature) => {
+      if (!feature.geometry || feature.geometry.type !== "Point") return;
+
+      const coords = feature.geometry.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) return;
+
+      const lon = Number(coords[0]);
+      const lat = Number(coords[1]);
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+      if (bounds.contains([lat, lon])) {
+        visible.push(feature);
+      }
+    });
+  });
+
+  return visible;
+}
+
+function applySummaryFilters(features, filtros = []) {
+  if (!Array.isArray(filtros) || filtros.length === 0) {
+    return features;
+  }
+
+  return features.filter((feature) => {
+    const props = feature.properties || {};
+
+    return filtros.every((filter) => {
+      const value = props[filter.campo];
+
+      if (filter.operador === "eq") {
+        return value === filter.valor;
+      }
+
+      if (filter.operador === "in") {
+        return Array.isArray(filter.valores) && filter.valores.includes(value);
+      }
+
+      return true;
+    });
+  });
+}
+
+function calculateSummaryIndicator(indicador, features) {
+  const filteredFeatures = applySummaryFilters(features, indicador.filtros);
+
+  if (indicador.operacion === "count") {
+    return filteredFeatures.length;
+  }
+
+  if (indicador.operacion === "sum") {
+    const total = filteredFeatures.reduce((acc, feature) => {
+      const props = feature.properties || {};
+      const value = Number(props[indicador.campo]);
+      return acc + (Number.isFinite(value) ? value : 0);
+    }, 0);
+
+    return formatSummaryNumber(total, indicador);
+  }
+
+  if (indicador.operacion === "dominant_category_sum") {
+    const totals = {};
+
+    filteredFeatures.forEach((feature) => {
+      const props = feature.properties || {};
+      const category = props[indicador.campo_categoria];
+      const value = Number(props[indicador.campo_valor]);
+
+      if (!category || !Number.isFinite(value)) return;
+
+      totals[category] = (totals[category] || 0) + value;
+    });
+
+    const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+
+    if (sorted.length === 0) {
+      return indicador.fallback || "Sin datos";
+    }
+
+    return sorted[0][0];
+  }
+
+  return "—";
+}
+
+function formatSummaryNumber(value, indicador = {}) {
+  const decimals = Number.isInteger(indicador.decimales)
+    ? indicador.decimales
+    : 0;
+
+  const formatted = Number(value).toLocaleString("es-CL", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+
+  const prefijo = indicador.prefijo ? `${indicador.prefijo} ` : "";
+  const sufijo = indicador.sufijo ? ` ${indicador.sufijo}` : "";
+
+  return `${prefijo}${formatted}${sufijo}`;
+}
+
+function updateGeoEVASummary(mapInstance) {
+  if (!summaryConfig || !Array.isArray(summaryConfig.indicadores)) return;
+
+  summaryConfig.indicadores.forEach((indicador) => {
+    const layerIds = indicador.capas || [];
+    const visibleFeatures = getVisibleSummaryFeatures(mapInstance, layerIds);
+    const value = calculateSummaryIndicator(indicador, visibleFeatures);
+
+    updateSummaryKpiDom(indicador.id, value, indicador.label);
+  });
+}
+
+function updateSummaryKpiDom(indicatorId, value, label) {
+  const card = document.querySelector(`[data-summary-id="${indicatorId}"]`);
+
+  if (!card) {
+    console.warn(`GeoEVA: KPI no encontrado para ${indicatorId}`);
+    return;
+  }
+
+  const valueEl = card.querySelector(".summary-value, .kpi-value");
+  const labelEl = card.querySelector(".summary-label, .kpi-label");
+
+  if (valueEl) valueEl.textContent = value;
+  if (labelEl && label) labelEl.textContent = label;
+}
+
 function getInitialViewportFromUrl() {
   const params = new URLSearchParams(window.location.search);
 
@@ -256,6 +453,7 @@ function iniciarMapa() {
   map = L.map("map").setView([-30.0, -71.0], 5);
   window.geoxMap = map;
 
+  initGeoEVASummary(map);
   initGeoXInitialLocation(map);
 
   osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
