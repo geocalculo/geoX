@@ -304,22 +304,31 @@ async function initGeoNOXASummary(mapInstance) {
 }
 
 async function loadSummaryConfig() {
-  try {
-    const response = await fetch("./parametros/summary_config.json", {
-      cache: "no-store"
-    });
+  const configPaths = [
+    "./parametros/summary_config.json",
+    "./capas_summary/summary_config.json"
+  ];
 
-    if (!response.ok) {
-      throw new Error("No se pudo cargar summary_config.json");
+  for (const configPath of configPaths) {
+    try {
+      const configUrl = new URL(configPath, window.location.href).toString();
+      const response = await fetch(configUrl, {
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo cargar summary_config.json");
+      }
+
+      const config = await response.json();
+      console.log("GeoNOXA summary config loaded", configUrl);
+      return config;
+    } catch (error) {
+      console.warn("GeoNOXA summary config error:", configPath, error);
     }
-
-    const config = await response.json();
-    console.log("GeoNOXA summary config:", config);
-    return config;
-  } catch (error) {
-    console.warn("GeoNOXA: error cargando summary_config.json", error);
-    return null;
   }
+
+  return null;
 }
 
 async function loadSummaryLayers(config) {
@@ -349,7 +358,7 @@ async function loadSummaryLayers(config) {
         layerUrl
       );
     } catch (error) {
-      console.warn(`GeoNOXA: error cargando capa summary ${capa.id}`, error);
+      console.warn("GeoNOXA summary layer error:", capa.id, error);
       summaryFeaturesByLayer[capa.id] = [];
     }
   }
@@ -411,7 +420,7 @@ function getSummaryFeaturesInViewport(mapInstance, layerIds) {
     });
   });
 
-  console.log("GeoNOXA summary features in viewport:", {
+  console.log("GeoNOXA viewport summary:", {
     bounds: bounds.toBBoxString(),
     layerIds,
     count: result.length
