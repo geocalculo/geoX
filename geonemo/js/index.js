@@ -294,32 +294,40 @@ async function initGeoNEMOSummary(mapInstance) {
 
   updateGeoNEMOSummary(mapInstance);
 
+  setTimeout(() => updateGeoNEMOSummary(mapInstance), 400);
+  setTimeout(() => updateGeoNEMOSummary(mapInstance), 1000);
+
   mapInstance.on("moveend zoomend", () => {
     updateGeoNEMOSummary(mapInstance);
   });
-
-  setTimeout(() => {
-    updateGeoNEMOSummary(mapInstance);
-  }, 600);
 }
 
 async function loadSummaryConfig() {
-  try {
-    const response = await fetch("./parametros/summary_config.json", {
-      cache: "no-store"
-    });
+  const configPaths = [
+    "./parametros/summary_config.json",
+    "./capas_summary/summary_config.json"
+  ];
 
-    if (!response.ok) {
-      throw new Error("No se pudo cargar summary_config.json");
+  for (const configPath of configPaths) {
+    try {
+      const configUrl = new URL(configPath, window.location.href).toString();
+      const response = await fetch(configUrl, {
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error(`No se pudo cargar ${configPath}`);
+      }
+
+      const config = await response.json();
+      console.log("GeoNEMO summary config loaded", configUrl);
+      return config;
+    } catch (error) {
+      console.warn("GeoNEMO: error cargando summary_config.json", configPath, error);
     }
-
-    const config = await response.json();
-    console.log("GeoNEMO summary config:", config);
-    return config;
-  } catch (error) {
-    console.warn("GeoNEMO: error cargando summary_config.json", error);
-    return null;
   }
+
+  return null;
 }
 
 async function loadSummaryLayers(config) {
@@ -338,18 +346,18 @@ async function loadSummaryLayers(config) {
       }
 
       const geojson = await response.json();
-      const features = geojson.features || [];
+      const features = Array.isArray(geojson.features) ? geojson.features : [];
 
       summaryFeaturesByLayer[capa.id] = features;
 
       console.log(
         "GeoNEMO summary layer loaded:",
         capa.id,
-        capa.archivo,
-        features.length
+        features.length,
+        layerUrl
       );
     } catch (error) {
-      console.warn(`GeoNEMO: error cargando capa summary ${capa.id}`, error);
+      console.warn("GeoNEMO summary layer error:", capa.id, error);
       summaryFeaturesByLayer[capa.id] = [];
     }
   }
@@ -385,7 +393,7 @@ function getSummaryFeaturesInViewport(mapInstance, layerIds) {
   const bounds = mapInstance.getBounds();
   const result = [];
 
-  layerIds.forEach((layerId) => {
+  (layerIds || []).forEach((layerId) => {
     const features = summaryFeaturesByLayer[layerId] || [];
 
     features.forEach((feature) => {
@@ -398,7 +406,11 @@ function getSummaryFeaturesInViewport(mapInstance, layerIds) {
     });
   });
 
-  console.log("GeoNEMO summary features in viewport:", result.length);
+  console.log("GeoNEMO viewport summary:", {
+    bounds: bounds.toBBoxString(),
+    layerIds,
+    count: result.length
+  });
 
   return result;
 }
@@ -468,6 +480,8 @@ function updateGeoNEMOSummary(mapInstance) {
     const featuresInViewport = getSummaryFeaturesInViewport(mapInstance, layerIds);
     const value = calculateSummaryIndicator(indicador, featuresInViewport);
 
+    console.log("GeoNEMO KPI:", indicador.id, value);
+
     updateSummaryKpiDom(indicador.id, value, indicador.label);
   });
 }
@@ -480,8 +494,13 @@ function updateSummaryKpiDom(indicatorId, value, label) {
     return;
   }
 
-  const valueEl = card.querySelector(".kpi-value") || card.querySelector(".summary-value");
-  const labelEl = card.querySelector(".kpi-label") || card.querySelector(".summary-label");
+  const valueEl =
+    card.querySelector(".kpi-value") ||
+    card.querySelector(".summary-value");
+
+  const labelEl =
+    card.querySelector(".kpi-label") ||
+    card.querySelector(".summary-label");
 
   if (valueEl) valueEl.textContent = value;
   if (labelEl && label) labelEl.textContent = label;
