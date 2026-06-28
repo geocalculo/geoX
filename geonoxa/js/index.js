@@ -2,27 +2,47 @@ let map;
 let osmLayer;
 let satLayer;
 let currentBaseLayer;
+let currentBasemap = "osm";
+let initialCrossAccessState = null;
 let summaryConfig = null;
 let summaryFeaturesByLayer = {};
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
-function getInitialViewportFromUrl() {
+function getInitialCrossAccessStateFromUrl() {
+  if (initialCrossAccessState) return initialCrossAccessState;
+
   const params = new URLSearchParams(window.location.search);
 
   const lat = parseFloat(params.get("lat"));
   const lon = parseFloat(params.get("lon"));
   const zoom = parseInt(params.get("zoom"), 10);
+  const requestedBasemap = params.get("basemap") || "osm";
+  const basemap = requestedBasemap === "sat" ? "sat" : "osm";
 
-  if (
-    Number.isFinite(lat) &&
-    Number.isFinite(lon) &&
-    Number.isFinite(zoom)
-  ) {
-    return { lat, lon, zoom };
-  }
+  console.log("[GeoX cross_access receive]", {
+    lat,
+    lon,
+    zoom,
+    basemap
+  });
 
-  return null;
+  initialCrossAccessState = {
+    viewport: Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(zoom)
+      ? { lat, lon, zoom }
+      : null,
+    basemap
+  };
+
+  return initialCrossAccessState;
+}
+
+function getInitialViewportFromUrl() {
+  return getInitialCrossAccessStateFromUrl().viewport;
+}
+
+function getInitialBasemapFromUrl() {
+  return getInitialCrossAccessStateFromUrl().basemap;
 }
 
 
@@ -181,21 +201,50 @@ function getGeoXMapInstance() {
   return null;
 }
 
-function getCurrentViewportParams() {
+function getCurrentMapState() {
   const mapInstance = getGeoXMapInstance();
 
   if (!mapInstance) {
-    console.warn("GeoX: no se encontró instancia Leaflet para capturar viewport.");
-    return "";
+    console.warn("GeoX: no se encontró instancia Leaflet para capturar estado del mapa.");
+    return null;
   }
 
   const center = mapInstance.getCenter();
-  const zoom = mapInstance.getZoom();
+
+  return {
+    lat: center.lat,
+    lon: center.lng,
+    zoom: mapInstance.getZoom(),
+    basemap: currentBasemap || "osm"
+  };
+}
+
+function buildCrossAccessUrl(sitePath) {
+  const state = getCurrentMapState();
+  const url = new URL(sitePath, window.location.href);
+
+  if (!state) return url.toString();
+
+  console.log("[GeoX cross_access send]", state);
+
+  url.searchParams.set("lat", state.lat.toFixed(6));
+  url.searchParams.set("lon", state.lon.toFixed(6));
+  url.searchParams.set("zoom", String(state.zoom));
+  url.searchParams.set("basemap", state.basemap);
+
+  return url.toString();
+}
+
+function getCurrentViewportParams() {
+  const state = getCurrentMapState();
+
+  if (!state) return "";
 
   const params = new URLSearchParams();
-  params.set("lat", center.lat.toFixed(6));
-  params.set("lon", center.lng.toFixed(6));
-  params.set("zoom", String(zoom));
+  params.set("lat", state.lat.toFixed(6));
+  params.set("lon", state.lon.toFixed(6));
+  params.set("zoom", String(state.zoom));
+  params.set("basemap", state.basemap);
 
   return params.toString();
 }
@@ -230,18 +279,7 @@ function initGeoXCrossPortalNavigation() {
 
     event.preventDefault();
 
-    const viewportParams = getCurrentViewportParams();
-    const url = new URL(rawTarget, window.location.href);
-
-    if (viewportParams) {
-      const params = new URLSearchParams(viewportParams);
-
-      params.forEach((value, key) => {
-        url.searchParams.set(key, value);
-      });
-    }
-
-    window.location.href = url.toString();
+    window.location.href = buildCrossAccessUrl(rawTarget);
   });
 }
 
@@ -273,9 +311,7 @@ function iniciarMapa() {
     attribution: "Tiles © Esri"
   });
 
-  osmLayer.addTo(map);
-  currentBaseLayer = osmLayer;
-  setBaseMapToggleActive("osm");
+  switchBaseMap(getInitialBasemapFromUrl());
 
   L.control.scale({
     imperial: false
@@ -621,7 +657,8 @@ function switchBaseMap(type) {
   }
 
   currentBaseLayer = nextLayer;
-  setBaseMapToggleActive(type);
+  currentBasemap = type === "sat" ? "sat" : "osm";
+  setBaseMapToggleActive(currentBasemap);
 }
 
 function setBaseMapToggleActive(type) {
