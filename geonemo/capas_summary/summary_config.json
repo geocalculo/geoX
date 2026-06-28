@@ -21,19 +21,23 @@
       "operacion": "count",
       "capas": [
         "nemo_snaspe_summary"
-      ]
+      ],
+      "campo": "SUMMARY_ID",
+      "distinct": true,
+      "descripcion": "Cuenta unidades SNASPE únicas por SUMMARY_ID, evitando multiplicar islotes o partes."
     },
     {
       "id": "area_snaspe",
       "label": "Área SNASPE",
       "operacion": "sum",
-      "campo": "SUPERFICIE",
+      "campo": "SUPERFICIE_HA",
       "capas": [
         "nemo_snaspe_summary"
       ],
-      "decimal": ",",
       "sufijo": "ha",
-      "decimales": 0
+      "decimales": 0,
+      "numeric": true,
+      "descripcion": "Suma superficie SNASPE numérica en hectáreas."
     },
     {
       "id": "total_ramsar",
