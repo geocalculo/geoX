@@ -406,33 +406,35 @@ function getSummaryFeaturesInViewport(mapInstance, layerIds) {
     });
   });
 
-  console.log("GeoNEMO viewport summary:", {
-    bounds: bounds.toBBoxString(),
-    layerIds,
-    count: result.length
-  });
-
   return result;
 }
 
-function parseSummaryNumber(value, decimalSeparator = ".") {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
+const SUMMARY_SUM_FALLBACK_FIELDS = [
+  "SUPERFICIE_HA",
+  "superficie_ha",
+  "AREA_HA",
+  "area_ha",
+  "SUPERFICIE",
+  "superficie"
+];
 
+function parseSummaryNumber(value) {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : 0;
   }
 
-  let normalized = String(value).trim();
+  if (value === null || value === undefined) return 0;
 
-  if (decimalSeparator === ",") {
-    normalized = normalized.replace(/\./g, "").replace(",", ".");
-  }
+  const raw = String(value).trim();
+  if (!raw) return 0;
 
-  const number = Number(normalized);
+  const normalized = raw
+    .replace(/\s/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
 
-  return Number.isFinite(number) ? number : 0;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function formatSummaryNumber(value, indicador = {}) {
@@ -451,25 +453,97 @@ function formatSummaryNumber(value, indicador = {}) {
   return `${prefijo}${formatted}${sufijo}`;
 }
 
+function hasSummaryField(feature, fieldName) {
+  if (!fieldName) return false;
+  const props = feature && feature.properties ? feature.properties : {};
+  return Object.prototype.hasOwnProperty.call(props, fieldName);
+}
+
+function sumSummaryField(features, fieldName) {
+  return features.reduce((acc, feature) => {
+    const props = feature.properties || {};
+    return acc + parseSummaryNumber(props[fieldName]);
+  }, 0);
+}
+
+function getSummarySumFields(indicador) {
+  const fields = [];
+
+  if (indicador.campo) {
+    fields.push(indicador.campo);
+  }
+
+  SUMMARY_SUM_FALLBACK_FIELDS.forEach((fieldName) => {
+    if (!fields.includes(fieldName)) {
+      fields.push(fieldName);
+    }
+  });
+
+  return fields;
+}
+
 function calculateSummaryIndicator(indicador, features) {
-  if (indicador.operacion === "count") {
-    return features.length;
+  const operacion = indicador.operacion;
+
+  if (operacion === "count") {
+    if (indicador.distinct === true && indicador.campo) {
+      const distinctValues = new Set();
+
+      features.forEach((feature) => {
+        const props = feature.properties || {};
+        const rawValue = props[indicador.campo];
+        if (rawValue !== null && rawValue !== undefined && String(rawValue).trim() !== "") {
+          distinctValues.add(String(rawValue).trim());
+        }
+      });
+
+      const count = distinctValues.size;
+      return {
+        campo: indicador.campo,
+        rawValue: count,
+        value: formatSummaryNumber(count, indicador)
+      };
+    }
+
+    return {
+      campo: indicador.campo,
+      rawValue: features.length,
+      value: formatSummaryNumber(features.length, indicador)
+    };
   }
 
-  if (indicador.operacion === "sum") {
-    const total = features.reduce((acc, feature) => {
-      const props = feature.properties || {};
-      const rawValue = props[indicador.campo];
+  if (operacion === "sum") {
+    let selectedField = indicador.campo;
+    let total = selectedField ? sumSummaryField(features, selectedField) : 0;
+    const configuredFieldExists = selectedField
+      ? features.some((feature) => hasSummaryField(feature, selectedField))
+      : false;
 
-      const value = parseSummaryNumber(rawValue, indicador.decimal || ".");
+    if (!configuredFieldExists || total === 0) {
+      const fallbackField = getSummarySumFields(indicador).find((fieldName) => {
+        if (fieldName === selectedField) return false;
+        if (!features.some((feature) => hasSummaryField(feature, fieldName))) return false;
+        return sumSummaryField(features, fieldName) !== 0;
+      });
 
-      return acc + value;
-    }, 0);
+      if (fallbackField) {
+        selectedField = fallbackField;
+        total = sumSummaryField(features, fallbackField);
+      }
+    }
 
-    return formatSummaryNumber(total, indicador);
+    return {
+      campo: selectedField,
+      rawValue: total,
+      value: formatSummaryNumber(total, indicador)
+    };
   }
 
-  return "—";
+  return {
+    campo: indicador.campo,
+    rawValue: null,
+    value: "—"
+  };
 }
 
 function updateGeoNEMOSummary(mapInstance) {
@@ -478,9 +552,23 @@ function updateGeoNEMOSummary(mapInstance) {
   summaryConfig.indicadores.forEach((indicador) => {
     const layerIds = indicador.capas || [];
     const featuresInViewport = getSummaryFeaturesInViewport(mapInstance, layerIds);
-    const value = calculateSummaryIndicator(indicador, featuresInViewport);
+    const result = calculateSummaryIndicator(indicador, featuresInViewport);
+    const value = result && typeof result === "object" && "value" in result
+      ? result.value
+      : result;
+    const resultado = result && typeof result === "object" && "rawValue" in result
+      ? result.rawValue
+      : result;
+    const campo = result && typeof result === "object" && "campo" in result
+      ? result.campo
+      : indicador.campo;
 
-    console.log("GeoNEMO KPI:", indicador.id, value);
+    console.log("[GeoNEMO summary]", indicador.id, {
+      operacion: indicador.operacion,
+      campo,
+      totalFeaturesVisibles: featuresInViewport.length,
+      resultado
+    });
 
     updateSummaryKpiDom(indicador.id, value, indicador.label);
   });

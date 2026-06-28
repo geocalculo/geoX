@@ -27,7 +27,7 @@
       "id": "area_snaspe",
       "label": "Área SNASPE",
       "operacion": "sum",
-      "campo": "SUPERFICIE",
+      "campo": "SUPERFICIE_HA",
       "capas": [
         "nemo_snaspe_summary"
       ],
