@@ -453,6 +453,57 @@ function formatSummaryNumber(value, indicador = {}) {
   return `${prefijo}${formatted}${sufijo}`;
 }
 
+function getPropInsensitive(props, fieldName) {
+  if (!props || !fieldName) return undefined;
+
+  if (Object.prototype.hasOwnProperty.call(props, fieldName)) {
+    return props[fieldName];
+  }
+
+  const target = String(fieldName).toLowerCase();
+  const key = Object.keys(props).find(
+    (propName) => String(propName).toLowerCase() === target
+  );
+
+  return key ? props[key] : undefined;
+}
+
+function countSummaryFeatures(visibleFeatures, indicador) {
+  if (!Array.isArray(visibleFeatures)) return 0;
+
+  if (!indicador.distinct) {
+    return visibleFeatures.length;
+  }
+
+  const candidateFields = [
+    indicador.campo,
+    "SUMMARY_ID",
+    "ID_CATASTR",
+    "id_catastro",
+    "NOMBRE_TOT",
+    "nombre"
+  ].filter(Boolean);
+
+  for (const field of candidateFields) {
+    const values = new Set();
+
+    visibleFeatures.forEach((feature) => {
+      const props = feature.properties || {};
+      const value = getPropInsensitive(props, field);
+
+      if (value !== null && value !== undefined && String(value).trim() !== "") {
+        values.add(String(value).trim());
+      }
+    });
+
+    if (values.size > 0) {
+      return values.size;
+    }
+  }
+
+  return visibleFeatures.length;
+}
+
 function hasSummaryField(feature, fieldName) {
   if (!fieldName) return false;
   const props = feature && feature.properties ? feature.properties : {};
@@ -486,29 +537,19 @@ function calculateSummaryIndicator(indicador, features) {
   const operacion = indicador.operacion;
 
   if (operacion === "count") {
-    if (indicador.distinct === true && indicador.campo) {
-      const distinctValues = new Set();
+    const resultado = countSummaryFeatures(features, indicador);
 
-      features.forEach((feature) => {
-        const props = feature.properties || {};
-        const rawValue = props[indicador.campo];
-        if (rawValue !== null && rawValue !== undefined && String(rawValue).trim() !== "") {
-          distinctValues.add(String(rawValue).trim());
-        }
-      });
-
-      const count = distinctValues.size;
-      return {
-        campo: indicador.campo,
-        rawValue: count,
-        value: formatSummaryNumber(count, indicador)
-      };
-    }
+    console.log("[GeoNEMO summary count]", indicador.id, {
+      totalFeaturesVisibles: features.length,
+      campo: indicador.campo,
+      distinct: indicador.distinct,
+      resultado
+    });
 
     return {
       campo: indicador.campo,
-      rawValue: features.length,
-      value: formatSummaryNumber(features.length, indicador)
+      rawValue: resultado,
+      value: formatSummaryNumber(resultado, indicador)
     };
   }
 
