@@ -10,6 +10,19 @@ let regionesSelector = [];
 let summaryConfig = null;
 let summaryFeaturesByLayer = {};
 
+const panelLayersConfig = [
+  {
+    id: "eva_proyectos",
+    label: "Proyectos",
+    file: "capas_panel/eva_panel.geojson",
+    type: "point",
+    labelField: "sector",
+    visible: false
+  }
+];
+const panelLayers = {};
+window.panelLayers = panelLayers;
+
 async function initGeoEVASummary(mapInstance) {
   summaryConfig = await loadSummaryConfig();
 
@@ -524,6 +537,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   conectarBaseMapToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
+  initPanelLayers();
 });
 
 function iniciarMapa() {
@@ -549,6 +563,146 @@ function iniciarMapa() {
   L.control.scale({
     imperial: false
   }).addTo(map);
+
+  map.on("zoomend", updatePanelLabelsVisibility);
+}
+
+function getPanelLayerStyle() {
+  return {
+    radius: 5,
+    color: "#0B3A66",
+    weight: 1,
+    opacity: 0.9,
+    fillColor: "#1E88E5",
+    fillOpacity: 0.75
+  };
+}
+
+async function initPanelLayers() {
+  renderPanelLayerControls();
+  await loadPanelLayers();
+}
+
+function renderPanelLayerControls() {
+  const panel = document.getElementById("territorial-panel");
+  if (!panel) return;
+
+  const evaluationSection = panel.querySelector(".panel-section");
+  if (!evaluationSection) return;
+
+  let controls = evaluationSection.querySelector(".panel-layer-controls");
+  if (!controls) {
+    controls = document.createElement("div");
+    controls.className = "panel-layer-controls";
+    evaluationSection.appendChild(controls);
+  }
+
+  controls.innerHTML = "";
+
+  panelLayersConfig.forEach((config) => {
+    const label = document.createElement("label");
+    label.className = "panel-layer-toggle";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = config.visible === true;
+    checkbox.disabled = true;
+    checkbox.dataset.panelLayerId = config.id;
+
+    const text = document.createElement("span");
+    text.textContent = config.label;
+
+    checkbox.addEventListener("change", () => {
+      togglePanelLayer(config.id, checkbox.checked);
+    });
+
+    label.append(checkbox, text);
+    controls.appendChild(label);
+  });
+}
+
+async function loadPanelLayers() {
+  for (const config of panelLayersConfig) {
+    try {
+      const response = await fetch(config.file, { cache: "no-store" });
+      if (!response.ok) throw new Error(`No se pudo cargar ${config.file}`);
+
+      const geojson = await response.json();
+      const layerGroup = L.geoJSON(geojson, {
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, getPanelLayerStyle()),
+        onEachFeature: (feature, layer) => {
+          const labelText = feature.properties?.[config.labelField] || "";
+          if (!labelText) return;
+
+          layer.bindTooltip(labelText, {
+            permanent: true,
+            direction: "top",
+            offset: [0, -6],
+            className: "eva-project-label"
+          });
+        }
+      });
+
+      panelLayers[config.id] = layerGroup;
+      setPanelLayerControlEnabled(config.id, true);
+
+      if (config.visible === true) {
+        map.addLayer(layerGroup);
+        updatePanelLabelsVisibility();
+      }
+
+      console.log("[GeoEVA capas_panel] capa cargada", {
+        id: config.id,
+        features: geojson.features?.length || 0,
+        labelField: config.labelField
+      });
+    } catch (error) {
+      console.warn("[GeoEVA capas_panel] error cargando capa", config.id, error);
+    }
+  }
+}
+
+function setPanelLayerControlEnabled(layerId, enabled) {
+  const checkbox = document.querySelector(`[data-panel-layer-id="${layerId}"]`);
+  if (checkbox) checkbox.disabled = !enabled;
+}
+
+function togglePanelLayer(layerId, checked) {
+  const layerGroup = panelLayers[layerId];
+  if (!map || !layerGroup) return;
+
+  if (checked) {
+    map.addLayer(layerGroup);
+    updatePanelLabelsVisibility();
+  } else {
+    map.removeLayer(layerGroup);
+  }
+
+  console.log("[GeoEVA capas_panel] toggle", {
+    id: layerId,
+    visible: checked
+  });
+}
+
+function updatePanelLabelsVisibility() {
+  if (!map) return;
+
+  const showLabels = map.getZoom() >= 8;
+
+  Object.values(panelLayers).forEach((layerGroup) => {
+    if (!layerGroup || !map.hasLayer(layerGroup)) return;
+
+    layerGroup.eachLayer((layer) => {
+      const tooltip = layer.getTooltip?.();
+      if (!tooltip) return;
+
+      if (showLabels) {
+        layer.openTooltip();
+      } else {
+        layer.closeTooltip();
+      }
+    });
+  });
 }
 
 // GEOFACTORY SELECTOR REGIÓN
