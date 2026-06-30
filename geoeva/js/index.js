@@ -22,6 +22,11 @@ const panelLayersConfig = [
 ];
 const panelLayers = {};
 window.panelLayers = panelLayers;
+let evaPanelRawFeatures = [];
+let evaPanelLoaded = false;
+let evaPanelVisible = false;
+let evaPanelLayerGroup = L.layerGroup();
+let evaPanelUpdateTimer = null;
 
 async function initGeoEVASummary(mapInstance) {
   summaryConfig = await loadSummaryConfig();
@@ -564,7 +569,7 @@ function iniciarMapa() {
     imperial: false
   }).addTo(map);
 
-  map.on("zoomend", updatePanelLabelsVisibility);
+  map.on("moveend zoomend", scheduleEvaPanelViewportUpdate);
 }
 
 function getPanelLayerStyle() {
@@ -622,44 +627,113 @@ function renderPanelLayerControls() {
 }
 
 async function loadPanelLayers() {
-  for (const config of panelLayersConfig) {
-    try {
-      const response = await fetch(config.file, { cache: "no-store" });
-      if (!response.ok) throw new Error(`No se pudo cargar ${config.file}`);
+  panelLayers.eva_proyectos = evaPanelLayerGroup;
+  setPanelLayerControlEnabled("eva_proyectos", true);
 
-      const geojson = await response.json();
-      const layerGroup = L.geoJSON(geojson, {
-        pointToLayer: (feature, latlng) => L.circleMarker(latlng, getPanelLayerStyle()),
-        onEachFeature: (feature, layer) => {
-          const labelText = feature.properties?.[config.labelField] || "";
-          if (!labelText) return;
-
-          layer.bindTooltip(labelText, {
-            permanent: true,
-            direction: "top",
-            offset: [0, -6],
-            className: "eva-project-label"
-          });
-        }
-      });
-
-      panelLayers[config.id] = layerGroup;
-      setPanelLayerControlEnabled(config.id, true);
-
-      if (config.visible === true) {
-        map.addLayer(layerGroup);
-        updatePanelLabelsVisibility();
-      }
-
-      console.log("[GeoEVA capas_panel] capa cargada", {
-        id: config.id,
-        features: geojson.features?.length || 0,
-        labelField: config.labelField
-      });
-    } catch (error) {
-      console.warn("[GeoEVA capas_panel] error cargando capa", config.id, error);
-    }
+  const evaConfig = panelLayersConfig.find((config) => config.id === "eva_proyectos");
+  if (evaConfig?.visible === true) {
+    const checkbox = document.querySelector('[data-panel-layer-id="eva_proyectos"]');
+    if (checkbox) checkbox.checked = true;
+    await toggleEvaProjectsLayer(true);
   }
+}
+
+async function loadEvaPanelData() {
+  if (evaPanelLoaded) return;
+
+  const response = await fetch("capas_panel/eva_panel.geojson", { cache: "no-store" });
+  if (!response.ok) throw new Error("No se pudo cargar capas_panel/eva_panel.geojson");
+
+  const geojson = await response.json();
+
+  evaPanelRawFeatures = Array.isArray(geojson.features) ? geojson.features : [];
+  evaPanelLoaded = true;
+
+  console.log("[GeoEVA capas_panel] datos cargados", {
+    totalFeatures: evaPanelRawFeatures.length
+  });
+}
+
+function getEvaFeatureLatLon(feature) {
+  const props = feature.properties || {};
+
+  if (
+    feature.geometry &&
+    feature.geometry.type === "Point" &&
+    Array.isArray(feature.geometry.coordinates)
+  ) {
+    const [lon, lat] = feature.geometry.coordinates;
+    return { lat: Number(lat), lon: Number(lon) };
+  }
+
+  const lat = Number(props.lat);
+  const lon = Number(props.lon);
+
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    return { lat, lon };
+  }
+
+  return null;
+}
+
+function getEvaProjectsInViewport() {
+  const bounds = map.getBounds();
+  const visibleProjects = [];
+
+  for (const feature of evaPanelRawFeatures) {
+    const coords = getEvaFeatureLatLon(feature);
+    if (!coords) continue;
+
+    const latlng = L.latLng(coords.lat, coords.lon);
+
+    if (!bounds.contains(latlng)) continue;
+
+    const props = feature.properties || {};
+
+    visibleProjects.push({
+      lat: coords.lat,
+      lon: coords.lon,
+      sector: props.sector || "",
+      estado: props.estado || "",
+      inversion_mmusd: props.inversion_mmusd ?? null,
+      fid: props.fid ?? null
+    });
+  }
+
+  return visibleProjects;
+}
+
+function renderEvaProjectsInViewport() {
+  if (!evaPanelVisible) return;
+
+  const visibleProjects = getEvaProjectsInViewport();
+
+  evaPanelLayerGroup.clearLayers();
+
+  const showLabels = map.getZoom() >= 8;
+  const labelsAllowed = showLabels && visibleProjects.length <= 1500;
+
+  visibleProjects.forEach((project) => {
+    const marker = L.circleMarker([project.lat, project.lon], getPanelLayerStyle());
+
+    if (labelsAllowed && project.sector && String(project.sector).trim() !== "") {
+      marker.bindTooltip(String(project.sector).trim(), {
+        permanent: true,
+        direction: "top",
+        offset: [0, -6],
+        className: "eva-project-label"
+      });
+    }
+
+    marker.addTo(evaPanelLayerGroup);
+  });
+
+  console.log("[GeoEVA capas_panel] viewport render", {
+    totalFeatures: evaPanelRawFeatures.length,
+    visiblesViewport: visibleProjects.length,
+    zoom: map.getZoom(),
+    labels: labelsAllowed
+  });
 }
 
 function setPanelLayerControlEnabled(layerId, enabled) {
@@ -667,43 +741,55 @@ function setPanelLayerControlEnabled(layerId, enabled) {
   if (checkbox) checkbox.disabled = !enabled;
 }
 
-function togglePanelLayer(layerId, checked) {
-  const layerGroup = panelLayers[layerId];
-  if (!map || !layerGroup) return;
+async function toggleEvaProjectsLayer(checked) {
+  evaPanelVisible = checked;
 
   if (checked) {
-    map.addLayer(layerGroup);
-    updatePanelLabelsVisibility();
+    try {
+      await loadEvaPanelData();
+
+      if (!map.hasLayer(evaPanelLayerGroup)) {
+        evaPanelLayerGroup.addTo(map);
+      }
+
+      renderEvaProjectsInViewport();
+    } catch (error) {
+      evaPanelVisible = false;
+      const checkbox = document.querySelector('[data-panel-layer-id="eva_proyectos"]');
+      if (checkbox) checkbox.checked = false;
+      console.warn("[GeoEVA capas_panel] error cargando capa eva_proyectos", error);
+    }
   } else {
-    map.removeLayer(layerGroup);
+    evaPanelLayerGroup.clearLayers();
+
+    if (map.hasLayer(evaPanelLayerGroup)) {
+      map.removeLayer(evaPanelLayerGroup);
+    }
   }
 
   console.log("[GeoEVA capas_panel] toggle", {
-    id: layerId,
     visible: checked
   });
 }
 
-function updatePanelLabelsVisibility() {
-  if (!map) return;
-
-  const showLabels = map.getZoom() >= 8;
-
-  Object.values(panelLayers).forEach((layerGroup) => {
-    if (!layerGroup || !map.hasLayer(layerGroup)) return;
-
-    layerGroup.eachLayer((layer) => {
-      const tooltip = layer.getTooltip?.();
-      if (!tooltip) return;
-
-      if (showLabels) {
-        layer.openTooltip();
-      } else {
-        layer.closeTooltip();
-      }
-    });
-  });
+function togglePanelLayer(layerId, checked) {
+  if (layerId === "eva_proyectos") {
+    toggleEvaProjectsLayer(checked);
+  }
 }
+
+function scheduleEvaPanelViewportUpdate() {
+  if (!evaPanelVisible) return;
+
+  if (evaPanelUpdateTimer) {
+    clearTimeout(evaPanelUpdateTimer);
+  }
+
+  evaPanelUpdateTimer = setTimeout(() => {
+    renderEvaProjectsInViewport();
+  }, 120);
+}
+
 
 // GEOFACTORY SELECTOR REGIÓN
 // CARGA regiones.json
