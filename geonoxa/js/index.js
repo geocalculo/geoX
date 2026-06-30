@@ -9,6 +9,29 @@ let summaryFeaturesByLayer = {};
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
+let noxaPanelUpdateTimer = null;
+
+const noxaPanelLayers = {
+  relaves: {
+    id: "relaves",
+    label: "Relaves",
+    file: "capas_panel/geonoxa_relaves_panel.geojson",
+    rawFeatures: [],
+    loaded: false,
+    visible: false,
+    layerGroup: L.layerGroup()
+  },
+  zonas: {
+    id: "zonas",
+    label: "Zonas Saturadas / Latentes",
+    file: "capas_panel/geonoxa_zonas_panel.geojson",
+    rawFeatures: [],
+    loaded: false,
+    visible: false,
+    layerGroup: L.layerGroup()
+  }
+};
+
 function getInitialCrossAccessStateFromUrl() {
   if (initialCrossAccessState) return initialCrossAccessState;
 
@@ -290,6 +313,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   conectarBaseMapToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
+  initGeoNoxaPanelLayers();
 });
 
 function iniciarMapa() {
@@ -316,8 +340,248 @@ function iniciarMapa() {
   L.control.scale({
     imperial: false
   }).addTo(map);
+
+  map.on("moveend zoomend", scheduleGeoNoxaPanelViewportUpdate);
 }
 
+
+
+function initGeoNoxaPanelLayers() {
+  renderGeoNoxaPanelControls();
+}
+
+function renderGeoNoxaPanelControls() {
+  const panel = document.getElementById("territorial-panel");
+  if (!panel) return;
+
+  panel.innerHTML = "";
+
+  const controls = document.createElement("div");
+  controls.className = "panel-layer-controls";
+  controls.setAttribute("aria-label", "Panel Territorial GeoNOXA");
+  panel.appendChild(controls);
+
+  Object.values(noxaPanelLayers).forEach((config) => {
+    const label = document.createElement("label");
+    label.className = "panel-layer-toggle";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = config.visible === true;
+    checkbox.dataset.panelLayerId = config.id;
+
+    const text = document.createElement("span");
+    text.textContent = config.label;
+
+    checkbox.addEventListener("change", () => {
+      toggleGeoNoxaPanelLayer(config.id, checkbox.checked);
+    });
+
+    label.append(checkbox, text);
+    controls.appendChild(label);
+  });
+}
+
+function getGeoNoxaPanelPolygonStyle() {
+  const isSat = currentBasemap === "sat";
+
+  if (isSat) {
+    return {
+      color: "#ccff00",
+      weight: 2,
+      opacity: 1,
+      fillColor: "#ccff00",
+      fillOpacity: 0.08
+    };
+  }
+
+  return {
+    color: "#dc2626",
+    weight: 2,
+    opacity: 0.95,
+    fillColor: "#dc2626",
+    fillOpacity: 0.06
+  };
+}
+
+function getGeoNoxaZonaLabel(props) {
+  const saturado = String(props?.saturado || "").trim();
+  const latentes = String(props?.latentes || "").trim();
+
+  if (saturado && saturado.toLowerCase() !== "no aplica") {
+    return saturado;
+  }
+
+  if (latentes && latentes.toLowerCase() !== "no aplica") {
+    return latentes;
+  }
+
+  return "";
+}
+
+function featureIntersectsViewport(feature) {
+  if (!map || !feature) return false;
+
+  const bounds = map.getBounds();
+
+  try {
+    if (feature.geometry?.type === "Point" && Array.isArray(feature.geometry.coordinates)) {
+      const [lon, lat] = feature.geometry.coordinates;
+      const point = L.latLng(Number(lat), Number(lon));
+      return Number.isFinite(point.lat) && Number.isFinite(point.lng) && bounds.contains(point);
+    }
+
+    const layer = L.geoJSON(feature);
+    const featureBounds = layer.getBounds?.();
+
+    if (featureBounds && featureBounds.isValid && featureBounds.isValid()) {
+      return bounds.intersects(featureBounds);
+    }
+
+    const latlng = layer.getLayers?.()[0]?.getLatLng?.();
+    if (latlng) return bounds.contains(latlng);
+  } catch (err) {
+    return false;
+  }
+
+  return false;
+}
+
+function renderGeoNoxaPanelLayer(layerKey) {
+  const cfg = noxaPanelLayers[layerKey];
+  if (!cfg || !cfg.visible) return;
+
+  cfg.layerGroup.clearLayers();
+
+  const visibleFeatures = cfg.rawFeatures.filter(featureIntersectsViewport);
+  const showLabels = map.getZoom() >= 8 && visibleFeatures.length <= 1000;
+
+  visibleFeatures.forEach((feature) => {
+    const geoLayer = L.geoJSON(feature, {
+      style: getGeoNoxaPanelPolygonStyle,
+      pointToLayer: function (_feature, latlng) {
+        const style = getGeoNoxaPanelPolygonStyle();
+
+        return L.circleMarker(latlng, {
+          radius: 5,
+          color: style.color,
+          weight: 2,
+          opacity: 1,
+          fillColor: style.color,
+          fillOpacity: 0.85
+        });
+      },
+      onEachFeature: function (_feature, layer) {
+        let labelText = "";
+
+        if (layerKey === "relaves") {
+          labelText = String(_feature.properties?.recurso || "").trim();
+        }
+
+        if (layerKey === "zonas") {
+          labelText = getGeoNoxaZonaLabel(_feature.properties || {});
+        }
+
+        if (showLabels && labelText) {
+          layer.bindTooltip(labelText, {
+            permanent: true,
+            direction: "top",
+            offset: [0, -6],
+            className: "noxa-panel-label"
+          });
+        }
+      }
+    });
+
+    geoLayer.addTo(cfg.layerGroup);
+  });
+
+  console.log("[GeoNOXA capas_panel] render", {
+    layer: layerKey,
+    totalFeatures: cfg.rawFeatures.length,
+    visiblesViewport: visibleFeatures.length,
+    basemap: currentBasemap,
+    zoom: map.getZoom(),
+    labels: showLabels
+  });
+}
+
+async function loadGeoNoxaPanelLayer(layerKey) {
+  const cfg = noxaPanelLayers[layerKey];
+  if (!cfg || cfg.loaded) return;
+
+  const response = await fetch(cfg.file, { cache: "no-store" });
+  if (!response.ok) throw new Error(`No se pudo cargar ${cfg.file}`);
+
+  const geojson = await response.json();
+
+  cfg.rawFeatures = Array.isArray(geojson.features) ? geojson.features : [];
+  cfg.loaded = true;
+
+  console.log("[GeoNOXA capas_panel] capa cargada", {
+    layer: layerKey,
+    file: cfg.file,
+    features: cfg.rawFeatures.length
+  });
+}
+
+async function toggleGeoNoxaPanelLayer(layerKey, checked) {
+  const cfg = noxaPanelLayers[layerKey];
+  if (!cfg) return;
+
+  cfg.visible = checked;
+
+  if (checked) {
+    try {
+      await loadGeoNoxaPanelLayer(layerKey);
+
+      if (!map.hasLayer(cfg.layerGroup)) {
+        cfg.layerGroup.addTo(map);
+      }
+
+      renderGeoNoxaPanelLayer(layerKey);
+    } catch (error) {
+      cfg.visible = false;
+      const checkbox = document.querySelector(`[data-panel-layer-id="${layerKey}"]`);
+      if (checkbox) checkbox.checked = false;
+      console.warn("[GeoNOXA capas_panel] error cargando capa", layerKey, error);
+    }
+  } else {
+    cfg.layerGroup.clearLayers();
+
+    if (map.hasLayer(cfg.layerGroup)) {
+      map.removeLayer(cfg.layerGroup);
+    }
+  }
+
+  console.log("[GeoNOXA capas_panel] toggle", {
+    layer: layerKey,
+    visible: cfg.visible
+  });
+}
+
+function scheduleGeoNoxaPanelViewportUpdate() {
+  if (noxaPanelUpdateTimer) {
+    clearTimeout(noxaPanelUpdateTimer);
+  }
+
+  noxaPanelUpdateTimer = setTimeout(() => {
+    Object.keys(noxaPanelLayers).forEach((layerKey) => {
+      const cfg = noxaPanelLayers[layerKey];
+      if (cfg.visible) {
+        renderGeoNoxaPanelLayer(layerKey);
+      }
+    });
+  }, 120);
+}
+
+function refreshGeoNoxaPanelActiveLayers() {
+  Object.keys(noxaPanelLayers).forEach((layerKey) => {
+    if (noxaPanelLayers[layerKey].visible) {
+      renderGeoNoxaPanelLayer(layerKey);
+    }
+  });
+}
 
 async function initGeoNOXASummary(mapInstance) {
   summaryConfig = await loadSummaryConfig();
@@ -659,6 +923,7 @@ function switchBaseMap(type) {
   currentBaseLayer = nextLayer;
   currentBasemap = type === "sat" ? "sat" : "osm";
   setBaseMapToggleActive(currentBasemap);
+  refreshGeoNoxaPanelActiveLayers();
 }
 
 function setBaseMapToggleActive(type) {
