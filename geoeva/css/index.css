@@ -140,3 +140,51 @@ input[type="checkbox"]:checked {
 .geoipt-intro-button:hover {
   background: var(--site-button-hover);
 }
+
+.panel-layer-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.panel-layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #1f2933;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.panel-layer-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--site-accent);
+}
+
+.panel-layer-toggle input:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.eva-project-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #1f2933;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 !important;
+  pointer-events: none;
+  text-shadow:
+    0 1px 2px rgba(255,255,255,0.9),
+    0 -1px 2px rgba(255,255,255,0.9),
+    1px 0 2px rgba(255,255,255,0.9),
+    -1px 0 2px rgba(255,255,255,0.9);
+}
+
+.eva-project-label::before {
+  display: none !important;
+}
