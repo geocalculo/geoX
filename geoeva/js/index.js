@@ -13,7 +13,7 @@ let summaryFeaturesByLayer = {};
 const panelLayersConfig = [
   {
     id: "eva_proyectos",
-    label: "Proyectos",
+    label: "Proyectos SEA",
     file: "capas_panel/eva_panel.geojson",
     type: "point",
     labelField: "sector",
@@ -592,17 +592,12 @@ function renderPanelLayerControls() {
   const panel = document.getElementById("territorial-panel");
   if (!panel) return;
 
-  const evaluationSection = panel.querySelector(".panel-section");
-  if (!evaluationSection) return;
+  panel.innerHTML = "";
 
-  let controls = evaluationSection.querySelector(".panel-layer-controls");
-  if (!controls) {
-    controls = document.createElement("div");
-    controls.className = "panel-layer-controls";
-    evaluationSection.appendChild(controls);
-  }
-
-  controls.innerHTML = "";
+  const controls = document.createElement("div");
+  controls.className = "panel-layer-controls";
+  controls.setAttribute("aria-label", "Panel Territorial GeoEVA");
+  panel.appendChild(controls);
 
   panelLayersConfig.forEach((config) => {
     const label = document.createElement("label");
