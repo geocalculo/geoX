@@ -572,14 +572,27 @@ function iniciarMapa() {
   map.on("moveend zoomend", scheduleEvaPanelViewportUpdate);
 }
 
-function getPanelLayerStyle() {
+function getEvaProjectMarkerStyle() {
+  const isSat = currentBasemap === "sat";
+
+  if (isSat) {
+    return {
+      radius: 5,
+      color: "#111827",
+      weight: 1.5,
+      opacity: 1,
+      fillColor: "#ccff00",
+      fillOpacity: 0.95
+    };
+  }
+
   return {
     radius: 5,
-    color: "#0B3A66",
+    color: "#ffffff",
     weight: 1,
-    opacity: 0.9,
-    fillColor: "#1E88E5",
-    fillOpacity: 0.75
+    opacity: 0.95,
+    fillColor: "#2563eb",
+    fillOpacity: 0.8
   };
 }
 
@@ -709,7 +722,7 @@ function renderEvaProjectsInViewport() {
   const labelsAllowed = showLabels && visibleProjects.length <= 1500;
 
   visibleProjects.forEach((project) => {
-    const marker = L.circleMarker([project.lat, project.lon], getPanelLayerStyle());
+    const marker = L.circleMarker([project.lat, project.lon], getEvaProjectMarkerStyle());
 
     if (labelsAllowed && project.sector && String(project.sector).trim() !== "") {
       marker.bindTooltip(String(project.sector).trim(), {
@@ -888,6 +901,10 @@ function switchBaseMap(type) {
   currentBaseLayer = nextLayer;
   currentBasemap = type === "sat" ? "sat" : "osm";
   setBaseMapToggleActive(currentBasemap);
+
+  if (evaPanelVisible) {
+    renderEvaProjectsInViewport();
+  }
 }
 
 function setBaseMapToggleActive(type) {
