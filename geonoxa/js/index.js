@@ -348,37 +348,38 @@ function iniciarMapa() {
 
 function initGeoNoxaPanelLayers() {
   renderGeoNoxaPanelControls();
+  initGeoNoxaPanelToggles();
 }
 
 function renderGeoNoxaPanelControls() {
   const panel = document.getElementById("territorial-panel");
   if (!panel) return;
 
-  panel.innerHTML = "";
+  panel.innerHTML = `
+    <h2>Panel Territorial</h2>
+    <div class="panel-toggle-list" aria-label="Panel Territorial GeoNOXA">
+      <label class="panel-toggle-row">
+        <input type="checkbox" id="toggle-relaves">
+        <span>Relaves</span>
+      </label>
+      <label class="panel-toggle-row">
+        <input type="checkbox" id="toggle-zonas">
+        <span>Zonas Saturadas / Latentes</span>
+      </label>
+    </div>
+  `;
 
-  const controls = document.createElement("div");
-  controls.className = "panel-layer-controls";
-  controls.setAttribute("aria-label", "Panel Territorial GeoNOXA");
-  panel.appendChild(controls);
+  document.getElementById("toggle-relaves").checked = noxaPanelLayers.relaves.visible === true;
+  document.getElementById("toggle-zonas").checked = noxaPanelLayers.zonas.visible === true;
+}
 
-  Object.values(noxaPanelLayers).forEach((config) => {
-    const label = document.createElement("label");
-    label.className = "panel-layer-toggle";
+function initGeoNoxaPanelToggles() {
+  document.getElementById("toggle-relaves")?.addEventListener("change", (event) => {
+    toggleGeoNoxaPanelLayer("relaves", event.target.checked);
+  });
 
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = config.visible === true;
-    checkbox.dataset.panelLayerId = config.id;
-
-    const text = document.createElement("span");
-    text.textContent = config.label;
-
-    checkbox.addEventListener("change", () => {
-      toggleGeoNoxaPanelLayer(config.id, checkbox.checked);
-    });
-
-    label.append(checkbox, text);
-    controls.appendChild(label);
+  document.getElementById("toggle-zonas")?.addEventListener("change", (event) => {
+    toggleGeoNoxaPanelLayer("zonas", event.target.checked);
   });
 }
 
@@ -542,7 +543,7 @@ async function toggleGeoNoxaPanelLayer(layerKey, checked) {
       renderGeoNoxaPanelLayer(layerKey);
     } catch (error) {
       cfg.visible = false;
-      const checkbox = document.querySelector(`[data-panel-layer-id="${layerKey}"]`);
+      const checkbox = document.getElementById(layerKey === "relaves" ? "toggle-relaves" : "toggle-zonas");
       if (checkbox) checkbox.checked = false;
       console.warn("[GeoNOXA capas_panel] error cargando capa", layerKey, error);
     }

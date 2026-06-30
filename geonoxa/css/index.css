@@ -188,3 +188,22 @@ input[type="checkbox"]:checked {
   min-width: 245px;
   padding: 12px 14px;
 }
+
+.panel-toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #1f2933;
+  cursor: pointer;
+}
+
+.panel-toggle-row input {
+  cursor: pointer;
+}
