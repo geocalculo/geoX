@@ -188,3 +188,13 @@ input[type="checkbox"]:checked {
 .eva-project-label::before {
   display: none !important;
 }
+
+#territorial-panel {
+  width: auto;
+  min-width: 180px;
+  padding: 12px 14px;
+}
+
+#territorial-panel .panel-layer-controls {
+  margin-top: 0;
+}
