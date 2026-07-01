@@ -198,3 +198,34 @@ input[type="checkbox"]:checked {
 #territorial-panel .panel-layer-controls {
   margin-top: 0;
 }
+
+/* Panel Territorial limpio: bajo el zoom nativo Leaflet y sin badge flotante. */
+.leaflet-top.leaflet-left,
+.leaflet-control-zoom {
+  z-index: 1100;
+}
+
+#territorial-panel,
+.territorial-panel,
+.floating-panel {
+  top: 70px;
+  left: 20px;
+  z-index: 1000;
+}
+
+#territorial-panel h3 {
+  margin: 0 0 10px 0;
+  color: var(--site-bg);
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.mobile-layer-toggle,
+#mobile-layer-toggle,
+#map-hint {
+  display: none !important;
+}
+
+#territorial-panel .panel-layer-controls {
+  margin-top: 0;
+}
