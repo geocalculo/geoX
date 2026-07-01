@@ -506,6 +506,8 @@ function renderGeoNoxaPanelLayer(layerKey) {
           return;
         }
 
+        if (!_feature.geometry) return;
+
         if (showLabels) {
           layer.bindTooltip(labelText, {
             permanent: true,

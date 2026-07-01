@@ -726,6 +726,8 @@ function renderEvaProjectsInViewport() {
   const labelsAllowed = showLabels && visibleProjects.length <= 1500;
 
   visibleProjects.forEach((project) => {
+    if (!Number.isFinite(project.lat) || !Number.isFinite(project.lon)) return;
+
     const marker = L.circleMarker([project.lat, project.lon], getEvaProjectMarkerStyle());
 
     if (labelsAllowed && project.sector && String(project.sector).trim() !== "") {
