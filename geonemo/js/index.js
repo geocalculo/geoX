@@ -3,6 +3,7 @@ let osmLayer;
 let satLayer;
 let currentBaseLayer;
 let currentBasemap = "osm";
+let nemoLabelsVisible = false;
 let initialCrossAccessState = null;
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
@@ -288,6 +289,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await cargarRegionesSelector();
   conectarRegionSelector();
   conectarBaseMapToggle();
+  initGeoNemoMobileLabelToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
 });
@@ -788,6 +790,34 @@ function setBaseMapToggleActive(type) {
     btnSat.classList.toggle("active", type === "sat");
     btnSat.setAttribute("aria-pressed", String(type === "sat"));
   }
+}
+
+function syncGeoNemoMobileLabelToggle() {
+  const mobileToggle = document.getElementById("mobile-layer-toggle");
+  if (!mobileToggle) return;
+
+  mobileToggle.classList.toggle("is-active", nemoLabelsVisible);
+  mobileToggle.classList.toggle("is-inactive", !nemoLabelsVisible);
+  mobileToggle.setAttribute("aria-pressed", String(nemoLabelsVisible));
+
+  const action = nemoLabelsVisible ? "Ocultar" : "Mostrar";
+  const label = `${action} etiquetas GeoNEMO`;
+  mobileToggle.setAttribute("aria-label", label);
+  mobileToggle.setAttribute("title", label);
+
+  const icon = mobileToggle.querySelector(".mobile-layer-toggle-icon");
+  if (icon) icon.textContent = nemoLabelsVisible ? "👁️" : "🙈";
+}
+
+function initGeoNemoMobileLabelToggle() {
+  const mobileToggle = document.getElementById("mobile-layer-toggle");
+  if (!mobileToggle) return;
+
+  mobileToggle.addEventListener("click", () => {
+    nemoLabelsVisible = !nemoLabelsVisible;
+    syncGeoNemoMobileLabelToggle();
+  });
+  syncGeoNemoMobileLabelToggle();
 }
 
 (function initGeoFactoryIntroModal() {

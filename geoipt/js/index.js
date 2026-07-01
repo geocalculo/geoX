@@ -1518,7 +1518,7 @@ const panelCapasCargadas = new Map();
 const panelGeojsonCargados = new Map();
 let territorialLabelsLayer = null;
 let territorialLabelsUpdateTimer = null;
-const TERRITORIAL_LABELS_MAX = 50;
+const TERRITORIAL_LABELS_MAX = Number.POSITIVE_INFINITY;
 const TERRITORIAL_LABELS_DEBOUNCE_MS = 200;
 const TERRITORIAL_LABELS_PANE = "territorial-labels-pane";
 const TERRITORIAL_LABEL_FIELDS = ["LOC", "LOCALIDAD", "SECTOR", "COMUNA"];
@@ -1654,14 +1654,8 @@ async function actualizarPerimetrosIptVisibles() {
   }
 
   const candidatas = obtenerCapasPanelCandidatas();
-  const idsCandidatas = new Set(candidatas.map((item) => item.id));
 
-  panelCapasCargadas.forEach((layer, id) => {
-    if (!idsCandidatas.has(id) && map.hasLayer(layer)) {
-      map.removeLayer(layer);
-    }
-  });
-
+  // Las geometrías IPT ya cargadas permanecen en el mapa; la interacción solo afecta etiquetas.
 
   await Promise.all(candidatas.map((item) => cargarCapaPanelSiCorresponde(item)));
   scheduleTerritorialLabelUpdate();

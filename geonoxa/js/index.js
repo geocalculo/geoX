@@ -348,9 +348,45 @@ function iniciarMapa() {
 
 
 
+function areAllGeoNoxaLabelsVisible() {
+  return Object.keys(noxaPanelLayers).every((layerKey) => noxaPanelLayers[layerKey].labelsVisible === true);
+}
+
+function syncGeoNoxaMobileLabelToggle() {
+  const mobileToggle = document.getElementById("mobile-layer-toggle");
+  if (!mobileToggle) return;
+
+  const allVisible = areAllGeoNoxaLabelsVisible();
+  mobileToggle.classList.toggle("is-active", allVisible);
+  mobileToggle.classList.toggle("is-inactive", !allVisible);
+  mobileToggle.setAttribute("aria-pressed", String(allVisible));
+
+  const action = allVisible ? "Ocultar" : "Mostrar";
+  const label = `${action} etiquetas GeoNOXA`;
+  mobileToggle.setAttribute("aria-label", label);
+  mobileToggle.setAttribute("title", label);
+
+  const icon = mobileToggle.querySelector(".mobile-layer-toggle-icon");
+  if (icon) icon.textContent = allVisible ? "👁️" : "🙈";
+}
+
+function initGeoNoxaMobileLabelToggle() {
+  const mobileToggle = document.getElementById("mobile-layer-toggle");
+  if (!mobileToggle) return;
+
+  mobileToggle.addEventListener("click", () => {
+    const nextVisible = !areAllGeoNoxaLabelsVisible();
+    Object.keys(noxaPanelLayers).forEach((layerKey) => {
+      toggleGeoNoxaPanelLayer(layerKey, nextVisible);
+    });
+  });
+  syncGeoNoxaMobileLabelToggle();
+}
+
 function initGeoNoxaPanelLayers() {
   renderGeoNoxaPanelControls();
   initGeoNoxaPanelToggles();
+  initGeoNoxaMobileLabelToggle();
   Object.keys(noxaPanelLayers).forEach((layerKey) => toggleGeoNoxaPanelLayer(layerKey, noxaPanelLayers[layerKey].labelsVisible));
 }
 
@@ -474,7 +510,7 @@ function renderGeoNoxaPanelLayer(layerKey) {
   cfg.labelsLayerGroup.clearLayers();
 
   const visibleFeatures = cfg.rawFeatures.filter(featureIntersectsViewport);
-  const showLabels = cfg.labelsVisible && map.getZoom() >= 8 && visibleFeatures.length <= 1000;
+  const showLabels = cfg.labelsVisible;
 
   visibleFeatures.forEach((feature) => {
     if (!hasValidGeoNoxaGeometry(feature)) return;
@@ -570,8 +606,11 @@ async function toggleGeoNoxaPanelLayer(layerKey, checked) {
     cfg.labelsVisible = false;
     const checkbox = document.getElementById(layerKey === "relaves" ? "toggle-relaves" : "toggle-zonas");
     if (checkbox) checkbox.checked = false;
+    syncGeoNoxaMobileLabelToggle();
     console.warn("[GeoNOXA capas_panel] error cargando capa", layerKey, error);
   }
+
+  syncGeoNoxaMobileLabelToggle();
 
   console.log("[GeoNOXA capas_panel] toggle etiquetas", {
     layer: layerKey,

@@ -1248,3 +1248,112 @@ body,
     height: 15px;
   }
 }
+
+/* GEOX MOBILE LABEL STANDARD */
+.mobile-layer-toggle,
+#mobile-layer-toggle {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .leaflet-control-zoom {
+    display: none !important;
+  }
+
+  #main-header {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 7px 9px;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  #site-title { font-size: 20px; line-height: 1.1; }
+  #site-subtitle,
+  #site-description { font-size: 10px; line-height: 1.15; }
+
+  #summary-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+    width: 100%;
+    gap: 4px;
+    justify-content: stretch;
+    overflow: visible;
+    min-width: 0;
+  }
+
+  .summary-item,
+  .site-kpi,
+  .kpi-card,
+  .summary-card {
+    min-width: 0;
+    padding: 4px 3px;
+    border-radius: 7px;
+  }
+
+  .summary-value,
+  .kpi-value { font-size: 12px; line-height: 1.05; overflow-wrap: anywhere; }
+  .summary-label,
+  .kpi-label { font-size: 8px; line-height: 1.05; }
+
+  #search-box-wrapper {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    min-width: 0;
+    transform: none;
+  }
+
+  #search-box-wrapper #search-box,
+  #search-box {
+    height: 40px;
+    border-radius: 14px;
+    padding: 0 12px;
+    font-size: 13px;
+    text-overflow: ellipsis;
+  }
+
+  #territorial-panel,
+  .territorial-panel,
+  .floating-panel { display: none !important; }
+
+  .map-toggle,
+  #mobile-map-controls .map-toggle {
+    top: auto !important;
+    right: 10px !important;
+    bottom: 16px !important;
+    z-index: 1500;
+  }
+
+  #btn-my-location,
+  #mobile-map-controls #btn-my-location {
+    top: 60px !important;
+    right: 10px !important;
+    width: 38px;
+    height: 38px;
+  }
+
+  .mobile-layer-toggle,
+  #mobile-layer-toggle {
+    position: absolute;
+    top: 108px !important;
+    right: 10px !important;
+    left: auto !important;
+    z-index: 1600;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    padding: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 14px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 20px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+  }
+
+  .mobile-layer-toggle-text { display: none !important; }
+}
