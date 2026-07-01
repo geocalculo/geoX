@@ -24,8 +24,9 @@ const panelLayers = {};
 window.panelLayers = panelLayers;
 let evaPanelRawFeatures = [];
 let evaPanelLoaded = false;
-let evaPanelVisible = false;
-let evaPanelLayerGroup = L.layerGroup();
+let evaPanelLabelsVisible = false;
+let evaPanelGeometryLayerGroup = L.layerGroup();
+let evaPanelLabelsLayerGroup = L.layerGroup();
 let evaPanelUpdateTimer = null;
 
 async function initGeoEVASummary(mapInstance) {
@@ -639,15 +640,14 @@ function renderPanelLayerControls() {
 }
 
 async function loadPanelLayers() {
-  panelLayers.eva_proyectos = evaPanelLayerGroup;
+  panelLayers.eva_proyectos = evaPanelGeometryLayerGroup;
   setPanelLayerControlEnabled("eva_proyectos", true);
 
   const evaConfig = panelLayersConfig.find((config) => config.id === "eva_proyectos");
-  if (evaConfig?.visible === true) {
-    const checkbox = document.querySelector('[data-panel-layer-id="eva_proyectos"]');
-    if (checkbox) checkbox.checked = true;
-    await toggleEvaProjectsLayer(true);
-  }
+  evaPanelLabelsVisible = evaConfig?.visible === true;
+  const checkbox = document.querySelector('[data-panel-layer-id="eva_proyectos"]');
+  if (checkbox) checkbox.checked = evaPanelLabelsVisible;
+  await toggleEvaProjectsLayer(evaPanelLabelsVisible);
 }
 
 async function loadEvaPanelData() {
@@ -716,30 +716,30 @@ function getEvaProjectsInViewport() {
 }
 
 function renderEvaProjectsInViewport() {
-  if (!evaPanelVisible) return;
-
   const visibleProjects = getEvaProjectsInViewport();
 
-  evaPanelLayerGroup.clearLayers();
+  evaPanelGeometryLayerGroup.clearLayers();
+  evaPanelLabelsLayerGroup.clearLayers();
 
-  const showLabels = map.getZoom() >= 8;
+  const showLabels = evaPanelLabelsVisible && map.getZoom() >= 8;
   const labelsAllowed = showLabels && visibleProjects.length <= 1500;
 
   visibleProjects.forEach((project) => {
     if (!Number.isFinite(project.lat) || !Number.isFinite(project.lon)) return;
 
-    const marker = L.circleMarker([project.lat, project.lon], getEvaProjectMarkerStyle());
+    L.circleMarker([project.lat, project.lon], getEvaProjectMarkerStyle()).addTo(evaPanelGeometryLayerGroup);
 
     if (labelsAllowed && project.sector && String(project.sector).trim() !== "") {
-      marker.bindTooltip(String(project.sector).trim(), {
-        permanent: true,
-        direction: "top",
-        offset: [0, -6],
-        className: "eva-project-label"
-      });
+      L.marker([project.lat, project.lon], {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: "eva-project-label",
+          html: escapeHtml(String(project.sector).trim()),
+          iconSize: null
+        })
+      }).addTo(evaPanelLabelsLayerGroup);
     }
-
-    marker.addTo(evaPanelLayerGroup);
   });
 
   console.log("[GeoEVA capas_panel] viewport render", {
@@ -756,33 +756,29 @@ function setPanelLayerControlEnabled(layerId, enabled) {
 }
 
 async function toggleEvaProjectsLayer(checked) {
-  evaPanelVisible = checked;
+  evaPanelLabelsVisible = checked;
 
-  if (checked) {
-    try {
-      await loadEvaPanelData();
+  try {
+    await loadEvaPanelData();
 
-      if (!map.hasLayer(evaPanelLayerGroup)) {
-        evaPanelLayerGroup.addTo(map);
-      }
-
-      renderEvaProjectsInViewport();
-    } catch (error) {
-      evaPanelVisible = false;
-      const checkbox = document.querySelector('[data-panel-layer-id="eva_proyectos"]');
-      if (checkbox) checkbox.checked = false;
-      console.warn("[GeoEVA capas_panel] error cargando capa eva_proyectos", error);
+    if (!map.hasLayer(evaPanelGeometryLayerGroup)) {
+      evaPanelGeometryLayerGroup.addTo(map);
     }
-  } else {
-    evaPanelLayerGroup.clearLayers();
 
-    if (map.hasLayer(evaPanelLayerGroup)) {
-      map.removeLayer(evaPanelLayerGroup);
+    if (!map.hasLayer(evaPanelLabelsLayerGroup)) {
+      evaPanelLabelsLayerGroup.addTo(map);
     }
+
+    renderEvaProjectsInViewport();
+  } catch (error) {
+    evaPanelLabelsVisible = false;
+    const checkbox = document.querySelector('[data-panel-layer-id="eva_proyectos"]');
+    if (checkbox) checkbox.checked = false;
+    console.warn("[GeoEVA capas_panel] error cargando capa eva_proyectos", error);
   }
 
-  console.log("[GeoEVA capas_panel] toggle", {
-    visible: checked
+  console.log("[GeoEVA capas_panel] toggle etiquetas", {
+    labelsVisible: evaPanelLabelsVisible
   });
 }
 
@@ -793,8 +789,6 @@ function togglePanelLayer(layerId, checked) {
 }
 
 function scheduleEvaPanelViewportUpdate() {
-  if (!evaPanelVisible) return;
-
   if (evaPanelUpdateTimer) {
     clearTimeout(evaPanelUpdateTimer);
   }
@@ -908,9 +902,7 @@ function switchBaseMap(type) {
   currentBasemap = type === "sat" ? "sat" : "osm";
   setBaseMapToggleActive(currentBasemap);
 
-  if (evaPanelVisible) {
-    renderEvaProjectsInViewport();
-  }
+  renderEvaProjectsInViewport();
 }
 
 function setBaseMapToggleActive(type) {
@@ -926,6 +918,16 @@ function setBaseMapToggleActive(type) {
     btnSat.classList.toggle("active", type === "sat");
     btnSat.setAttribute("aria-pressed", String(type === "sat"));
   }
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;"
+  }[char]));
 }
 
 (function initGeoFactoryIntroModal() {
