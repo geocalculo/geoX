@@ -607,6 +607,10 @@ function renderPanelLayerControls() {
 
   panel.innerHTML = "";
 
+  const title = document.createElement("h3");
+  title.textContent = "Panel Territorial";
+  panel.appendChild(title);
+
   const controls = document.createElement("div");
   controls.className = "panel-layer-controls";
   controls.setAttribute("aria-label", "Panel Territorial GeoEVA");

@@ -420,15 +420,30 @@ function getGeoNoxaZonaLabel(props) {
   return "";
 }
 
+function hasValidGeoNoxaGeometry(feature) {
+  const geometry = feature?.geometry;
+  if (!geometry) return false;
+
+  if (geometry.type === "Point") {
+    if (!Array.isArray(geometry.coordinates) || geometry.coordinates.length < 2) return false;
+    const [lon, lat] = geometry.coordinates.map(Number);
+    return Number.isFinite(lat) && Number.isFinite(lon);
+  }
+
+  if (!Array.isArray(geometry.coordinates) || geometry.coordinates.length === 0) return false;
+
+  return true;
+}
+
 function featureIntersectsViewport(feature) {
-  if (!map || !feature) return false;
+  if (!map || !feature || !hasValidGeoNoxaGeometry(feature)) return false;
 
   const bounds = map.getBounds();
 
   try {
-    if (feature.geometry?.type === "Point" && Array.isArray(feature.geometry.coordinates)) {
-      const [lon, lat] = feature.geometry.coordinates;
-      const point = L.latLng(Number(lat), Number(lon));
+    if (feature.geometry.type === "Point") {
+      const [lon, lat] = feature.geometry.coordinates.map(Number);
+      const point = L.latLng(lat, lon);
       return Number.isFinite(point.lat) && Number.isFinite(point.lng) && bounds.contains(point);
     }
 
@@ -458,9 +473,13 @@ function renderGeoNoxaPanelLayer(layerKey) {
   const showLabels = map.getZoom() >= 8 && visibleFeatures.length <= 1000;
 
   visibleFeatures.forEach((feature) => {
+    if (!hasValidGeoNoxaGeometry(feature)) return;
+
     const geoLayer = L.geoJSON(feature, {
       style: getGeoNoxaPanelPolygonStyle,
       pointToLayer: function (_feature, latlng) {
+        if (!Number.isFinite(latlng?.lat) || !Number.isFinite(latlng?.lng)) return null;
+
         const style = getGeoNoxaPanelPolygonStyle();
 
         return L.circleMarker(latlng, {
@@ -483,7 +502,11 @@ function renderGeoNoxaPanelLayer(layerKey) {
           labelText = getGeoNoxaZonaLabel(_feature.properties || {});
         }
 
-        if (showLabels && labelText) {
+        if (!labelText || String(labelText).trim() === "") {
+          return;
+        }
+
+        if (showLabels) {
           layer.bindTooltip(labelText, {
             permanent: true,
             direction: "top",
