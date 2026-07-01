@@ -597,8 +597,36 @@ function getEvaProjectMarkerStyle() {
   };
 }
 
+function syncEvaMobileLabelToggle() {
+  const mobileToggle = document.getElementById("mobile-layer-toggle");
+  if (!mobileToggle) return;
+
+  mobileToggle.classList.toggle("is-active", evaPanelLabelsVisible);
+  mobileToggle.classList.toggle("is-inactive", !evaPanelLabelsVisible);
+  mobileToggle.setAttribute("aria-pressed", String(evaPanelLabelsVisible));
+
+  const action = evaPanelLabelsVisible ? "Ocultar" : "Mostrar";
+  const label = `${action} etiquetas GeoEVA`;
+  mobileToggle.setAttribute("aria-label", label);
+  mobileToggle.setAttribute("title", label);
+
+  const icon = mobileToggle.querySelector(".mobile-layer-toggle-icon");
+  if (icon) icon.textContent = evaPanelLabelsVisible ? "👁️" : "🙈";
+}
+
+function initEvaMobileLabelToggle() {
+  const mobileToggle = document.getElementById("mobile-layer-toggle");
+  if (!mobileToggle) return;
+
+  mobileToggle.addEventListener("click", () => {
+    toggleEvaProjectsLayer(!evaPanelLabelsVisible);
+  });
+  syncEvaMobileLabelToggle();
+}
+
 async function initPanelLayers() {
   renderPanelLayerControls();
+  initEvaMobileLabelToggle();
   await loadPanelLayers();
 }
 
@@ -721,8 +749,7 @@ function renderEvaProjectsInViewport() {
   evaPanelGeometryLayerGroup.clearLayers();
   evaPanelLabelsLayerGroup.clearLayers();
 
-  const showLabels = evaPanelLabelsVisible && map.getZoom() >= 8;
-  const labelsAllowed = showLabels && visibleProjects.length <= 1500;
+  const labelsAllowed = evaPanelLabelsVisible;
 
   visibleProjects.forEach((project) => {
     if (!Number.isFinite(project.lat) || !Number.isFinite(project.lon)) return;
@@ -774,8 +801,11 @@ async function toggleEvaProjectsLayer(checked) {
     evaPanelLabelsVisible = false;
     const checkbox = document.querySelector('[data-panel-layer-id="eva_proyectos"]');
     if (checkbox) checkbox.checked = false;
+    syncEvaMobileLabelToggle();
     console.warn("[GeoEVA capas_panel] error cargando capa eva_proyectos", error);
   }
+
+  syncEvaMobileLabelToggle();
 
   console.log("[GeoEVA capas_panel] toggle etiquetas", {
     labelsVisible: evaPanelLabelsVisible
