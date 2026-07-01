@@ -18,8 +18,9 @@ const noxaPanelLayers = {
     file: "capas_panel/geonoxa_relaves_panel.geojson",
     rawFeatures: [],
     loaded: false,
-    visible: false,
-    layerGroup: L.layerGroup()
+    labelsVisible: false,
+    geometryLayerGroup: L.layerGroup(),
+    labelsLayerGroup: L.layerGroup()
   },
   zonas: {
     id: "zonas",
@@ -27,8 +28,9 @@ const noxaPanelLayers = {
     file: "capas_panel/geonoxa_zonas_panel.geojson",
     rawFeatures: [],
     loaded: false,
-    visible: false,
-    layerGroup: L.layerGroup()
+    labelsVisible: false,
+    geometryLayerGroup: L.layerGroup(),
+    labelsLayerGroup: L.layerGroup()
   }
 };
 
@@ -349,6 +351,7 @@ function iniciarMapa() {
 function initGeoNoxaPanelLayers() {
   renderGeoNoxaPanelControls();
   initGeoNoxaPanelToggles();
+  Object.keys(noxaPanelLayers).forEach((layerKey) => toggleGeoNoxaPanelLayer(layerKey, noxaPanelLayers[layerKey].labelsVisible));
 }
 
 function renderGeoNoxaPanelControls() {
@@ -369,8 +372,8 @@ function renderGeoNoxaPanelControls() {
     </div>
   `;
 
-  document.getElementById("toggle-relaves").checked = noxaPanelLayers.relaves.visible === true;
-  document.getElementById("toggle-zonas").checked = noxaPanelLayers.zonas.visible === true;
+  document.getElementById("toggle-relaves").checked = noxaPanelLayers.relaves.labelsVisible === true;
+  document.getElementById("toggle-zonas").checked = noxaPanelLayers.zonas.labelsVisible === true;
 }
 
 function initGeoNoxaPanelToggles() {
@@ -465,12 +468,13 @@ function featureIntersectsViewport(feature) {
 
 function renderGeoNoxaPanelLayer(layerKey) {
   const cfg = noxaPanelLayers[layerKey];
-  if (!cfg || !cfg.visible) return;
+  if (!cfg) return;
 
-  cfg.layerGroup.clearLayers();
+  cfg.geometryLayerGroup.clearLayers();
+  cfg.labelsLayerGroup.clearLayers();
 
   const visibleFeatures = cfg.rawFeatures.filter(featureIntersectsViewport);
-  const showLabels = map.getZoom() >= 8 && visibleFeatures.length <= 1000;
+  const showLabels = cfg.labelsVisible && map.getZoom() >= 8 && visibleFeatures.length <= 1000;
 
   visibleFeatures.forEach((feature) => {
     if (!hasValidGeoNoxaGeometry(feature)) return;
@@ -490,36 +494,34 @@ function renderGeoNoxaPanelLayer(layerKey) {
           fillColor: style.color,
           fillOpacity: 0.85
         });
-      },
-      onEachFeature: function (_feature, layer) {
-        let labelText = "";
-
-        if (layerKey === "relaves") {
-          labelText = String(_feature.properties?.recurso || "").trim();
-        }
-
-        if (layerKey === "zonas") {
-          labelText = getGeoNoxaZonaLabel(_feature.properties || {});
-        }
-
-        if (!labelText || String(labelText).trim() === "") {
-          return;
-        }
-
-        if (!_feature.geometry) return;
-
-        if (showLabels) {
-          layer.bindTooltip(labelText, {
-            permanent: true,
-            direction: "top",
-            offset: [0, -6],
-            className: "noxa-panel-label"
-          });
-        }
       }
     });
 
-    geoLayer.addTo(cfg.layerGroup);
+    geoLayer.addTo(cfg.geometryLayerGroup);
+
+    if (!showLabels) return;
+
+    let labelText = "";
+    if (layerKey === "relaves") labelText = String(feature.properties?.recurso || "").trim();
+    if (layerKey === "zonas") labelText = getGeoNoxaZonaLabel(feature.properties || {});
+    if (!labelText) return;
+
+    geoLayer.eachLayer((layer) => {
+      const latlng = typeof layer.getLatLng === "function"
+        ? layer.getLatLng()
+        : (typeof layer.getBounds === "function" && layer.getBounds()?.isValid?.() ? layer.getBounds().getCenter() : null);
+      if (!latlng) return;
+
+      L.marker(latlng, {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: "noxa-panel-label",
+          html: escapeHtml(labelText),
+          iconSize: null
+        })
+      }).addTo(cfg.labelsLayerGroup);
+    });
   });
 
   console.log("[GeoNOXA capas_panel] render", {
@@ -555,34 +557,25 @@ async function toggleGeoNoxaPanelLayer(layerKey, checked) {
   const cfg = noxaPanelLayers[layerKey];
   if (!cfg) return;
 
-  cfg.visible = checked;
+  cfg.labelsVisible = checked;
 
-  if (checked) {
-    try {
-      await loadGeoNoxaPanelLayer(layerKey);
+  try {
+    await loadGeoNoxaPanelLayer(layerKey);
 
-      if (!map.hasLayer(cfg.layerGroup)) {
-        cfg.layerGroup.addTo(map);
-      }
+    if (!map.hasLayer(cfg.geometryLayerGroup)) cfg.geometryLayerGroup.addTo(map);
+    if (!map.hasLayer(cfg.labelsLayerGroup)) cfg.labelsLayerGroup.addTo(map);
 
-      renderGeoNoxaPanelLayer(layerKey);
-    } catch (error) {
-      cfg.visible = false;
-      const checkbox = document.getElementById(layerKey === "relaves" ? "toggle-relaves" : "toggle-zonas");
-      if (checkbox) checkbox.checked = false;
-      console.warn("[GeoNOXA capas_panel] error cargando capa", layerKey, error);
-    }
-  } else {
-    cfg.layerGroup.clearLayers();
-
-    if (map.hasLayer(cfg.layerGroup)) {
-      map.removeLayer(cfg.layerGroup);
-    }
+    renderGeoNoxaPanelLayer(layerKey);
+  } catch (error) {
+    cfg.labelsVisible = false;
+    const checkbox = document.getElementById(layerKey === "relaves" ? "toggle-relaves" : "toggle-zonas");
+    if (checkbox) checkbox.checked = false;
+    console.warn("[GeoNOXA capas_panel] error cargando capa", layerKey, error);
   }
 
-  console.log("[GeoNOXA capas_panel] toggle", {
+  console.log("[GeoNOXA capas_panel] toggle etiquetas", {
     layer: layerKey,
-    visible: cfg.visible
+    labelsVisible: cfg.labelsVisible
   });
 }
 
@@ -593,19 +586,14 @@ function scheduleGeoNoxaPanelViewportUpdate() {
 
   noxaPanelUpdateTimer = setTimeout(() => {
     Object.keys(noxaPanelLayers).forEach((layerKey) => {
-      const cfg = noxaPanelLayers[layerKey];
-      if (cfg.visible) {
-        renderGeoNoxaPanelLayer(layerKey);
-      }
+      renderGeoNoxaPanelLayer(layerKey);
     });
   }, 120);
 }
 
 function refreshGeoNoxaPanelActiveLayers() {
   Object.keys(noxaPanelLayers).forEach((layerKey) => {
-    if (noxaPanelLayers[layerKey].visible) {
-      renderGeoNoxaPanelLayer(layerKey);
-    }
+    renderGeoNoxaPanelLayer(layerKey);
   });
 }
 
@@ -965,6 +953,16 @@ function setBaseMapToggleActive(type) {
     btnSat.classList.toggle("active", type === "sat");
     btnSat.setAttribute("aria-pressed", String(type === "sat"));
   }
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;"
+  }[char]));
 }
 
 (function initGeoFactoryIntroModal() {

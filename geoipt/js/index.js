@@ -1588,10 +1588,12 @@ function iniciarPanelTerritorial() {
     });
   }
 
+  panelPerimetrosActivo = toggle ? Boolean(toggle.checked) : false;
   sincronizarControlesPerimetrosIpt();
+  actualizarPerimetrosIptVisibles();
 
   map.on("moveend zoomend", () => {
-    if (panelPerimetrosActivo) actualizarPerimetrosIptVisibles();
+    actualizarPerimetrosIptVisibles();
   });
 }
 
@@ -1599,12 +1601,9 @@ function alternarPerimetrosIpt(activo) {
   panelPerimetrosActivo = Boolean(activo);
   sincronizarControlesPerimetrosIpt();
 
-  // ON/OFF PERÍMETROS IPT
-  if (panelPerimetrosActivo) {
-    actualizarPerimetrosIptVisibles();
-  } else {
-    removerTodosPerimetrosIpt();
-  }
+  // ON/OFF del panel territorial: solo etiquetas. La geometría IPT permanece visible.
+  actualizarPerimetrosIptVisibles();
+  scheduleTerritorialLabelUpdate();
 }
 
 function sincronizarControlesPerimetrosIpt() {
@@ -1622,7 +1621,7 @@ function sincronizarControlesPerimetrosIpt() {
   mobileToggle.setAttribute("aria-pressed", String(panelPerimetrosActivo));
 
   const accion = panelPerimetrosActivo ? "Ocultar" : "Mostrar";
-  const etiqueta = `${accion} Perímetros IPT`;
+  const etiqueta = `${accion} etiquetas IPT`;
   mobileToggle.setAttribute("aria-label", etiqueta);
   mobileToggle.setAttribute("title", etiqueta);
 
@@ -1649,7 +1648,7 @@ function obtenerCapasPanelCandidatas() {
 }
 
 async function actualizarPerimetrosIptVisibles() {
-  if (!panelPerimetrosActivo || !map) {
+  if (!map) {
     scheduleTerritorialLabelUpdate();
     return;
   }
@@ -1692,7 +1691,7 @@ async function cargarCapaPanelSiCorresponde(item) {
     });
     panelCapasCargadas.set(item.id, layer);
     panelGeojsonCargados.set(item.id, geojson);
-    if (panelPerimetrosActivo && bboxIntersectaViewport(item.bbox, map.getBounds())) {
+    if (bboxIntersectaViewport(item.bbox, map.getBounds())) {
       layer.addTo(map);
     }
   } catch (error) {
@@ -1703,9 +1702,7 @@ async function cargarCapaPanelSiCorresponde(item) {
 }
 
 function removerTodosPerimetrosIpt() {
-  panelCapasCargadas.forEach((layer) => {
-    if (map && map.hasLayer(layer)) map.removeLayer(layer);
-  });
+  // La geometría del panel territorial no se remueve desde los toggles.
   scheduleTerritorialLabelUpdate();
 }
 
