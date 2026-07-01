@@ -359,15 +359,15 @@ function renderGeoNoxaPanelControls() {
   if (!panel) return;
 
   panel.innerHTML = `
-    <h2>Panel Territorial</h2>
-    <div class="panel-toggle-list" aria-label="Panel Territorial GeoNOXA">
+    <h2>Etiquetas</h2>
+    <div class="panel-toggle-list" aria-label="Control de etiquetas GeoNOXA">
       <label class="panel-toggle-row">
         <input type="checkbox" id="toggle-relaves">
-        <span>Relaves</span>
+        <span>Mostrar etiquetas Relaves</span>
       </label>
       <label class="panel-toggle-row">
         <input type="checkbox" id="toggle-zonas">
-        <span>Zonas Saturadas / Latentes</span>
+        <span>Mostrar etiquetas Zonas Saturadas / Latentes</span>
       </label>
     </div>
   `;

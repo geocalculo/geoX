@@ -609,12 +609,12 @@ function renderPanelLayerControls() {
   panel.innerHTML = "";
 
   const title = document.createElement("h3");
-  title.textContent = "Panel Territorial";
+  title.textContent = "Etiquetas";
   panel.appendChild(title);
 
   const controls = document.createElement("div");
   controls.className = "panel-layer-controls";
-  controls.setAttribute("aria-label", "Panel Territorial GeoEVA");
+  controls.setAttribute("aria-label", "Control de etiquetas GeoEVA");
   panel.appendChild(controls);
 
   panelLayersConfig.forEach((config) => {
@@ -628,7 +628,7 @@ function renderPanelLayerControls() {
     checkbox.dataset.panelLayerId = config.id;
 
     const text = document.createElement("span");
-    text.textContent = config.label;
+    text.textContent = `Mostrar etiquetas ${config.label}`;
 
     checkbox.addEventListener("change", () => {
       togglePanelLayer(config.id, checkbox.checked);
