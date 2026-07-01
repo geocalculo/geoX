@@ -336,7 +336,7 @@ function aplicarParametros(params) {
 
   siteTitle.textContent = params.titulo || "GeoX";
   siteSubtitle.textContent = params.subtitulo || "Molde territorial genérico";
-  panelTitle.textContent = params.panel_titulo || "Panel Territorial";
+  panelTitle.textContent = "Etiquetas";
   searchBox.placeholder = params.search_placeholder || "Buscar...";
 
   if (Array.isArray(params.summary_items)) {
