@@ -4,6 +4,8 @@ let satLayer;
 let currentBaseLayer;
 let currentBasemap = "osm";
 let initialCrossAccessState = null;
+const CROSS_ACCESS_PARAM_NAME = "from";
+const CROSS_ACCESS_PARAM_VALUE = "crossaccess";
 let summaryConfig = null;
 let summaryFeaturesByLayer = {};
 const REGIONES_PATH = "capas_selector/regiones.json";
@@ -33,6 +35,14 @@ const noxaPanelLayers = {
     labelsLayerGroup: L.layerGroup()
   }
 };
+
+function isCrossAccessNavigationFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return (
+    params.get(CROSS_ACCESS_PARAM_NAME) === CROSS_ACCESS_PARAM_VALUE ||
+    params.get("source") === CROSS_ACCESS_PARAM_VALUE
+  );
+}
 
 function getInitialCrossAccessStateFromUrl() {
   if (initialCrossAccessState) return initialCrossAccessState;
@@ -247,6 +257,7 @@ function getCurrentMapState() {
 function buildCrossAccessUrl(sitePath) {
   const state = getCurrentMapState();
   const url = new URL(sitePath, window.location.href);
+  url.searchParams.set(CROSS_ACCESS_PARAM_NAME, CROSS_ACCESS_PARAM_VALUE);
 
   if (!state) return url.toString();
 
@@ -270,6 +281,7 @@ function getCurrentViewportParams() {
   params.set("lon", state.lon.toFixed(6));
   params.set("zoom", String(state.zoom));
   params.set("basemap", state.basemap);
+  params.set(CROSS_ACCESS_PARAM_NAME, CROSS_ACCESS_PARAM_VALUE);
 
   return params.toString();
 }
@@ -1102,6 +1114,12 @@ function escapeHtml(value) {
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
+      if (isCrossAccessNavigationFromUrl()) {
+        const existingHardcodedOverlay = document.getElementById("geoipt-intro-overlay");
+        if (existingHardcodedOverlay) existingHardcodedOverlay.remove();
+        return;
+      }
+
       const config = await loadModalConfig();
       const modalIntro = config && config.modalIntro;
       if (!modalIntro || modalIntro.activo !== true || localStorageHas(modalIntro.storageKey)) return;
