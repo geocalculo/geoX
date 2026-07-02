@@ -30,6 +30,35 @@ let evaPanelLabelsVisible = false;
 let evaPanelGeometryLayerGroup = L.layerGroup();
 let evaPanelLabelsLayerGroup = L.layerGroup();
 let evaPanelUpdateTimer = null;
+const LABEL_DENSITY_CONFIG_PATH = "./capas_panel/label_density_config.json";
+const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0 };
+let labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
+
+async function loadLabelDensityConfig() {
+  try {
+    const response = await fetch(LABEL_DENSITY_CONFIG_PATH, { cache: "no-store" });
+    if (!response.ok) throw new Error(`No se pudo cargar ${LABEL_DENSITY_CONFIG_PATH}`);
+    const data = await response.json();
+    labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG, ...(data && typeof data === "object" ? data : {}) };
+  } catch (error) {
+    labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
+    console.info("Smart Labels: usando densidad interna por defecto.", error);
+  }
+}
+
+function getLabelDensityMaxLabels(layerId = null) {
+  const layerConfig = layerId && labelDensityConfig.layers && labelDensityConfig.layers[layerId];
+  const source = layerConfig && typeof layerConfig === "object" ? layerConfig : labelDensityConfig;
+  const value = Number(source.maxLabels ?? source.max_labels);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
+}
+
+function getLabelDensityMinZoom(layerId = null) {
+  const layerConfig = layerId && labelDensityConfig.layers && labelDensityConfig.layers[layerId];
+  const source = layerConfig && typeof layerConfig === "object" ? layerConfig : labelDensityConfig;
+  const value = Number(source.minZoom ?? source.min_zoom);
+  return Number.isFinite(value) ? value : DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
+}
 
 async function initGeoEVASummary(mapInstance) {
   summaryConfig = await loadSummaryConfig();
@@ -555,6 +584,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   conectarBaseMapToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
+  await loadLabelDensityConfig();
   initPanelLayers();
 });
 
@@ -769,14 +799,16 @@ function renderEvaProjectsInViewport() {
   evaPanelGeometryLayerGroup.clearLayers();
   evaPanelLabelsLayerGroup.clearLayers();
 
-  const labelsAllowed = evaPanelLabelsVisible;
+  const labelsAllowed = evaPanelLabelsVisible && map.getZoom() >= getLabelDensityMinZoom("eva_proyectos");
+  const maxLabels = getLabelDensityMaxLabels("eva_proyectos");
+  let labelCount = 0;
 
   visibleProjects.forEach((project) => {
     if (!Number.isFinite(project.lat) || !Number.isFinite(project.lon)) return;
 
     L.circleMarker([project.lat, project.lon], getEvaProjectMarkerStyle()).addTo(evaPanelGeometryLayerGroup);
 
-    if (labelsAllowed && project.sector && String(project.sector).trim() !== "") {
+    if (labelsAllowed && labelCount < maxLabels && project.sector && String(project.sector).trim() !== "") {
       L.marker([project.lat, project.lon], {
         interactive: false,
         keyboard: false,
@@ -786,6 +818,7 @@ function renderEvaProjectsInViewport() {
           iconSize: null
         })
       }).addTo(evaPanelLabelsLayerGroup);
+      labelCount += 1;
     }
   });
 
