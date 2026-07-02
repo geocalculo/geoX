@@ -5,32 +5,27 @@ let currentBaseLayer;
 let currentBasemap = "osm";
 let nemoLabelsVisible = false;
 let nemoPanelLayers = {};
+const NEMO_OSM_COLOR = "#39ff14";
+const NEMO_SAT_COLOR = "#fff200";
+const NEMO_LAYER_STYLE_BASE = {
+  weight: 3,
+  opacity: 1,
+  fillOpacity: 0.06
+};
 const NEMO_PANEL_LAYER_CONFIG = [
   {
     id: "snaspe",
     visibleName: "SNASPE",
     archivo: "./capas_panel/nemo_snaspe_sub10k.geojson",
     labelFields: ["NOMBRE_TOT", "NOMBRE_UNI"],
-    style: {
-      color: "#2e7d32",
-      weight: 1.8,
-      opacity: 0.95,
-      fillColor: "#66bb6a",
-      fillOpacity: 0.12
-    }
+    style: { ...NEMO_LAYER_STYLE_BASE }
   },
   {
     id: "ramsar",
     visibleName: "Sitios Ramsar",
     archivo: "./capas_panel/nemo_ramsar_panel.geojson",
     labelFields: ["Nombre"],
-    style: {
-      color: "#0284c7",
-      weight: 1.8,
-      opacity: 0.95,
-      fillColor: "#38bdf8",
-      fillOpacity: 0.12
-    }
+    style: { ...NEMO_LAYER_STYLE_BASE }
   }
 ];
 let initialCrossAccessState = null;
@@ -716,6 +711,42 @@ function updateSummaryKpiDom(indicatorId, value, label) {
   if (labelEl && label) labelEl.textContent = label;
 }
 
+function getGeoNemoBasemapColor() {
+  return currentBasemap === "sat" ? NEMO_SAT_COLOR : NEMO_OSM_COLOR;
+}
+
+function getGeoNemoLayerStyle(config = {}) {
+  const color = getGeoNemoBasemapColor();
+
+  return {
+    ...(config.style || {}),
+    color,
+    fillColor: color,
+    weight: 3,
+    opacity: 1,
+    fillOpacity: 0.06
+  };
+}
+
+function syncGeoNemoBasemapClass() {
+  const target = document.getElementById("map-container") || document.body;
+  if (!target) return;
+
+  target.classList.toggle("geonemo-basemap-osm", currentBasemap !== "sat");
+  target.classList.toggle("geonemo-basemap-sat", currentBasemap === "sat");
+}
+
+function updateGeoNemoPanelLayerStyles() {
+  Object.values(nemoPanelLayers).forEach((entry) => {
+    if (!entry || !entry.geometryGroup) return;
+    entry.geometryGroup.eachLayer((layer) => {
+      if (typeof layer.setStyle === "function") {
+        layer.setStyle(getGeoNemoLayerStyle(entry.config));
+      }
+    });
+  });
+}
+
 function createGeoNemoPanes(mapInstance) {
   if (!mapInstance.getPane("nemo-panel-geometries")) {
     mapInstance.createPane("nemo-panel-geometries");
@@ -803,7 +834,8 @@ async function loadGeoNemoPanelLayer(mapInstance, config) {
     const geojson = await response.json();
     L.geoJSON(geojson, {
       pane: "nemo-panel-geometries",
-      style: () => ({ ...config.style }),
+      style: () => getGeoNemoLayerStyle(config),
+      pointToLayer: (feature, latlng) => L.circleMarker(latlng, getGeoNemoLayerStyle(config)),
       onEachFeature: (feature, layer) => {
         geometryGroup.addLayer(layer);
 
@@ -966,6 +998,8 @@ function switchBaseMap(type) {
   currentBaseLayer = nextLayer;
   currentBasemap = type === "sat" ? "sat" : "osm";
   setBaseMapToggleActive(currentBasemap);
+  syncGeoNemoBasemapClass();
+  updateGeoNemoPanelLayerStyles();
 }
 
 function setBaseMapToggleActive(type) {
