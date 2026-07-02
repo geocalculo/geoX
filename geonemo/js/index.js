@@ -35,6 +35,38 @@ const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 let summaryConfig = null;
 let summaryFeaturesByLayer = {};
+const LABEL_DENSITY_CONFIG_PATH = "./capas_panel/label_density_config.json";
+const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0 };
+let labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
+
+async function loadLabelDensityConfig() {
+  try {
+    const response = await fetch(LABEL_DENSITY_CONFIG_PATH, { cache: "no-store" });
+    if (!response.ok) throw new Error(`No se pudo cargar ${LABEL_DENSITY_CONFIG_PATH}`);
+    const data = await response.json();
+    labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG, ...(data && typeof data === "object" ? data : {}) };
+  } catch (error) {
+    labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
+    console.info("Smart Labels: usando densidad interna por defecto.", error);
+  }
+}
+
+function getLabelDensitySource(layerId) {
+  const layerConfig = layerId && labelDensityConfig.layers && labelDensityConfig.layers[layerId];
+  return layerConfig && typeof layerConfig === "object" ? layerConfig : labelDensityConfig;
+}
+
+function getLabelDensityMaxLabels(layerId = null) {
+  const source = getLabelDensitySource(layerId);
+  const value = Number(source.maxLabels ?? source.max_labels);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
+}
+
+function getLabelDensityMinZoom(layerId = null) {
+  const source = getLabelDensitySource(layerId);
+  const value = Number(source.minZoom ?? source.min_zoom);
+  return Number.isFinite(value) ? value : DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
+}
 
 function isCrossAccessNavigationFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -321,6 +353,7 @@ function initGeoXCrossPortalNavigation() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  await loadLabelDensityConfig();
   iniciarMapa();
   await cargarRegionesSelector();
   conectarRegionSelector();
@@ -352,6 +385,7 @@ function iniciarMapa() {
 
   switchBaseMap(getInitialBasemapFromUrl());
   initGeoNemoPanelLayers(map);
+  map.on("zoomend", () => applyGeoNemoLabelVisibility());
 
   L.control.scale({
     imperial: false
@@ -831,6 +865,8 @@ async function loadGeoNemoPanelLayer(mapInstance, config) {
     if (!response.ok) throw new Error(`No se pudo cargar ${config.archivo}`);
 
     const seenLabels = new Set();
+    const maxLabels = getLabelDensityMaxLabels(config.id);
+    let labelCount = 0;
     const geojson = await response.json();
     L.geoJSON(geojson, {
       pane: "nemo-panel-geometries",
@@ -840,14 +876,17 @@ async function loadGeoNemoPanelLayer(mapInstance, config) {
         geometryGroup.addLayer(layer);
 
         const labelText = getGeoNemoLabelText(feature, config.labelFields);
-        if (!labelText) return;
+        if (!labelText || labelCount >= maxLabels) return;
 
         const labelKey = getGeoNemoFeatureLabelKey(feature, labelText, config.id);
         if (seenLabels.has(labelKey)) return;
         seenLabels.add(labelKey);
 
         const marker = createGeoNemoLabelMarker(layer, labelText);
-        if (marker) labelGroup.addLayer(marker);
+        if (marker) {
+          labelGroup.addLayer(marker);
+          labelCount += 1;
+        }
       }
     });
 
@@ -861,8 +900,9 @@ function applyGeoNemoLabelVisibility(layerId = null, visible = null) {
   Object.values(nemoPanelLayers).forEach((entry) => {
     if (layerId && entry.config.id !== layerId) return;
 
-    const shouldShow = visible === null ? entry.labelsVisible : visible;
-    entry.labelsVisible = shouldShow;
+    const desiredVisibility = visible === null ? entry.labelsVisible : visible;
+    const shouldShow = desiredVisibility && map.getZoom() >= getLabelDensityMinZoom(entry.config.id);
+    entry.labelsVisible = desiredVisibility;
 
     if (shouldShow && !map.hasLayer(entry.labelGroup)) {
       entry.labelGroup.addTo(map);

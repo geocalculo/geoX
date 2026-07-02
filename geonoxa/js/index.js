@@ -12,6 +12,38 @@ const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
 let noxaPanelUpdateTimer = null;
+const LABEL_DENSITY_CONFIG_PATH = "./capas_panel/label_density_config.json";
+const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0 };
+let labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
+
+async function loadLabelDensityConfig() {
+  try {
+    const response = await fetch(LABEL_DENSITY_CONFIG_PATH, { cache: "no-store" });
+    if (!response.ok) throw new Error(`No se pudo cargar ${LABEL_DENSITY_CONFIG_PATH}`);
+    const data = await response.json();
+    labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG, ...(data && typeof data === "object" ? data : {}) };
+  } catch (error) {
+    labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
+    console.info("Smart Labels: usando densidad interna por defecto.", error);
+  }
+}
+
+function getLabelDensitySource(layerId) {
+  const layerConfig = layerId && labelDensityConfig.layers && labelDensityConfig.layers[layerId];
+  return layerConfig && typeof layerConfig === "object" ? layerConfig : labelDensityConfig;
+}
+
+function getLabelDensityMaxLabels(layerId = null) {
+  const source = getLabelDensitySource(layerId);
+  const value = Number(source.maxLabels ?? source.max_labels);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
+}
+
+function getLabelDensityMinZoom(layerId = null) {
+  const source = getLabelDensitySource(layerId);
+  const value = Number(source.minZoom ?? source.min_zoom);
+  return Number.isFinite(value) ? value : DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
+}
 
 const noxaPanelLayers = {
   relaves: {
@@ -327,6 +359,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   conectarBaseMapToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
+  await loadLabelDensityConfig();
   initGeoNoxaPanelLayers();
 });
 
@@ -530,7 +563,9 @@ function renderGeoNoxaPanelLayer(layerKey) {
   cfg.labelsLayerGroup.clearLayers();
 
   const visibleFeatures = cfg.rawFeatures.filter(featureIntersectsViewport);
-  const showLabels = cfg.labelsVisible;
+  const showLabels = cfg.labelsVisible && map.getZoom() >= getLabelDensityMinZoom(layerKey);
+  const maxLabels = getLabelDensityMaxLabels(layerKey);
+  let labelCount = 0;
 
   visibleFeatures.forEach((feature) => {
     if (!hasValidGeoNoxaGeometry(feature)) return;
@@ -566,7 +601,7 @@ function renderGeoNoxaPanelLayer(layerKey) {
       const latlng = typeof layer.getLatLng === "function"
         ? layer.getLatLng()
         : (typeof layer.getBounds === "function" && layer.getBounds()?.isValid?.() ? layer.getBounds().getCenter() : null);
-      if (!latlng) return;
+      if (!latlng || labelCount >= maxLabels) return;
 
       L.marker(latlng, {
         interactive: false,
@@ -577,6 +612,7 @@ function renderGeoNoxaPanelLayer(layerKey) {
           iconSize: null
         })
       }).addTo(cfg.labelsLayerGroup);
+      labelCount += 1;
     });
   });
 

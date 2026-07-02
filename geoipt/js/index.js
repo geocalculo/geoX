@@ -312,6 +312,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await cargarRegionesSelector();
     conectarEventos();
     cargarListadoToSearch();
+    await cargarLabelDensityConfig();
     await cargarListadoPanelTerritorial();
     iniciarPanelTerritorial();
 
@@ -1530,8 +1531,13 @@ const panelCapasCargadas = new Map();
 const panelGeojsonCargados = new Map();
 let territorialLabelsLayer = null;
 let territorialLabelsUpdateTimer = null;
-const TERRITORIAL_LABELS_MAX = Number.POSITIVE_INFINITY;
-const TERRITORIAL_LABELS_DEBOUNCE_MS = 200;
+const LABEL_DENSITY_CONFIG_PATH = "./capas_panel/label_density_config.json";
+const DEFAULT_LABEL_DENSITY_CONFIG = {
+  maxLabels: Number.POSITIVE_INFINITY,
+  minZoom: 0,
+  debounceMs: 200
+};
+let labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
 const TERRITORIAL_LABELS_PANE = "territorial-labels-pane";
 const TERRITORIAL_LABEL_FIELDS = ["LOC", "LOCALIDAD", "SECTOR", "COMUNA"];
 const panelCapasEnCarga = new Set();
@@ -1818,6 +1824,36 @@ function createTerritorialLabelMarker(labelText, latlng) {
   });
 }
 
+async function cargarLabelDensityConfig() {
+  try {
+    const response = await fetch(LABEL_DENSITY_CONFIG_PATH, { cache: "no-store" });
+    if (!response.ok) throw new Error(`No se pudo cargar ${LABEL_DENSITY_CONFIG_PATH}`);
+    const data = await response.json();
+    labelDensityConfig = {
+      ...DEFAULT_LABEL_DENSITY_CONFIG,
+      ...(data && typeof data === "object" ? data : {})
+    };
+  } catch (error) {
+    labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
+    console.info("Smart Labels: usando densidad interna por defecto.", error);
+  }
+}
+
+function getLabelDensityMaxLabels() {
+  const value = Number(labelDensityConfig.maxLabels ?? labelDensityConfig.max_labels);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
+}
+
+function getLabelDensityMinZoom() {
+  const value = Number(labelDensityConfig.minZoom ?? labelDensityConfig.min_zoom);
+  return Number.isFinite(value) ? value : DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
+}
+
+function getLabelDensityDebounceMs() {
+  const value = Number(labelDensityConfig.debounceMs ?? labelDensityConfig.debounce_ms);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_LABEL_DENSITY_CONFIG.debounceMs;
+}
+
 function updateTerritorialLabels() {
   if (!map) return;
 
@@ -1825,18 +1861,20 @@ function updateTerritorialLabels() {
   territorialLabelsLayer.clearLayers();
 
   if (!panelPerimetrosActivo) return;
+  if (map.getZoom() < getLabelDensityMinZoom()) return;
 
+  const maxLabels = getLabelDensityMaxLabels();
   const mapBounds = map.getBounds();
   let labelCount = 0;
 
   for (const item of panelCapasListado) {
-    if (labelCount >= TERRITORIAL_LABELS_MAX) break;
+    if (labelCount >= maxLabels) break;
 
     const panelLayer = panelCapasCargadas.get(item.id);
     if (!panelLayer || !map.hasLayer(panelLayer)) continue;
 
     panelLayer.eachLayer((featureLayer) => {
-      if (labelCount >= TERRITORIAL_LABELS_MAX) return;
+      if (labelCount >= maxLabels) return;
       if (!layerIntersectsViewport(featureLayer, mapBounds)) return;
 
       const labelText = getFeatureLabelText(featureLayer.feature);
@@ -1860,7 +1898,7 @@ function scheduleTerritorialLabelUpdate() {
   territorialLabelsUpdateTimer = window.setTimeout(() => {
     territorialLabelsUpdateTimer = null;
     updateTerritorialLabels();
-  }, TERRITORIAL_LABELS_DEBOUNCE_MS);
+  }, getLabelDensityDebounceMs());
 }
 
 function escapeHtml(value) {
