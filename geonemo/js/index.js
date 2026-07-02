@@ -4,6 +4,35 @@ let satLayer;
 let currentBaseLayer;
 let currentBasemap = "osm";
 let nemoLabelsVisible = false;
+let nemoPanelLayers = {};
+const NEMO_PANEL_LAYER_CONFIG = [
+  {
+    id: "snaspe",
+    visibleName: "SNASPE",
+    archivo: "./capas_panel/nemo_snaspe_sub10k.geojson",
+    labelFields: ["NOMBRE_TOT", "NOMBRE_UNI"],
+    style: {
+      color: "#2e7d32",
+      weight: 1.8,
+      opacity: 0.95,
+      fillColor: "#66bb6a",
+      fillOpacity: 0.12
+    }
+  },
+  {
+    id: "ramsar",
+    visibleName: "Sitios Ramsar",
+    archivo: "./capas_panel/nemo_ramsar_panel.geojson",
+    labelFields: ["Nombre"],
+    style: {
+      color: "#0284c7",
+      weight: 1.8,
+      opacity: 0.95,
+      fillColor: "#38bdf8",
+      fillOpacity: 0.12
+    }
+  }
+];
 let initialCrossAccessState = null;
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
@@ -289,6 +318,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await cargarRegionesSelector();
   conectarRegionSelector();
   conectarBaseMapToggle();
+  initGeoNemoDesktopLabelControls();
   initGeoNemoMobileLabelToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
@@ -314,6 +344,7 @@ function iniciarMapa() {
   });
 
   switchBaseMap(getInitialBasemapFromUrl());
+  initGeoNemoPanelLayers(map);
 
   L.control.scale({
     imperial: false
@@ -673,6 +704,154 @@ function updateSummaryKpiDom(indicatorId, value, label) {
   if (labelEl && label) labelEl.textContent = label;
 }
 
+function createGeoNemoPanes(mapInstance) {
+  if (!mapInstance.getPane("nemo-panel-geometries")) {
+    mapInstance.createPane("nemo-panel-geometries");
+    mapInstance.getPane("nemo-panel-geometries").style.zIndex = 430;
+  }
+
+  if (!mapInstance.getPane("nemo-panel-labels")) {
+    mapInstance.createPane("nemo-panel-labels");
+    mapInstance.getPane("nemo-panel-labels").style.zIndex = 650;
+    mapInstance.getPane("nemo-panel-labels").style.pointerEvents = "none";
+  }
+}
+
+function getGeoNemoLabelText(feature, fields) {
+  const props = feature && feature.properties ? feature.properties : {};
+
+  for (const field of fields || []) {
+    const value = getPropInsensitive(props, field);
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+
+  return "";
+}
+
+function getGeoNemoFeatureLabelKey(feature, labelText, layerId) {
+  const props = feature && feature.properties ? feature.properties : {};
+  const id = getPropInsensitive(props, "SUMMARY_ID") ||
+    getPropInsensitive(props, "Id") ||
+    getPropInsensitive(props, "ID") ||
+    getPropInsensitive(props, "ID_CATASTR") ||
+    labelText;
+
+  return `${layerId}:${String(id).trim().toLowerCase()}:${labelText.toLowerCase()}`;
+}
+
+function createGeoNemoLabelMarker(layer, labelText) {
+  if (!layer || typeof layer.getBounds !== "function") return null;
+
+  const bounds = layer.getBounds();
+  if (!bounds || !bounds.isValid()) return null;
+
+  return L.marker(bounds.getCenter(), {
+    interactive: false,
+    pane: "nemo-panel-labels",
+    icon: L.divIcon({
+      className: "geonemo-panel-label",
+      html: `<span>${escapeHtml(labelText)}</span>`,
+      iconSize: null
+    })
+  });
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function initGeoNemoPanelLayers(mapInstance) {
+  if (!mapInstance || !window.L) return;
+
+  createGeoNemoPanes(mapInstance);
+  nemoPanelLayers = {};
+
+  await Promise.all(NEMO_PANEL_LAYER_CONFIG.map((config) => loadGeoNemoPanelLayer(mapInstance, config)));
+  applyGeoNemoLabelVisibility();
+}
+
+async function loadGeoNemoPanelLayer(mapInstance, config) {
+  const geometryGroup = L.layerGroup([], { pane: "nemo-panel-geometries" }).addTo(mapInstance);
+  const labelGroup = L.layerGroup([], { pane: "nemo-panel-labels" });
+  nemoPanelLayers[config.id] = { config, geometryGroup, labelGroup, labelsVisible: false };
+
+  try {
+    const layerUrl = new URL(config.archivo, window.location.href).toString();
+    const response = await fetch(layerUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`No se pudo cargar ${config.archivo}`);
+
+    const seenLabels = new Set();
+    const geojson = await response.json();
+    L.geoJSON(geojson, {
+      pane: "nemo-panel-geometries",
+      style: () => ({ ...config.style }),
+      onEachFeature: (feature, layer) => {
+        geometryGroup.addLayer(layer);
+
+        const labelText = getGeoNemoLabelText(feature, config.labelFields);
+        if (!labelText) return;
+
+        const labelKey = getGeoNemoFeatureLabelKey(feature, labelText, config.id);
+        if (seenLabels.has(labelKey)) return;
+        seenLabels.add(labelKey);
+
+        const marker = createGeoNemoLabelMarker(layer, labelText);
+        if (marker) labelGroup.addLayer(marker);
+      }
+    });
+
+    console.log("GeoNEMO panel layer loaded:", config.id, layerUrl);
+  } catch (error) {
+    console.warn("GeoNEMO panel layer error:", config.id, error);
+  }
+}
+
+function applyGeoNemoLabelVisibility(layerId = null, visible = null) {
+  Object.values(nemoPanelLayers).forEach((entry) => {
+    if (layerId && entry.config.id !== layerId) return;
+
+    const shouldShow = visible === null ? entry.labelsVisible : visible;
+    entry.labelsVisible = shouldShow;
+
+    if (shouldShow && !map.hasLayer(entry.labelGroup)) {
+      entry.labelGroup.addTo(map);
+    }
+
+    if (!shouldShow && map.hasLayer(entry.labelGroup)) {
+      map.removeLayer(entry.labelGroup);
+    }
+  });
+
+  const entries = Object.values(nemoPanelLayers);
+  nemoLabelsVisible = entries.length > 0 && entries.every((entry) => entry.labelsVisible);
+  syncGeoNemoLabelControls();
+}
+
+function syncGeoNemoLabelControls() {
+  NEMO_PANEL_LAYER_CONFIG.forEach((config) => {
+    const checkbox = document.querySelector(`[data-nemo-label-toggle="${config.id}"]`);
+    if (!checkbox) return;
+    checkbox.checked = Boolean(nemoPanelLayers[config.id] && nemoPanelLayers[config.id].labelsVisible);
+  });
+
+  syncGeoNemoMobileLabelToggle();
+}
+
+function initGeoNemoDesktopLabelControls() {
+  document.querySelectorAll("[data-nemo-label-toggle]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      applyGeoNemoLabelVisibility(checkbox.dataset.nemoLabelToggle, checkbox.checked);
+    });
+  });
+}
+
 // GEOFACTORY SELECTOR REGIÓN
 // CARGA regiones.json
 async function cargarRegionesSelector() {
@@ -822,8 +1001,11 @@ function initGeoNemoMobileLabelToggle() {
   if (!mobileToggle) return;
 
   mobileToggle.addEventListener("click", () => {
-    nemoLabelsVisible = !nemoLabelsVisible;
-    syncGeoNemoMobileLabelToggle();
+    const nextVisible = !nemoLabelsVisible;
+    NEMO_PANEL_LAYER_CONFIG.forEach((config) => {
+      if (nemoPanelLayers[config.id]) nemoPanelLayers[config.id].labelsVisible = nextVisible;
+    });
+    applyGeoNemoLabelVisibility(null, nextVisible);
   });
   syncGeoNemoMobileLabelToggle();
 }
@@ -918,6 +1100,8 @@ function initGeoNemoMobileLabelToggle() {
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
+      if (getInitialViewportFromUrl()) return;
+
       const config = await loadModalConfig();
       const modalIntro = config && config.modalIntro;
       if (!modalIntro || modalIntro.activo !== true || localStorageHas(modalIntro.storageKey)) return;
