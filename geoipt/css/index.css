@@ -1357,3 +1357,95 @@ body,
 
   .mobile-layer-toggle-text { display: none !important; }
 }
+
+
+/* Mobile map control refinements: master label eye + separated base-map toggle. */
+.mobile-layer-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  line-height: 0;
+}
+
+.mobile-layer-toggle-svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+@media (max-width: 768px) {
+  #territorial-panel,
+  .territorial-panel,
+  .floating-panel,
+  #territorial-panel .panel-layer-controls,
+  #territorial-panel .panel-toggle-list {
+    display: none !important;
+  }
+
+  .leaflet-control-zoom {
+    display: none !important;
+  }
+
+  .map-toggle,
+  #mobile-map-controls .map-toggle {
+    top: auto !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    bottom: max(58px, calc(env(safe-area-inset-bottom) + 42px)) !important;
+    z-index: 1700 !important;
+    padding: 5px !important;
+    background: rgba(15, 23, 42, 0.86) !important;
+    border: 1px solid rgba(255, 255, 255, 0.72) !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.32) !important;
+  }
+
+  .map-toggle-btn {
+    min-width: 44px;
+    min-height: 34px;
+    font-weight: 800;
+  }
+
+  #btn-my-location,
+  #mobile-map-controls #btn-my-location,
+  .mobile-layer-toggle,
+  #mobile-layer-toggle {
+    right: max(12px, env(safe-area-inset-right)) !important;
+    left: auto !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    color: #1e293b !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2) !important;
+  }
+
+  #btn-my-location,
+  #mobile-map-controls #btn-my-location {
+    top: 64px !important;
+    z-index: 1700 !important;
+  }
+
+  .mobile-layer-toggle,
+  #mobile-layer-toggle {
+    top: 116px !important;
+    z-index: 1700 !important;
+    padding: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .mobile-layer-toggle.is-active,
+  #mobile-layer-toggle.is-active,
+  .mobile-layer-toggle.is-inactive,
+  #mobile-layer-toggle.is-inactive {
+    background: #ffffff !important;
+    color: #1e293b !important;
+  }
+
+  .mobile-layer-toggle-text {
+    display: none !important;
+  }
+}

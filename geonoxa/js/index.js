@@ -352,6 +352,14 @@ function areAllGeoNoxaLabelsVisible() {
   return Object.keys(noxaPanelLayers).every((layerKey) => noxaPanelLayers[layerKey].labelsVisible === true);
 }
 
+
+function getMobileLabelEyeIcon(isVisible) {
+  if (isVisible) {
+    return `<svg class="mobile-layer-toggle-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.9"/></svg>`;
+  }
+  return `<svg class="mobile-layer-toggle-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M2.5 12s3.5-6 9.5-6c2.1 0 3.9.72 5.36 1.7M21.5 12s-3.5 6-9.5 6c-2.1 0-3.9-.72-5.36-1.7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.8 9.8A3 3 0 0 1 14.2 14.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>`;
+}
+
 function syncGeoNoxaMobileLabelToggle() {
   const mobileToggle = document.getElementById("mobile-layer-toggle");
   if (!mobileToggle) return;
@@ -367,7 +375,7 @@ function syncGeoNoxaMobileLabelToggle() {
   mobileToggle.setAttribute("title", label);
 
   const icon = mobileToggle.querySelector(".mobile-layer-toggle-icon");
-  if (icon) icon.textContent = allVisible ? "👁️" : "🙈";
+  if (icon) icon.innerHTML = getMobileLabelEyeIcon(allVisible);
 }
 
 function initGeoNoxaMobileLabelToggle() {
