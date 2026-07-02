@@ -544,3 +544,94 @@ body,
     display: none !important;
   }
 }
+
+/* Mobile Cross Access visibility guard: keep the GeoX links reserved above the map. */
+@media (max-width: 768px) {
+  :root {
+    --mobile-crossbar-height: 40px;
+    --mobile-crossbar-gap: 12px;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+
+  #app {
+    height: 100%;
+  }
+
+  #main-layout {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  #map-container {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - var(--mobile-crossbar-height)) !important;
+    overflow: hidden !important;
+  }
+
+  #map {
+    inset: 0 0 0 0 !important;
+  }
+
+  #main-footer,
+  .portal-footer,
+  .footer,
+  .bottom-nav,
+  .geox-footer {
+    position: sticky !important;
+    bottom: env(safe-area-inset-bottom) !important;
+    z-index: 2600 !important;
+    flex: 0 0 var(--mobile-crossbar-height) !important;
+    width: 100% !important;
+    min-height: var(--mobile-crossbar-height) !important;
+    height: var(--mobile-crossbar-height) !important;
+    padding: 0 max(10px, env(safe-area-inset-right)) 0 max(10px, env(safe-area-inset-left)) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    box-shadow: 0 -8px 22px rgba(15, 23, 42, 0.22) !important;
+  }
+
+  #main-footer a,
+  .portal-footer a,
+  .bottom-nav a,
+  .geox-footer a {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    padding: 0 2px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .map-toggle,
+  #mobile-map-controls .map-toggle {
+    top: auto !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    bottom: calc(var(--mobile-crossbar-height) + var(--mobile-crossbar-gap)) !important;
+    z-index: 1700 !important;
+  }
+
+  .leaflet-control-attribution {
+    margin-bottom: calc(var(--mobile-crossbar-height) + 4px) !important;
+    max-width: calc(100vw - 130px) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+}
