@@ -660,3 +660,16 @@ body,
   text-shadow: 0 1px 0 #fff;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
 }
+
+/* GeoNEMO homologates GeoIPT label-panel readability and basemap contrast. */
+#map-container.geonemo-basemap-osm .geonemo-panel-label,
+#map-container.geonemo-basemap-osm .geonemo-panel-label span {
+  color: #39ff14 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.95), 0 -1px 2px rgba(0,0,0,0.95), 1px 0 2px rgba(0,0,0,0.95), -1px 0 2px rgba(0,0,0,0.95) !important;
+}
+
+#map-container.geonemo-basemap-sat .geonemo-panel-label,
+#map-container.geonemo-basemap-sat .geonemo-panel-label span {
+  color: #fff200 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.95), 0 -1px 2px rgba(0,0,0,0.95), 1px 0 2px rgba(0,0,0,0.95), -1px 0 2px rgba(0,0,0,0.95) !important;
+}
