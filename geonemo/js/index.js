@@ -15,7 +15,7 @@ const NEMO_LAYER_STYLE_BASE = {
 const SNASPE_RASTER_METADATA_URL = "./capas_panel/snaspe_raster/metadata.json";
 const SNASPE_RASTER_FOLDER_URL = "./capas_panel/snaspe_raster/";
 const SNASPE_RASTER_GEOTIFF_EXTENSIONS = new Set([".tif", ".tiff"]);
-const SNASPE_RASTER_OPACITY = 0.72;
+const SNASPE_RASTER_OPACITY = 0.5;
 const NEMO_PANEL_LAYER_CONFIG = [
   {
     id: "snaspe",
