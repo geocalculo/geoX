@@ -30,29 +30,18 @@ let evaPanelLabelsVisible = false;
 let evaPanelGeometryLayerGroup = L.layerGroup();
 let evaPanelLabelsLayerGroup = L.layerGroup();
 let evaPanelUpdateTimer = null;
-const LABEL_DENSITY_CONFIG_PATH = "./capas_panel/label_density_config.json";
-const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0, debounceMs: 120 };
-let labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
+const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0 };
 
 async function loadLabelDensityConfig() {
-  labelDensityConfig = window.GeoXSmartLabels
-    ? await window.GeoXSmartLabels.loadSmartLabelConfig(LABEL_DENSITY_CONFIG_PATH)
-    : { ...DEFAULT_LABEL_DENSITY_CONFIG };
-  window.geoxSmartLabelConfig = labelDensityConfig;
+  // Revert Smart Labels density rollout: keep labels independent from JSON config for now.
 }
 
-function getLabelDensityMaxLabels(layerId = null) {
-  const layerConfig = layerId && labelDensityConfig.layers && labelDensityConfig.layers[layerId];
-  const source = layerConfig && typeof layerConfig === "object" ? layerConfig : labelDensityConfig;
-  const value = Number(source.maxLabels ?? source.max_labels);
-  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
+function getLabelDensityMaxLabels() {
+  return DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
 }
 
-function getLabelDensityMinZoom(layerId = null) {
-  const layerConfig = layerId && labelDensityConfig.layers && labelDensityConfig.layers[layerId];
-  const source = layerConfig && typeof layerConfig === "object" ? layerConfig : labelDensityConfig;
-  const value = Number(source.minZoom ?? source.min_zoom);
-  return Number.isFinite(value) ? value : DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
+function getLabelDensityMinZoom() {
+  return DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
 }
 
 async function initGeoEVASummary(mapInstance) {
@@ -792,30 +781,36 @@ function renderEvaProjectsInViewport() {
   const visibleProjects = getEvaProjectsInViewport();
 
   evaPanelGeometryLayerGroup.clearLayers();
+  evaPanelLabelsLayerGroup.clearLayers();
+
+  const labelsAllowed = evaPanelLabelsVisible && map.getZoom() >= getLabelDensityMinZoom("eva_proyectos");
+  const maxLabels = getLabelDensityMaxLabels("eva_proyectos");
+  let labelCount = 0;
 
   visibleProjects.forEach((project) => {
     if (!Number.isFinite(project.lat) || !Number.isFinite(project.lon)) return;
-    L.circleMarker([project.lat, project.lon], getEvaProjectMarkerStyle()).addTo(evaPanelGeometryLayerGroup);
-  });
 
-  const labelsAllowed = evaPanelLabelsVisible;
-  const result = window.GeoXSmartLabels.updateSmartLabels("geoeva_proyectos", visibleProjects, {
-    map,
-    config: labelDensityConfig,
-    labelGroup: evaPanelLabelsLayerGroup,
-    enabled: labelsAllowed,
-    className: "eva-project-label",
-    getLatLng: (project) => L.latLng(project.lat, project.lon),
-    getLabelText: (project) => project.sector,
-    getPriority: (project) => Number(project.inversion_mmusd) || 0
+    L.circleMarker([project.lat, project.lon], getEvaProjectMarkerStyle()).addTo(evaPanelGeometryLayerGroup);
+
+    if (labelsAllowed && labelCount < maxLabels && project.sector && String(project.sector).trim() !== "") {
+      L.marker([project.lat, project.lon], {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: "eva-project-label",
+          html: escapeHtml(String(project.sector).trim()),
+          iconSize: null
+        })
+      }).addTo(evaPanelLabelsLayerGroup);
+      labelCount += 1;
+    }
   });
 
   console.log("[GeoEVA capas_panel] viewport render", {
     totalFeatures: evaPanelRawFeatures.length,
     visiblesViewport: visibleProjects.length,
     zoom: map.getZoom(),
-    labels: labelsAllowed,
-    smartLabels: result
+    labels: labelsAllowed
   });
 }
 

@@ -12,32 +12,18 @@ const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
 let noxaPanelUpdateTimer = null;
-const LABEL_DENSITY_CONFIG_PATH = "./capas_panel/label_density_config.json";
-const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0, debounceMs: 120 };
-let labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
+const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0 };
 
 async function loadLabelDensityConfig() {
-  labelDensityConfig = window.GeoXSmartLabels
-    ? await window.GeoXSmartLabels.loadSmartLabelConfig(LABEL_DENSITY_CONFIG_PATH)
-    : { ...DEFAULT_LABEL_DENSITY_CONFIG };
-  window.geoxSmartLabelConfig = labelDensityConfig;
+  // Revert Smart Labels density rollout: keep labels independent from JSON config for now.
 }
 
-function getLabelDensitySource(layerId) {
-  const layerConfig = layerId && labelDensityConfig.layers && labelDensityConfig.layers[layerId];
-  return layerConfig && typeof layerConfig === "object" ? layerConfig : labelDensityConfig;
+function getLabelDensityMaxLabels() {
+  return DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
 }
 
-function getLabelDensityMaxLabels(layerId = null) {
-  const source = getLabelDensitySource(layerId);
-  const value = Number(source.maxLabels ?? source.max_labels);
-  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
-}
-
-function getLabelDensityMinZoom(layerId = null) {
-  const source = getLabelDensitySource(layerId);
-  const value = Number(source.minZoom ?? source.min_zoom);
-  return Number.isFinite(value) ? value : DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
+function getLabelDensityMinZoom() {
+  return DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
 }
 
 const noxaPanelLayers = {
@@ -550,47 +536,65 @@ function featureIntersectsViewport(feature) {
   return false;
 }
 
-function getFeatureLabelLatLng(feature) {
-  try {
-    const layer = L.geoJSON(feature);
-    const inner = layer.getLayers?.()[0];
-    if (inner && typeof inner.getLatLng === "function") return inner.getLatLng();
-    const bounds = layer.getBounds?.();
-    if (bounds && bounds.isValid && bounds.isValid()) return bounds.getCenter();
-  } catch (error) {
-    return null;
-  }
-  return null;
-}
-
 function renderGeoNoxaPanelLayer(layerKey) {
   const cfg = noxaPanelLayers[layerKey];
   if (!cfg) return;
 
   cfg.geometryLayerGroup.clearLayers();
+  cfg.labelsLayerGroup.clearLayers();
+
   const visibleFeatures = cfg.rawFeatures.filter(featureIntersectsViewport);
+  const showLabels = cfg.labelsVisible && map.getZoom() >= getLabelDensityMinZoom(layerKey);
+  const maxLabels = getLabelDensityMaxLabels(layerKey);
+  let labelCount = 0;
 
   visibleFeatures.forEach((feature) => {
     if (!hasValidGeoNoxaGeometry(feature)) return;
-    L.geoJSON(feature, {
+
+    const geoLayer = L.geoJSON(feature, {
       style: getGeoNoxaPanelPolygonStyle,
       pointToLayer: function (_feature, latlng) {
         if (!Number.isFinite(latlng?.lat) || !Number.isFinite(latlng?.lng)) return null;
-        const style = getGeoNoxaPanelPolygonStyle();
-        return L.circleMarker(latlng, { radius: 5, color: style.color, weight: 2, opacity: 1, fillColor: style.color, fillOpacity: 0.85 });
-      }
-    }).addTo(cfg.geometryLayerGroup);
-  });
 
-  const smartLayerId = layerKey === "relaves" ? "geonoxa_relaves" : "geonoxa_zonas";
-  const result = window.GeoXSmartLabels.updateSmartLabels(smartLayerId, visibleFeatures, {
-    map,
-    config: labelDensityConfig,
-    labelGroup: cfg.labelsLayerGroup,
-    enabled: cfg.labelsVisible,
-    className: "noxa-panel-label",
-    getLatLng: (feature) => getFeatureLabelLatLng(feature),
-    getLabelText: (feature) => layerKey === "relaves" ? String(feature.properties?.recurso || "").trim() : getGeoNoxaZonaLabel(feature.properties || {})
+        const style = getGeoNoxaPanelPolygonStyle();
+
+        return L.circleMarker(latlng, {
+          radius: 5,
+          color: style.color,
+          weight: 2,
+          opacity: 1,
+          fillColor: style.color,
+          fillOpacity: 0.85
+        });
+      }
+    });
+
+    geoLayer.addTo(cfg.geometryLayerGroup);
+
+    if (!showLabels) return;
+
+    let labelText = "";
+    if (layerKey === "relaves") labelText = String(feature.properties?.recurso || "").trim();
+    if (layerKey === "zonas") labelText = getGeoNoxaZonaLabel(feature.properties || {});
+    if (!labelText) return;
+
+    geoLayer.eachLayer((layer) => {
+      const latlng = typeof layer.getLatLng === "function"
+        ? layer.getLatLng()
+        : (typeof layer.getBounds === "function" && layer.getBounds()?.isValid?.() ? layer.getBounds().getCenter() : null);
+      if (!latlng || labelCount >= maxLabels) return;
+
+      L.marker(latlng, {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: "noxa-panel-label",
+          html: escapeHtml(labelText),
+          iconSize: null
+        })
+      }).addTo(cfg.labelsLayerGroup);
+      labelCount += 1;
+    });
   });
 
   console.log("[GeoNOXA capas_panel] render", {
@@ -599,8 +603,7 @@ function renderGeoNoxaPanelLayer(layerKey) {
     visiblesViewport: visibleFeatures.length,
     basemap: currentBasemap,
     zoom: map.getZoom(),
-    labels: cfg.labelsVisible,
-    smartLabels: result
+    labels: showLabels
   });
 }
 

@@ -562,7 +562,6 @@ function switchBaseMap(type) {
 
   setMapToggleActive(type);
   actualizarEstiloPerimetrosIptVisibles();
-  scheduleTerritorialLabelUpdate();
 }
 
 // GEOFACTORY TOSEARCH
@@ -1532,13 +1531,11 @@ const panelCapasCargadas = new Map();
 const panelGeojsonCargados = new Map();
 let territorialLabelsLayer = null;
 let territorialLabelsUpdateTimer = null;
-const LABEL_DENSITY_CONFIG_PATH = "./capas_panel/label_density_config.json";
 const DEFAULT_LABEL_DENSITY_CONFIG = {
   maxLabels: Number.POSITIVE_INFINITY,
   minZoom: 0,
   debounceMs: 200
 };
-let labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
 const TERRITORIAL_LABELS_PANE = "territorial-labels-pane";
 const TERRITORIAL_LABEL_FIELDS = ["LOC", "LOCALIDAD", "SECTOR", "COMUNA"];
 const panelCapasEnCarga = new Set();
@@ -1826,25 +1823,19 @@ function createTerritorialLabelMarker(labelText, latlng) {
 }
 
 async function cargarLabelDensityConfig() {
-  labelDensityConfig = window.GeoXSmartLabels
-    ? await window.GeoXSmartLabels.loadSmartLabelConfig(LABEL_DENSITY_CONFIG_PATH)
-    : { ...DEFAULT_LABEL_DENSITY_CONFIG };
-  window.geoxSmartLabelConfig = labelDensityConfig;
+  // Revert Smart Labels density rollout: keep labels independent from JSON config for now.
 }
 
 function getLabelDensityMaxLabels() {
-  const value = Number(labelDensityConfig.maxLabels ?? labelDensityConfig.max_labels);
-  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
+  return DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
 }
 
 function getLabelDensityMinZoom() {
-  const value = Number(labelDensityConfig.minZoom ?? labelDensityConfig.min_zoom);
-  return Number.isFinite(value) ? value : DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
+  return DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
 }
 
 function getLabelDensityDebounceMs() {
-  const value = Number(labelDensityConfig.debounceMs ?? labelDensityConfig.debounce_ms);
-  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_LABEL_DENSITY_CONFIG.debounceMs;
+  return DEFAULT_LABEL_DENSITY_CONFIG.debounceMs;
 }
 
 function updateTerritorialLabels() {
@@ -1854,34 +1845,35 @@ function updateTerritorialLabels() {
   territorialLabelsLayer.clearLayers();
 
   if (!panelPerimetrosActivo) return;
+  if (map.getZoom() < getLabelDensityMinZoom()) return;
 
+  const maxLabels = getLabelDensityMaxLabels();
   const mapBounds = map.getBounds();
-  const candidates = [];
+  let labelCount = 0;
 
   for (const item of panelCapasListado) {
+    if (labelCount >= maxLabels) break;
+
     const panelLayer = panelCapasCargadas.get(item.id);
     if (!panelLayer || !map.hasLayer(panelLayer)) continue;
 
     panelLayer.eachLayer((featureLayer) => {
+      if (labelCount >= maxLabels) return;
       if (!layerIntersectsViewport(featureLayer, mapBounds)) return;
+
       const labelText = getFeatureLabelText(featureLayer.feature);
       if (!labelText) return;
+
       const latlng = getVisibleLabelLatLng(featureLayer, map);
       if (!latlng || !mapBounds.contains(latlng)) return;
-      candidates.push({ feature: featureLayer.feature, labelText, latlng });
+
+      const marker = createTerritorialLabelMarker(labelText, latlng);
+      if (!marker) return;
+
+      marker.addTo(territorialLabelsLayer);
+      labelCount += 1;
     });
   }
-
-  window.GeoXSmartLabels.updateSmartLabels("geoipt_prc", candidates, {
-    map,
-    config: labelDensityConfig,
-    labelGroup: territorialLabelsLayer,
-    enabled: panelPerimetrosActivo,
-    pane: TERRITORIAL_LABELS_PANE,
-    className: "territorial-label",
-    getLatLng: (item) => item.latlng,
-    getLabelText: (item) => item.labelText
-  });
 }
 
 function scheduleTerritorialLabelUpdate() {
