@@ -31,19 +31,14 @@ let evaPanelGeometryLayerGroup = L.layerGroup();
 let evaPanelLabelsLayerGroup = L.layerGroup();
 let evaPanelUpdateTimer = null;
 const LABEL_DENSITY_CONFIG_PATH = "./capas_panel/label_density_config.json";
-const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0 };
+const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0, debounceMs: 120 };
 let labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
 
 async function loadLabelDensityConfig() {
-  try {
-    const response = await fetch(LABEL_DENSITY_CONFIG_PATH, { cache: "no-store" });
-    if (!response.ok) throw new Error(`No se pudo cargar ${LABEL_DENSITY_CONFIG_PATH}`);
-    const data = await response.json();
-    labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG, ...(data && typeof data === "object" ? data : {}) };
-  } catch (error) {
-    labelDensityConfig = { ...DEFAULT_LABEL_DENSITY_CONFIG };
-    console.info("Smart Labels: usando densidad interna por defecto.", error);
-  }
+  labelDensityConfig = window.GeoXSmartLabels
+    ? await window.GeoXSmartLabels.loadSmartLabelConfig(LABEL_DENSITY_CONFIG_PATH)
+    : { ...DEFAULT_LABEL_DENSITY_CONFIG };
+  window.geoxSmartLabelConfig = labelDensityConfig;
 }
 
 function getLabelDensityMaxLabels(layerId = null) {
@@ -797,36 +792,30 @@ function renderEvaProjectsInViewport() {
   const visibleProjects = getEvaProjectsInViewport();
 
   evaPanelGeometryLayerGroup.clearLayers();
-  evaPanelLabelsLayerGroup.clearLayers();
-
-  const labelsAllowed = evaPanelLabelsVisible && map.getZoom() >= getLabelDensityMinZoom("eva_proyectos");
-  const maxLabels = getLabelDensityMaxLabels("eva_proyectos");
-  let labelCount = 0;
 
   visibleProjects.forEach((project) => {
     if (!Number.isFinite(project.lat) || !Number.isFinite(project.lon)) return;
-
     L.circleMarker([project.lat, project.lon], getEvaProjectMarkerStyle()).addTo(evaPanelGeometryLayerGroup);
+  });
 
-    if (labelsAllowed && labelCount < maxLabels && project.sector && String(project.sector).trim() !== "") {
-      L.marker([project.lat, project.lon], {
-        interactive: false,
-        keyboard: false,
-        icon: L.divIcon({
-          className: "eva-project-label",
-          html: escapeHtml(String(project.sector).trim()),
-          iconSize: null
-        })
-      }).addTo(evaPanelLabelsLayerGroup);
-      labelCount += 1;
-    }
+  const labelsAllowed = evaPanelLabelsVisible;
+  const result = window.GeoXSmartLabels.updateSmartLabels("geoeva_proyectos", visibleProjects, {
+    map,
+    config: labelDensityConfig,
+    labelGroup: evaPanelLabelsLayerGroup,
+    enabled: labelsAllowed,
+    className: "eva-project-label",
+    getLatLng: (project) => L.latLng(project.lat, project.lon),
+    getLabelText: (project) => project.sector,
+    getPriority: (project) => Number(project.inversion_mmusd) || 0
   });
 
   console.log("[GeoEVA capas_panel] viewport render", {
     totalFeatures: evaPanelRawFeatures.length,
     visiblesViewport: visibleProjects.length,
     zoom: map.getZoom(),
-    labels: labelsAllowed
+    labels: labelsAllowed,
+    smartLabels: result
   });
 }
 
