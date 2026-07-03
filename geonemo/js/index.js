@@ -20,8 +20,12 @@ const NEMO_PANEL_LAYER_CONFIG = [
   {
     id: "snaspe",
     visibleName: "SNASPE",
-    archivo: "./capas_panel/nemo_snaspe_sub10k.geojson",
+    archivos: [
+      "./capas_panel/nemo_snaspe_sub10k.geojson",
+      "./capas_panel/snaspe_XL_from_raster.geojson"
+    ],
     labelFields: ["NOMBRE_TOT", "NOMBRE_UNI"],
+    labelGroupFields: ["ID_CATASTR", "NOMBRE_TOT"],
     style: { ...NEMO_LAYER_STYLE_BASE }
   },
   {
@@ -481,7 +485,49 @@ function getFeatureLatLon(feature) {
     return { lat, lon };
   }
 
+  const bounds = getFeatureCoordinateBounds(feature);
+  if (bounds) {
+    return {
+      lat: (bounds.minLat + bounds.maxLat) / 2,
+      lon: (bounds.minLon + bounds.maxLon) / 2
+    };
+  }
+
   return null;
+}
+
+function getFeatureCoordinateBounds(feature) {
+  const coordinates = feature && feature.geometry && feature.geometry.coordinates;
+  if (!Array.isArray(coordinates)) return null;
+
+  const bounds = {
+    minLat: Number.POSITIVE_INFINITY,
+    maxLat: Number.NEGATIVE_INFINITY,
+    minLon: Number.POSITIVE_INFINITY,
+    maxLon: Number.NEGATIVE_INFINITY
+  };
+
+  const visit = (coords) => {
+    if (!Array.isArray(coords)) return;
+    if (coords.length >= 2 && typeof coords[0] === "number" && typeof coords[1] === "number") {
+      const lon = Number(coords[0]);
+      const lat = Number(coords[1]);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        bounds.minLat = Math.min(bounds.minLat, lat);
+        bounds.maxLat = Math.max(bounds.maxLat, lat);
+        bounds.minLon = Math.min(bounds.minLon, lon);
+        bounds.maxLon = Math.max(bounds.maxLon, lon);
+      }
+      return;
+    }
+    coords.forEach(visit);
+  };
+
+  visit(coordinates);
+
+  return [bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon].every(Number.isFinite)
+    ? bounds
+    : null;
 }
 
 function getSummaryFeaturesInViewport(mapInstance, layerIds) {
@@ -612,6 +658,46 @@ function sumSummaryField(features, fieldName) {
   }, 0);
 }
 
+function getSummaryDistinctKey(feature, indicador = {}) {
+  const props = feature && feature.properties ? feature.properties : {};
+  const candidateFields = [
+    indicador.campo_distinct,
+    "ID_CATASTR",
+    "NOMBRE_TOT",
+    "SUMMARY_ID",
+    "nombre"
+  ].filter(Boolean);
+
+  for (const field of candidateFields) {
+    const value = getPropInsensitive(props, field);
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return String(value).trim().toLowerCase();
+    }
+  }
+
+  return null;
+}
+
+function getDistinctSummaryFeatures(features, indicador = {}) {
+  if (!indicador.distinct && !indicador.distinctSum) return features;
+
+  const seen = new Set();
+  const unique = [];
+
+  features.forEach((feature) => {
+    const key = getSummaryDistinctKey(feature, indicador);
+    if (!key) {
+      unique.push(feature);
+      return;
+    }
+    if (seen.has(key)) return;
+    seen.add(key);
+    unique.push(feature);
+  });
+
+  return unique;
+}
+
 function getSummarySumFields(indicador) {
   const fields = [];
 
@@ -649,22 +735,23 @@ function calculateSummaryIndicator(indicador, features) {
   }
 
   if (operacion === "sum") {
+    const sumFeatures = getDistinctSummaryFeatures(features, indicador);
     let selectedField = indicador.campo;
-    let total = selectedField ? sumSummaryField(features, selectedField) : 0;
+    let total = selectedField ? sumSummaryField(sumFeatures, selectedField) : 0;
     const configuredFieldExists = selectedField
-      ? features.some((feature) => hasSummaryField(feature, selectedField))
+      ? sumFeatures.some((feature) => hasSummaryField(feature, selectedField))
       : false;
 
     if (!configuredFieldExists || total === 0) {
       const fallbackField = getSummarySumFields(indicador).find((fieldName) => {
         if (fieldName === selectedField) return false;
-        if (!features.some((feature) => hasSummaryField(feature, fieldName))) return false;
-        return sumSummaryField(features, fieldName) !== 0;
+        if (!sumFeatures.some((feature) => hasSummaryField(feature, fieldName))) return false;
+        return sumSummaryField(sumFeatures, fieldName) !== 0;
       });
 
       if (fallbackField) {
         selectedField = fallbackField;
-        total = sumSummaryField(features, fallbackField);
+        total = sumSummaryField(sumFeatures, fallbackField);
       }
     }
 
@@ -793,14 +880,20 @@ function getGeoNemoLabelText(feature, fields) {
 }
 
 function getGeoNemoFeatureLabelKey(feature, labelText, layerId) {
+  const config = NEMO_PANEL_LAYER_CONFIG.find((layerConfig) => layerConfig.id === layerId) || {};
   const props = feature && feature.properties ? feature.properties : {};
-  const id = getPropInsensitive(props, "SUMMARY_ID") ||
-    getPropInsensitive(props, "Id") ||
-    getPropInsensitive(props, "ID") ||
-    getPropInsensitive(props, "ID_CATASTR") ||
+  const candidateFields = [
+    ...(config.labelGroupFields || []),
+    "SUMMARY_ID",
+    "Id",
+    "ID"
+  ];
+  const id = candidateFields
+    .map((field) => getPropInsensitive(props, field))
+    .find((value) => value !== null && value !== undefined && String(value).trim() !== "") ||
     labelText;
 
-  return `${layerId}:${String(id).trim().toLowerCase()}:${labelText.toLowerCase()}`;
+  return `${layerId}:${String(id).trim().toLowerCase()}`;
 }
 
 function createGeoNemoLabelMarker(layer, labelText) {
@@ -818,6 +911,76 @@ function createGeoNemoLabelMarker(layer, labelText) {
       iconSize: null
     })
   });
+}
+
+function getGeoNemoLayerBounds(layer) {
+  if (!layer || typeof layer.getBounds !== "function") return null;
+  const bounds = layer.getBounds();
+  return bounds && bounds.isValid() ? bounds : null;
+}
+
+function collectGeoNemoLabelRecord(recordsByKey, feature, layer, config) {
+  const labelText = getGeoNemoLabelText(feature, config.labelFields);
+  if (!labelText) return;
+
+  const labelKey = getGeoNemoFeatureLabelKey(feature, labelText, config.id);
+  if (!labelKey) return;
+
+  const bounds = getGeoNemoLayerBounds(layer);
+  if (!bounds) return;
+
+  const current = recordsByKey.get(labelKey);
+  if (current) {
+    current.bounds.extend(bounds);
+    return;
+  }
+
+  recordsByKey.set(labelKey, {
+    labelText,
+    bounds: L.latLngBounds(bounds.getSouthWest(), bounds.getNorthEast())
+  });
+}
+
+function addGroupedGeoNemoLabels(recordsByKey, labelGroup, config) {
+  const maxLabels = getLabelDensityMaxLabels(config.id);
+  let labelCount = 0;
+
+  recordsByKey.forEach((record) => {
+    if (!record || !record.labelText || labelCount >= maxLabels) return;
+    const marker = createGeoNemoLabelMarkerAtLatLng(record.bounds.getCenter(), record.labelText);
+    if (!marker) return;
+    labelGroup.addLayer(marker);
+    labelCount += 1;
+  });
+}
+
+function bindGeoNemoFeaturePopup(layer, feature, config) {
+  if (!layer || typeof layer.bindPopup !== "function" || config.id !== "snaspe") return;
+  const props = feature && feature.properties ? feature.properties : {};
+  const fields = [
+    "NOMBRE_TOT",
+    "NOMBRE_UNI",
+    "CATEGORIA",
+    "REGION",
+    "TERRITORIO",
+    "SUPERFICIE",
+    "DECRETO",
+    "EMISOR_DEC",
+    "NumVerts",
+    "_src_fid",
+    "_part_id",
+    "_verts_in",
+    "_verts_out",
+    "_source"
+  ];
+  const title = getGeoNemoLabelText(feature, config.labelFields) || config.visibleName;
+  const rows = fields.map((field) => {
+    const value = getPropInsensitive(props, field);
+    if (value === null || value === undefined || String(value).trim() === "") return "";
+    return `<tr><th>${escapeHtml(field)}</th><td>${escapeHtml(value)}</td></tr>`;
+  }).filter(Boolean).join("");
+
+  layer.bindPopup(`<strong>${escapeHtml(title)}</strong><table>${rows}</table>`);
 }
 
 
@@ -1084,50 +1247,42 @@ async function initGeoNemoPanelLayers(mapInstance) {
   nemoPanelLayers = {};
 
   await Promise.all(NEMO_PANEL_LAYER_CONFIG.map((config) => loadGeoNemoPanelLayer(mapInstance, config)));
-  await loadSnaspeRasterFolder(mapInstance);
   applyGeoNemoLabelVisibility();
 }
 
 async function loadGeoNemoPanelLayer(mapInstance, config) {
   const geometryGroup = L.layerGroup([], { pane: "nemo-panel-geometries" }).addTo(mapInstance);
   const labelGroup = L.layerGroup([], { pane: "nemo-panel-labels" });
+  const labelRecordsByKey = new Map();
   nemoPanelLayers[config.id] = { config, geometryGroup, labelGroup, labelsVisible: false, rasterRecords: [] };
 
-  try {
-    const layerUrl = new URL(config.archivo, window.location.href).toString();
-    const response = await fetch(layerUrl, { cache: "no-store" });
-    if (!response.ok) throw new Error(`No se pudo cargar ${config.archivo}`);
+  const archivos = Array.isArray(config.archivos) ? config.archivos : [config.archivo].filter(Boolean);
 
-    const seenLabels = new Set();
-    const maxLabels = getLabelDensityMaxLabels(config.id);
-    let labelCount = 0;
-    const geojson = await response.json();
-    L.geoJSON(geojson, {
-      pane: "nemo-panel-geometries",
-      style: () => getGeoNemoLayerStyle(config),
-      pointToLayer: (feature, latlng) => L.circleMarker(latlng, getGeoNemoLayerStyle(config)),
-      onEachFeature: (feature, layer) => {
-        geometryGroup.addLayer(layer);
+  await Promise.all(archivos.map(async (archivo) => {
+    try {
+      const layerUrl = new URL(archivo, window.location.href).toString();
+      const response = await fetch(layerUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`No se pudo cargar ${archivo}`);
 
-        const labelText = getGeoNemoLabelText(feature, config.labelFields);
-        if (!labelText || labelCount >= maxLabels) return;
-
-        const labelKey = getGeoNemoFeatureLabelKey(feature, labelText, config.id);
-        if (seenLabels.has(labelKey)) return;
-        seenLabels.add(labelKey);
-
-        const marker = createGeoNemoLabelMarker(layer, labelText);
-        if (marker) {
-          labelGroup.addLayer(marker);
-          labelCount += 1;
+      const geojson = await response.json();
+      L.geoJSON(geojson, {
+        pane: "nemo-panel-geometries",
+        style: () => getGeoNemoLayerStyle(config),
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, getGeoNemoLayerStyle(config)),
+        onEachFeature: (feature, layer) => {
+          geometryGroup.addLayer(layer);
+          bindGeoNemoFeaturePopup(layer, feature, config);
+          collectGeoNemoLabelRecord(labelRecordsByKey, feature, layer, config);
         }
-      }
-    });
+      });
 
-    console.log("GeoNEMO panel layer loaded:", config.id, layerUrl);
-  } catch (error) {
-    console.warn("GeoNEMO panel layer error:", config.id, error);
-  }
+      console.log("GeoNEMO panel layer loaded:", config.id, layerUrl);
+    } catch (error) {
+      console.warn("GeoNEMO panel layer error:", config.id, archivo, error);
+    }
+  }));
+
+  addGroupedGeoNemoLabels(labelRecordsByKey, labelGroup, config);
 }
 
 function applyGeoNemoLabelVisibility(layerId = null, visible = null) {
