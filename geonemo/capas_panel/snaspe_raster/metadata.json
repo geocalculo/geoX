@@ -1,0 +1,86 @@
+{
+    "poligono_0.tif": {
+        "fid": 0,
+        "archivo": "poligono_0.tif",
+        "ruta": "C:/GFactory2026/tools/geonemo\\Rasters_Exportados\\poligono_0.tif",
+        "color_rgba": [
+            77,
+            175,
+            74,
+            180
+        ],
+        "atributos": {
+            "fid": 8.0,
+            "SUPERFICIE": "1097975",
+            "NOMBRE_TOT": "Reserva Nacional Las Guaitecas",
+            "ID_CATASTR": "1345896",
+            "CATEGORIA": "Reserva Nacional",
+            "NOMBRE_UNI": "Las Guaitecas",
+            "REGION": "Aysen",
+            "CONDICION": "Regional",
+            "TIPO_DE_PR": "Fiscal",
+            "NUM_PLANO": "XI-1805-CR",
+            "TERRITORIO": "Continente",
+            "DECRETO": "N° 2612 de 1938; N° 536 de 1941; N° 1270 de 1945; N° 47 de 1962; N° 68 de 1980; N° 420 de 1983",
+            "EMISOR_DEC": "Ministerio de Tierras y Colonización; Ministerio de Agricultura; Ministerio de Bienes Nacionales",
+            "LINK": null,
+            "NumVerts": 282510
+        }
+    },
+    "poligono_1.tif": {
+        "fid": 1,
+        "archivo": "poligono_1.tif",
+        "ruta": "C:/GFactory2026/tools/geonemo\\Rasters_Exportados\\poligono_1.tif",
+        "color_rgba": [
+            37,
+            165,
+            191,
+            180
+        ],
+        "atributos": {
+            "fid": 9.0,
+            "SUPERFICIE": "1097975",
+            "NOMBRE_TOT": "Reserva Nacional Las Guaitecas",
+            "ID_CATASTR": "1345896",
+            "CATEGORIA": "Reserva Nacional",
+            "NOMBRE_UNI": "Las Guaitecas",
+            "REGION": "Aysen",
+            "CONDICION": "Regional",
+            "TIPO_DE_PR": "Fiscal",
+            "NUM_PLANO": "XI-1805-CR",
+            "TERRITORIO": "Mar",
+            "DECRETO": "N° 2612 de 1938; N° 536 de 1941; N° 1270 de 1945; N° 47 de 1962; N° 68 de 1980; N° 420 de 1983",
+            "EMISOR_DEC": "Ministerio de Tierras y Colonización; Ministerio de Agricultura; Ministerio de Bienes Nacionales",
+            "LINK": null,
+            "NumVerts": 282835
+        }
+    },
+    "poligono_2.tif": {
+        "fid": 2,
+        "archivo": "poligono_2.tif",
+        "ruta": "C:/GFactory2026/tools/geonemo\\Rasters_Exportados\\poligono_2.tif",
+        "color_rgba": [
+            77,
+            175,
+            74,
+            180
+        ],
+        "atributos": {
+            "fid": 74.0,
+            "SUPERFICIE": "105499,78",
+            "NOMBRE_TOT": "Parque Nacional Melimoyu",
+            "ID_CATASTR": "1345957",
+            "CATEGORIA": "Parque Nacional",
+            "NOMBRE_UNI": "Melimoyu",
+            "REGION": "Aysen",
+            "CONDICION": "Regional",
+            "TIPO_DE_PR": "Fiscal",
+            "NUM_PLANO": "11202-1617-CR",
+            "TERRITORIO": "Continente",
+            "DECRETO": "N° 5 de 2018",
+            "EMISOR_DEC": "Ministerio de Bienes Nacionales",
+            "LINK": null,
+            "NumVerts": 12395
+        }
+    }
+}
