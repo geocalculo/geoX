@@ -15,7 +15,7 @@ const NEMO_LAYER_STYLE_BASE = {
 const SNASPE_RASTER_METADATA_URL = "./capas_panel/snaspe_raster/metadata.json";
 const SNASPE_RASTER_FOLDER_URL = "./capas_panel/snaspe_raster/";
 const SNASPE_RASTER_GEOTIFF_EXTENSIONS = new Set([".tif", ".tiff"]);
-const SNASPE_RASTER_OPACITY = 0.5;
+const SNASPE_RASTER_OPACITY = 1.0;
 const NEMO_PANEL_LAYER_CONFIG = [
   {
     id: "snaspe",
@@ -892,21 +892,40 @@ function getFileExtension(filename) {
 }
 
 function getSnaspeRasterColor() {
-  return currentBasemap === "sat" ? NEMO_SAT_COLOR : NEMO_OSM_COLOR;
+  return currentBasemap === "sat" ? "rgba(255, 255, 0, 1)" : "rgba(0, 255, 0, 1)";
+}
+
+function getSnaspeRasterNoDataValues(record) {
+  if (!record || !record.georaster) return [];
+
+  const candidates = [
+    record.georaster.noDataValue,
+    record.georaster.nodata,
+    record.georaster.noDataValues
+  ];
+
+  return candidates
+    .flatMap((candidate) => (Array.isArray(candidate) ? candidate : [candidate]))
+    .map((candidate) => Number(candidate))
+    .filter(Number.isFinite);
 }
 
 function getSnaspeRasterPixelColor(values, record) {
   const pixelValues = Array.isArray(values) ? values : [values];
-  const noDataValue = record && record.georaster ? Number(record.georaster.noDataValue) : NaN;
-  const numericValues = pixelValues
-    .map((pixelValue) => Number(pixelValue))
-    .filter(Number.isFinite);
+  const noDataValues = getSnaspeRasterNoDataValues(record);
 
-  if (!numericValues.length) return null;
-  if (numericValues.every((pixelValue) => pixelValue === 0)) return null;
-  if (Number.isFinite(noDataValue) && numericValues.every((pixelValue) => pixelValue === noDataValue)) return null;
+  const hasVisiblePerimeterPixel = pixelValues.some((pixelValue) => {
+    if (pixelValue === null || pixelValue === undefined) return false;
 
-  return getSnaspeRasterColor();
+    const numericValue = Number(pixelValue);
+    if (!Number.isFinite(numericValue)) return false;
+    if (numericValue === 0) return false;
+    if (noDataValues.includes(numericValue)) return false;
+
+    return true;
+  });
+
+  return hasVisiblePerimeterPixel ? getSnaspeRasterColor() : null;
 }
 
 function getSnaspeGeoRasterLayerOptions(record) {
@@ -919,8 +938,15 @@ function getSnaspeGeoRasterLayerOptions(record) {
   };
 }
 
+function encodeSnaspeRasterPath(archivo) {
+  return String(archivo || "")
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
 function getSnaspeRasterUrl(archivo) {
-  return new URL(`${SNASPE_RASTER_FOLDER_URL}${encodeURIComponent(archivo)}`, window.location.href).toString();
+  return new URL(`${SNASPE_RASTER_FOLDER_URL}${encodeSnaspeRasterPath(archivo)}`, window.location.href).toString();
 }
 
 function getSnaspeRasterLabelLatLngFromGeoraster(georaster) {
@@ -945,7 +971,7 @@ function addSnaspeGeoRasterLayer(record, snaspeEntry) {
 
   record.layer = rasterLayer;
   snaspeEntry.geometryGroup.addLayer(rasterLayer);
-  console.log("[GeoNEMO Raster] layer agregado", record.archivo);
+  console.log("[GeoNEMO Raster] perímetro agregado al mapa", record.archivo);
   return rasterLayer;
 }
 
@@ -963,7 +989,7 @@ function rebuildSnaspeRasterLayers() {
 }
 
 async function loadSnaspeGeoTiffRaster(record, snaspeEntry) {
-  console.log(`[GeoNEMO Raster] cargando GeoTIFF: ${record.archivo}`);
+  console.log(`[GeoNEMO Raster] cargando perímetro raster: ${record.archivo}`);
 
   try {
     const response = await fetch(record.rasterUrl, { cache: "no-store" });
