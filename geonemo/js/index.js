@@ -14,9 +14,8 @@ const NEMO_LAYER_STYLE_BASE = {
 };
 const SNASPE_RASTER_METADATA_URL = "./capas_panel/snaspe_raster/metadata.json";
 const SNASPE_RASTER_FOLDER_URL = "./capas_panel/snaspe_raster/";
-const SNASPE_RASTER_SUPPORTED_IMAGE_EXTENSIONS = new Set([".png", ".webp"]);
 const SNASPE_RASTER_GEOTIFF_EXTENSIONS = new Set([".tif", ".tiff"]);
-let snaspeGeoTiffRendererWarningShown = false;
+const SNASPE_RASTER_OPACITY = 0.72;
 const NEMO_PANEL_LAYER_CONFIG = [
   {
     id: "snaspe",
@@ -892,9 +891,112 @@ function getFileExtension(filename) {
   return match ? match[0] : "";
 }
 
+function getSnaspeRasterColor() {
+  return currentBasemap === "sat" ? NEMO_SAT_COLOR : NEMO_OSM_COLOR;
+}
+
+function getSnaspeRasterPixelColor(values, record) {
+  const pixelValues = Array.isArray(values) ? values : [values];
+  const noDataValue = record && record.georaster ? Number(record.georaster.noDataValue) : NaN;
+  const numericValues = pixelValues
+    .map((pixelValue) => Number(pixelValue))
+    .filter(Number.isFinite);
+
+  if (!numericValues.length) return null;
+  if (numericValues.every((pixelValue) => pixelValue === 0)) return null;
+  if (Number.isFinite(noDataValue) && numericValues.every((pixelValue) => pixelValue === noDataValue)) return null;
+
+  return getSnaspeRasterColor();
+}
+
+function getSnaspeGeoRasterLayerOptions(record) {
+  return {
+    georaster: record.georaster,
+    pane: "nemo-panel-geometries",
+    opacity: SNASPE_RASTER_OPACITY,
+    resolution: 256,
+    pixelValuesToColorFn: (values) => getSnaspeRasterPixelColor(values, record)
+  };
+}
+
+function getSnaspeRasterUrl(archivo) {
+  return new URL(`${SNASPE_RASTER_FOLDER_URL}${encodeURIComponent(archivo)}`, window.location.href).toString();
+}
+
+function getSnaspeRasterLabelLatLngFromGeoraster(georaster) {
+  if (!georaster || !window.L) return null;
+
+  const xmin = Number(georaster.xmin);
+  const xmax = Number(georaster.xmax);
+  const ymin = Number(georaster.ymin);
+  const ymax = Number(georaster.ymax);
+  if (![xmin, xmax, ymin, ymax].every(Number.isFinite)) return null;
+
+  return L.latLngBounds([[ymin, xmin], [ymax, xmax]]).getCenter();
+}
+
+function addSnaspeGeoRasterLayer(record, snaspeEntry) {
+  if (!record || !record.georaster || !snaspeEntry || !window.GeoRasterLayer) return null;
+
+  const rasterLayer = new GeoRasterLayer(getSnaspeGeoRasterLayerOptions(record));
+  if (typeof rasterLayer.bindPopup === "function") {
+    rasterLayer.bindPopup(getSnaspeRasterPopupHtml(record.attributes, record.archivo));
+  }
+
+  record.layer = rasterLayer;
+  snaspeEntry.geometryGroup.addLayer(rasterLayer);
+  console.log("[GeoNEMO Raster] layer agregado", record.archivo);
+  return rasterLayer;
+}
+
+function rebuildSnaspeRasterLayers() {
+  const snaspeEntry = nemoPanelLayers.snaspe;
+  if (!snaspeEntry || !Array.isArray(snaspeEntry.rasterRecords)) return;
+
+  snaspeEntry.rasterRecords.forEach((record) => {
+    if (!record || !record.georaster) return;
+    if (record.layer && snaspeEntry.geometryGroup.hasLayer(record.layer)) {
+      snaspeEntry.geometryGroup.removeLayer(record.layer);
+    }
+    addSnaspeGeoRasterLayer(record, snaspeEntry);
+  });
+}
+
+async function loadSnaspeGeoTiffRaster(record, snaspeEntry) {
+  console.log(`[GeoNEMO Raster] cargando GeoTIFF: ${record.archivo}`);
+
+  try {
+    const response = await fetch(record.rasterUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const arrayBuffer = await response.arrayBuffer();
+    record.georaster = await parseGeoraster(arrayBuffer);
+    console.log("[GeoNEMO Raster] parse OK", record.archivo);
+
+    addSnaspeGeoRasterLayer(record, snaspeEntry);
+
+    const labelLatLng = getSnaspeRasterLabelLatLng(record.metadata) || getSnaspeRasterLabelLatLngFromGeoraster(record.georaster);
+    const marker = createGeoNemoLabelMarkerAtLatLng(labelLatLng, record.labelText);
+    if (marker) {
+      record.labelMarker = marker;
+      snaspeEntry.labelGroup.addLayer(marker);
+    }
+
+    return true;
+  } catch (error) {
+    console.warn(`[GeoNEMO Raster] error cargando archivo ${record.archivo}`, error);
+    return false;
+  }
+}
+
 async function loadSnaspeRasterFolder(mapInstance) {
   const snaspeEntry = nemoPanelLayers.snaspe;
   if (!mapInstance || !snaspeEntry) return;
+
+  if (typeof parseGeoraster !== "function" || !window.GeoRasterLayer) {
+    console.warn("[GeoNEMO Raster] error cargando archivo: dependencias georaster/georaster-layer-for-leaflet no disponibles.");
+    return;
+  }
 
   let metadata;
   try {
@@ -909,54 +1011,37 @@ async function loadSnaspeRasterFolder(mapInstance) {
   }
 
   const entries = metadata && typeof metadata === "object" ? Object.entries(metadata) : [];
-  console.log(`[GeoNEMO Raster] total registros declarados: ${entries.length}`);
+  console.log(`[GeoNEMO Raster] total rasters declarados: ${entries.length}`);
 
-  let preparedCount = 0;
-  entries.forEach(([key, item]) => {
+  const loadPromises = entries.map(([key, item]) => {
     const archivo = String((item && item.archivo) || key || "").trim();
-    if (!archivo) return;
+    if (!archivo) return Promise.resolve(false);
 
-    console.log(`[GeoNEMO Raster] preparando: ${archivo}`);
-    const attributes = getSnaspeRasterAttributes(item);
-    const labelText = getSnaspeRasterLabelText(attributes);
-    if (labelText) console.log(`[GeoNEMO Raster] atributos cargados para: ${labelText}`);
-
-    const rasterUrl = new URL(`${SNASPE_RASTER_FOLDER_URL}${encodeURIComponent(archivo)}`, window.location.href).toString();
-    snaspeEntry.rasterRecords.push({ archivo, rasterUrl, attributes, metadata: item });
     const extension = getFileExtension(archivo);
-    const bounds = getSnaspeRasterBounds(item);
-
-    if (SNASPE_RASTER_SUPPORTED_IMAGE_EXTENSIONS.has(extension) && bounds) {
-      try {
-        const rasterLayer = L.imageOverlay(rasterUrl, bounds, {
-          pane: "nemo-panel-geometries",
-          opacity: 0.72,
-          interactive: true
-        });
-        rasterLayer.on("error", () => console.warn(`[GeoNEMO Raster] error cargando archivo: ${archivo}`));
-        rasterLayer.bindPopup(getSnaspeRasterPopupHtml(attributes, archivo));
-        snaspeEntry.geometryGroup.addLayer(rasterLayer);
-      } catch (error) {
-        console.warn(`[GeoNEMO Raster] error cargando archivo: ${archivo}`, error);
-      }
-    } else if (SNASPE_RASTER_GEOTIFF_EXTENSIONS.has(extension)) {
-      if (!snaspeGeoTiffRendererWarningShown) {
-        console.warn("SNASPE raster metadata cargada, pero falta renderer GeoTIFF o conversión PNG/WebP.");
-        snaspeGeoTiffRendererWarningShown = true;
-      }
-    } else {
-      console.warn(`[GeoNEMO Raster] error cargando archivo: ${archivo}. Formato o bounds no soportados todavía.`);
+    if (!SNASPE_RASTER_GEOTIFF_EXTENSIONS.has(extension)) {
+      console.warn(`[GeoNEMO Raster] error cargando archivo ${archivo}: formato no GeoTIFF declarado en metadata.`);
+      return Promise.resolve(false);
     }
 
-    const labelLatLng = getSnaspeRasterLabelLatLng(item);
-    const marker = createGeoNemoLabelMarkerAtLatLng(labelLatLng, labelText);
-    if (marker) snaspeEntry.labelGroup.addLayer(marker);
-    preparedCount += 1;
+    const attributes = getSnaspeRasterAttributes(item);
+    const record = {
+      archivo,
+      rasterUrl: getSnaspeRasterUrl(archivo),
+      attributes,
+      labelText: getSnaspeRasterLabelText(attributes),
+      metadata: item,
+      georaster: null,
+      layer: null,
+      labelMarker: null
+    };
+    snaspeEntry.rasterRecords.push(record);
+    return loadSnaspeGeoTiffRaster(record, snaspeEntry);
   });
 
-  console.log(`[GeoNEMO Raster] rasters preparados: ${preparedCount}`);
+  const results = await Promise.all(loadPromises);
+  const visibleCount = results.filter(Boolean).length;
+  console.log(`[GeoNEMO Raster] total visibles: ${visibleCount}`);
 }
-
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -1163,6 +1248,7 @@ function switchBaseMap(type) {
   setBaseMapToggleActive(currentBasemap);
   syncGeoNemoBasemapClass();
   updateGeoNemoPanelLayerStyles();
+  rebuildSnaspeRasterLayers();
 }
 
 function setBaseMapToggleActive(type) {
