@@ -12,6 +12,11 @@ const NEMO_LAYER_STYLE_BASE = {
   opacity: 1,
   fillOpacity: 0.06
 };
+const SNASPE_RASTER_METADATA_URL = "./capas_panel/snaspe_raster/metadata.json";
+const SNASPE_RASTER_FOLDER_URL = "./capas_panel/snaspe_raster/";
+const SNASPE_RASTER_SUPPORTED_IMAGE_EXTENSIONS = new Set([".png", ".webp"]);
+const SNASPE_RASTER_GEOTIFF_EXTENSIONS = new Set([".tif", ".tiff"]);
+let snaspeGeoTiffRendererWarningShown = false;
 const NEMO_PANEL_LAYER_CONFIG = [
   {
     id: "snaspe",
@@ -816,6 +821,142 @@ function createGeoNemoLabelMarker(layer, labelText) {
   });
 }
 
+
+function getSnaspeRasterAttributes(item) {
+  return item && typeof item === "object" && item.atributos && typeof item.atributos === "object"
+    ? item.atributos
+    : {};
+}
+
+function getSnaspeRasterLabelText(attributes) {
+  const label = getPropInsensitive(attributes, "NOMBRE_TOT") || getPropInsensitive(attributes, "NOMBRE_UNI");
+  return label === null || label === undefined ? "" : String(label).trim();
+}
+
+function getSnaspeRasterPopupHtml(attributes, archivo) {
+  const fields = ["NOMBRE_TOT", "CATEGORIA", "REGION", "TERRITORIO", "SUPERFICIE", "DECRETO", "EMISOR_DEC", "NumVerts"];
+  const rows = fields.map((field) => {
+    const value = getPropInsensitive(attributes, field);
+    if (value === null || value === undefined || String(value).trim() === "") return "";
+    return `<tr><th>${escapeHtml(field)}</th><td>${escapeHtml(value)}</td></tr>`;
+  }).filter(Boolean).join("");
+
+  return `<strong>${escapeHtml(getSnaspeRasterLabelText(attributes) || archivo)}</strong><table>${rows}</table>`;
+}
+
+function getSnaspeRasterBounds(item) {
+  const candidate = item && (item.bounds || item.bbox || item.extent || item.latLngBounds || item.latlngBounds);
+  if (!Array.isArray(candidate)) return null;
+
+  if (candidate.length === 2 && Array.isArray(candidate[0]) && Array.isArray(candidate[1])) {
+    return candidate;
+  }
+
+  if (candidate.length === 4) {
+    const [minX, minY, maxX, maxY] = candidate.map(Number);
+    if ([minX, minY, maxX, maxY].every(Number.isFinite)) return [[minY, minX], [maxY, maxX]];
+  }
+
+  return null;
+}
+
+function getSnaspeRasterLabelLatLng(item) {
+  const candidate = item && (item.label_latlng || item.labelLatLng || item.centroide || item.centroid || item.center);
+  if (Array.isArray(candidate) && candidate.length >= 2) {
+    const lat = Number(candidate[0]);
+    const lng = Number(candidate[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+  }
+
+  const bounds = getSnaspeRasterBounds(item);
+  if (bounds) return L.latLngBounds(bounds).getCenter();
+  return null;
+}
+
+function createGeoNemoLabelMarkerAtLatLng(latlng, labelText) {
+  if (!latlng || !labelText) return null;
+
+  return L.marker(latlng, {
+    interactive: false,
+    pane: "nemo-panel-labels",
+    icon: L.divIcon({
+      className: "geonemo-panel-label",
+      html: `<span>${escapeHtml(labelText)}</span>`,
+      iconSize: null
+    })
+  });
+}
+
+function getFileExtension(filename) {
+  const match = String(filename || "").toLowerCase().match(/\.[^.?#/]+(?=$|[?#])/);
+  return match ? match[0] : "";
+}
+
+async function loadSnaspeRasterFolder(mapInstance) {
+  const snaspeEntry = nemoPanelLayers.snaspe;
+  if (!mapInstance || !snaspeEntry) return;
+
+  let metadata;
+  try {
+    const metadataUrl = new URL(SNASPE_RASTER_METADATA_URL, window.location.href).toString();
+    const response = await fetch(metadataUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    metadata = await response.json();
+    console.log("[GeoNEMO Raster] metadata cargado");
+  } catch (error) {
+    console.warn("[GeoNEMO Raster] metadata.json no disponible; continúa SNASPE vectorial y Ramsar.", error);
+    return;
+  }
+
+  const entries = metadata && typeof metadata === "object" ? Object.entries(metadata) : [];
+  console.log(`[GeoNEMO Raster] total registros declarados: ${entries.length}`);
+
+  let preparedCount = 0;
+  entries.forEach(([key, item]) => {
+    const archivo = String((item && item.archivo) || key || "").trim();
+    if (!archivo) return;
+
+    console.log(`[GeoNEMO Raster] preparando: ${archivo}`);
+    const attributes = getSnaspeRasterAttributes(item);
+    const labelText = getSnaspeRasterLabelText(attributes);
+    if (labelText) console.log(`[GeoNEMO Raster] atributos cargados para: ${labelText}`);
+
+    const rasterUrl = new URL(`${SNASPE_RASTER_FOLDER_URL}${encodeURIComponent(archivo)}`, window.location.href).toString();
+    snaspeEntry.rasterRecords.push({ archivo, rasterUrl, attributes, metadata: item });
+    const extension = getFileExtension(archivo);
+    const bounds = getSnaspeRasterBounds(item);
+
+    if (SNASPE_RASTER_SUPPORTED_IMAGE_EXTENSIONS.has(extension) && bounds) {
+      try {
+        const rasterLayer = L.imageOverlay(rasterUrl, bounds, {
+          pane: "nemo-panel-geometries",
+          opacity: 0.72,
+          interactive: true
+        });
+        rasterLayer.on("error", () => console.warn(`[GeoNEMO Raster] error cargando archivo: ${archivo}`));
+        rasterLayer.bindPopup(getSnaspeRasterPopupHtml(attributes, archivo));
+        snaspeEntry.geometryGroup.addLayer(rasterLayer);
+      } catch (error) {
+        console.warn(`[GeoNEMO Raster] error cargando archivo: ${archivo}`, error);
+      }
+    } else if (SNASPE_RASTER_GEOTIFF_EXTENSIONS.has(extension)) {
+      if (!snaspeGeoTiffRendererWarningShown) {
+        console.warn("SNASPE raster metadata cargada, pero falta renderer GeoTIFF o conversión PNG/WebP.");
+        snaspeGeoTiffRendererWarningShown = true;
+      }
+    } else {
+      console.warn(`[GeoNEMO Raster] error cargando archivo: ${archivo}. Formato o bounds no soportados todavía.`);
+    }
+
+    const labelLatLng = getSnaspeRasterLabelLatLng(item);
+    const marker = createGeoNemoLabelMarkerAtLatLng(labelLatLng, labelText);
+    if (marker) snaspeEntry.labelGroup.addLayer(marker);
+    preparedCount += 1;
+  });
+
+  console.log(`[GeoNEMO Raster] rasters preparados: ${preparedCount}`);
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -832,13 +973,14 @@ async function initGeoNemoPanelLayers(mapInstance) {
   nemoPanelLayers = {};
 
   await Promise.all(NEMO_PANEL_LAYER_CONFIG.map((config) => loadGeoNemoPanelLayer(mapInstance, config)));
+  await loadSnaspeRasterFolder(mapInstance);
   applyGeoNemoLabelVisibility();
 }
 
 async function loadGeoNemoPanelLayer(mapInstance, config) {
   const geometryGroup = L.layerGroup([], { pane: "nemo-panel-geometries" }).addTo(mapInstance);
   const labelGroup = L.layerGroup([], { pane: "nemo-panel-labels" });
-  nemoPanelLayers[config.id] = { config, geometryGroup, labelGroup, labelsVisible: false };
+  nemoPanelLayers[config.id] = { config, geometryGroup, labelGroup, labelsVisible: false, rasterRecords: [] };
 
   try {
     const layerUrl = new URL(config.archivo, window.location.href).toString();
