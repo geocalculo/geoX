@@ -2,8 +2,11 @@
   const GRID_COLUMNS = 3;
   const GRID_ROWS = 3;
   const CSS_PX_PER_CM = 96 / 2.54;
+  const CSS_PX_PER_MM = 3.7795;
   const DEFAULT_LABELS_PER_CM2 = 2;
+  const DEFAULT_LABEL_FONT_HEIGHT_MM = 4;
   let labelsPerCm2 = DEFAULT_LABELS_PER_CM2;
+  let labelFontHeightMm = DEFAULT_LABEL_FONT_HEIGHT_MM;
 
   function pxAreaToCm2(widthPx, heightPx) {
     const areaPx = Math.max(0, Number(widthPx) || 0) * Math.max(0, Number(heightPx) || 0);
@@ -19,6 +22,24 @@
     return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : DEFAULT_LABELS_PER_CM2;
   }
 
+  function normalizeLabelFontHeightMm(value) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : DEFAULT_LABEL_FONT_HEIGHT_MM;
+  }
+
+  function mmToCssPx(mm) {
+    const numericValue = Number(mm);
+    return Number.isFinite(numericValue) ? numericValue * CSS_PX_PER_MM : DEFAULT_LABEL_FONT_HEIGHT_MM * CSS_PX_PER_MM;
+  }
+
+  function applyLabelFontSizeCssVariable() {
+    const fontSizePx = mmToCssPx(labelFontHeightMm);
+    if (global.document?.documentElement?.style) {
+      global.document.documentElement.style.setProperty("--geox-label-font-size", `${fontSizePx}px`);
+    }
+    return fontSizePx;
+  }
+
   async function loadCapacityConfig(configPath = "capas_panel/label_capacity_config.json") {
     try {
       const configUrl = new URL(configPath, global.location.href).toString();
@@ -27,16 +48,35 @@
 
       const config = await response.json();
       labelsPerCm2 = normalizeLabelsPerCm2(config && config.labels_per_cm2);
+      labelFontHeightMm = normalizeLabelFontHeightMm(config && config.label_font_height_mm);
     } catch (error) {
       labelsPerCm2 = DEFAULT_LABELS_PER_CM2;
-      console.warn("GeoX labels: usando capacidad interna por defecto", error);
+      labelFontHeightMm = DEFAULT_LABEL_FONT_HEIGHT_MM;
+      console.warn("GeoX labels: usando configuración interna por defecto", error);
     }
 
-    return labelsPerCm2;
+    applyLabelFontSizeCssVariable();
+    return getCapacityConfig();
+  }
+
+  function getCapacityConfig() {
+    return {
+      labelsPerCm2,
+      labelFontHeightMm,
+      fontSizePx: mmToCssPx(labelFontHeightMm)
+    };
   }
 
   function getLabelsPerCm2() {
     return labelsPerCm2;
+  }
+
+  function getLabelFontHeightMm() {
+    return labelFontHeightMm;
+  }
+
+  function getLabelFontSizePx() {
+    return mmToCssPx(labelFontHeightMm);
   }
 
   function selectFromCell(candidates, maxLabels, center) {
@@ -181,8 +221,14 @@
     GRID_COLUMNS,
     GRID_ROWS,
     DEFAULT_LABELS_PER_CM2,
+    DEFAULT_LABEL_FONT_HEIGHT_MM,
+    CSS_PX_PER_MM,
     loadCapacityConfig,
+    getCapacityConfig,
     getLabelsPerCm2,
+    getLabelFontHeightMm,
+    getLabelFontSizePx,
+    mmToCssPx,
     pxAreaToCm2,
     selectLabels
   };
