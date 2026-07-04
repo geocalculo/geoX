@@ -798,7 +798,7 @@ function renderEvaProjectsInViewport() {
         keyboard: false,
         icon: L.divIcon({
           className: "eva-project-label",
-          html: escapeHtml(String(project.sector).trim()),
+          html: escapeHtml(GeoXLabelFormatter.formatLabelText("geoeva", "geoeva_proyectos", project.sector)),
           iconSize: null
         })
       }).addTo(evaPanelLabelsLayerGroup);

@@ -574,8 +574,8 @@ function renderGeoNoxaPanelLayer(layerKey) {
     if (!showLabels) return;
 
     let labelText = "";
-    if (layerKey === "relaves") labelText = String(feature.properties?.recurso || "").trim();
-    if (layerKey === "zonas") labelText = getGeoNoxaZonaLabel(feature.properties || {});
+    if (layerKey === "relaves") labelText = GeoXLabelFormatter.formatLabelText("geonoxa", "geonoxa_relaves", feature.properties?.recurso);
+    if (layerKey === "zonas") labelText = GeoXLabelFormatter.formatLabelText("geonoxa", "geonoxa_zonas", getGeoNoxaZonaLabel(feature.properties || {}));
     if (!labelText) return;
 
     geoLayer.eachLayer((layer) => {
