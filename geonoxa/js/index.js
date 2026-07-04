@@ -12,18 +12,10 @@ const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
 let noxaPanelUpdateTimer = null;
-const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0 };
-
-async function loadLabelDensityConfig() {
-  // Revert Smart Labels density rollout: keep labels independent from JSON config for now.
-}
-
-function getLabelDensityMaxLabels() {
-  return DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
-}
-
-function getLabelDensityMinZoom() {
-  return DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
+async function loadLabelCapacityConfig() {
+  if (window.GeoXLabelGrid && typeof GeoXLabelGrid.loadCapacityConfig === "function") {
+    await GeoXLabelGrid.loadCapacityConfig("capas_panel/label_capacity_config.json");
+  }
 }
 
 const noxaPanelLayers = {
@@ -340,7 +332,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   conectarBaseMapToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
-  await loadLabelDensityConfig();
+  await loadLabelCapacityConfig();
   initGeoNoxaPanelLayers();
   window.addEventListener("resize", scheduleGeoNoxaPanelViewportUpdate);
 });
@@ -545,7 +537,7 @@ function renderGeoNoxaPanelLayer(layerKey) {
   cfg.labelsLayerGroup.clearLayers();
 
   const visibleFeatures = cfg.rawFeatures.filter(featureIntersectsViewport);
-  const showLabels = cfg.labelsVisible && map.getZoom() >= getLabelDensityMinZoom(layerKey);
+  const showLabels = cfg.labelsVisible;
   const labelCandidates = [];
 
   visibleFeatures.forEach((feature, featureIndex) => {
@@ -595,7 +587,11 @@ function renderGeoNoxaPanelLayer(layerKey) {
   });
 
   if (showLabels) {
-    GeoXLabelGrid.selectLabels(map, labelCandidates).forEach((label) => {
+    const labelsToRender = layerKey === "relaves"
+      ? GeoXLabelGrid.selectLabels(map, labelCandidates)
+      : labelCandidates;
+
+    labelsToRender.forEach((label) => {
       L.marker(label.latlng, {
         interactive: false,
         keyboard: false,
