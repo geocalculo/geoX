@@ -1,4 +1,8 @@
 /* GeoX shared label-control standard for GeoIPT, GeoNOXA, GeoEVA and GeoNEMO. */
+:root {
+  --geox-label-font-size: 15.118px;
+}
+
 html,
 body,
 #app {
@@ -97,7 +101,7 @@ body,
   border: none !important;
   box-shadow: none !important;
   color: #1f2933 !important;
-  font-size: 11px !important;
+  font-size: var(--geox-label-font-size, 15.118px) !important;
   font-weight: 700 !important;
   padding: 0 !important;
   pointer-events: none !important;

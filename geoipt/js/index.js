@@ -1891,8 +1891,8 @@ function createTerritorialLabelMarker(labelText, latlng) {
 
 async function cargarLabelDensityConfig() {
   if (window.GeoXLabelGrid && typeof GeoXLabelGrid.loadCapacityConfig === "function") {
-    const labelsPerCm2 = await GeoXLabelGrid.loadCapacityConfig("capas_panel/label_capacity_config.json");
-    console.log(`[GeoIPT Labels] labels_per_cm2: ${labelsPerCm2}`);
+    const labelConfig = await GeoXLabelGrid.loadCapacityConfig("capas_panel/label_capacity_config.json");
+    console.log("[GeoIPT Labels] config", labelConfig);
   }
 }
 

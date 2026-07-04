@@ -174,7 +174,7 @@ input[type="checkbox"]:checked {
   border: none !important;
   box-shadow: none !important;
   color: #1f2933;
-  font-size: 11px;
+  font-size: var(--geox-label-font-size, 15.118px);
   font-weight: 600;
   padding: 0 !important;
   pointer-events: none;
