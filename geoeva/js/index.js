@@ -570,6 +570,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initGeoXCrossPortalNavigation();
   await loadLabelDensityConfig();
   initPanelLayers();
+  window.addEventListener("resize", scheduleEvaPanelViewportUpdate);
 });
 
 function iniciarMapa() {
@@ -784,27 +785,40 @@ function renderEvaProjectsInViewport() {
   evaPanelLabelsLayerGroup.clearLayers();
 
   const labelsAllowed = evaPanelLabelsVisible && map.getZoom() >= getLabelDensityMinZoom("eva_proyectos");
-  const maxLabels = getLabelDensityMaxLabels("eva_proyectos");
-  let labelCount = 0;
+  const labelCandidates = [];
 
-  visibleProjects.forEach((project) => {
+  visibleProjects.forEach((project, index) => {
     if (!Number.isFinite(project.lat) || !Number.isFinite(project.lon)) return;
 
-    L.circleMarker([project.lat, project.lon], getEvaProjectMarkerStyle()).addTo(evaPanelGeometryLayerGroup);
+    const latlng = L.latLng(project.lat, project.lon);
+    L.circleMarker(latlng, getEvaProjectMarkerStyle()).addTo(evaPanelGeometryLayerGroup);
 
-    if (labelsAllowed && labelCount < maxLabels && project.sector && String(project.sector).trim() !== "") {
-      L.marker([project.lat, project.lon], {
+    if (!labelsAllowed) return;
+
+    const labelText = GeoXLabelFormatter.formatLabelText("geoeva", "geoeva_proyectos", project.sector);
+    if (!labelText) return;
+
+    labelCandidates.push({
+      latlng,
+      text: labelText,
+      id: project.fid ?? `${labelText}-${index}`,
+      originalIndex: index
+    });
+  });
+
+  if (labelsAllowed) {
+    GeoXLabelGrid.selectLabels(map, labelCandidates).forEach((label) => {
+      L.marker(label.latlng, {
         interactive: false,
         keyboard: false,
         icon: L.divIcon({
           className: "eva-project-label",
-          html: escapeHtml(GeoXLabelFormatter.formatLabelText("geoeva", "geoeva_proyectos", project.sector)),
+          html: escapeHtml(label.text),
           iconSize: null
         })
       }).addTo(evaPanelLabelsLayerGroup);
-      labelCount += 1;
-    }
-  });
+    });
+  }
 
   console.log("[GeoEVA capas_panel] viewport render", {
     totalFeatures: evaPanelRawFeatures.length,
