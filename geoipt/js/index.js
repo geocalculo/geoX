@@ -1138,6 +1138,30 @@ function getPRCDisplayName(feature) {
   );
 }
 
+function limpiarNombrePrcParaResultado(nombrePrc) {
+  if (!nombrePrc) return "";
+
+  const texto = String(nombrePrc).trim();
+  const matchPrc = texto.match(/(?:^|_)PRC[_\s-]+(.+)$/i);
+  const base = (matchPrc ? matchPrc[1] : texto.replace(/^PRC[_\s-]+/i, "")).replace(/[_-]+/g, " ").trim();
+
+  return base.replace(/\s+/g, " ").replace(/\b\p{L}/gu, (letra) => letra.toLocaleUpperCase("es-CL"));
+}
+
+function construirLineaResultadoToSearch({ localidad, comuna, nombrePrc, region }) {
+  const localidadDisplay = localidad || comuna || limpiarNombrePrcParaResultado(nombrePrc);
+  const comunaDisplay = comuna || limpiarNombrePrcParaResultado(nombrePrc);
+  const partes = [];
+
+  if (localidadDisplay) partes.push(localidadDisplay);
+  if (comunaDisplay && normalizarTextoToSearch(comunaDisplay) !== normalizarTextoToSearch(localidadDisplay)) {
+    partes.push(comunaDisplay);
+  }
+  if (region) partes.push(region);
+
+  return partes.join(" · ") || localidadDisplay || comunaDisplay || "PRC sin nombre";
+}
+
 // RESULTADO LOCALIDAD COMUNA REGION
 function construirTextoResultadoToSearch(props) {
   const nombreBusq = obtenerPropTexto(props, ["nombre_busq", "NOMBRE_BUSQ"]);
@@ -1146,14 +1170,7 @@ function construirTextoResultadoToSearch(props) {
   const nombrePrc = obtenerPropTexto(props, ["nombre_prc", "PRC", "prc", "nombre", "NOMBRE"]);
   const region = obtenerPropTexto(props, ["region", "REG", "REGION", "region_nombre"]);
   const zona = obtenerPropTexto(props, ["zona", "ZONA"]);
-
-  const encabezado = [localidad, comuna].filter(Boolean);
-  const partesDisplay = [];
-  if (encabezado.length) partesDisplay.push(encabezado.join(" / "));
-  if (nombrePrc) partesDisplay.push(nombrePrc);
-  if (region) partesDisplay.push(region);
-
-  const textoResultado = partesDisplay.join(" - ") || nombreBusq || "PRC sin nombre";
+  const textoResultado = construirLineaResultadoToSearch({ localidad, comuna, nombrePrc, region });
   const textoBusqueda = normalizarTextoToSearch(
     [nombreBusq, localidad, comuna, nombrePrc, region, zona].filter(Boolean).join(" ")
   );
@@ -1280,16 +1297,9 @@ function mostrarResultadosToSearch(texto) {
     const boton = document.createElement("button");
     boton.type = "button";
     boton.className = "search-result-item";
+    boton.textContent = item.texto_resultado;
+    boton.title = item.texto_resultado;
 
-    const titulo = document.createElement("span");
-    titulo.className = "search-result-title";
-    titulo.textContent = item.texto_localidad || item.texto_comuna || item.texto_nombre_prc || item.texto_resultado;
-
-    const meta = document.createElement("span");
-    meta.className = "search-result-meta";
-    meta.textContent = [item.texto_nombre_prc, item.texto_region].filter(Boolean).join(" · ");
-
-    boton.append(titulo, meta);
     boton.addEventListener("click", () => seleccionarResultadoToSearch(item));
     contenedor.appendChild(boton);
   });
