@@ -342,6 +342,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initGeoXCrossPortalNavigation();
   await loadLabelDensityConfig();
   initGeoNoxaPanelLayers();
+  window.addEventListener("resize", scheduleGeoNoxaPanelViewportUpdate);
 });
 
 function iniciarMapa() {
@@ -545,10 +546,9 @@ function renderGeoNoxaPanelLayer(layerKey) {
 
   const visibleFeatures = cfg.rawFeatures.filter(featureIntersectsViewport);
   const showLabels = cfg.labelsVisible && map.getZoom() >= getLabelDensityMinZoom(layerKey);
-  const maxLabels = getLabelDensityMaxLabels(layerKey);
-  let labelCount = 0;
+  const labelCandidates = [];
 
-  visibleFeatures.forEach((feature) => {
+  visibleFeatures.forEach((feature, featureIndex) => {
     if (!hasValidGeoNoxaGeometry(feature)) return;
 
     const geoLayer = L.geoJSON(feature, {
@@ -578,24 +578,35 @@ function renderGeoNoxaPanelLayer(layerKey) {
     if (layerKey === "zonas") labelText = GeoXLabelFormatter.formatLabelText("geonoxa", "geonoxa_zonas", getGeoNoxaZonaLabel(feature.properties || {}));
     if (!labelText) return;
 
-    geoLayer.eachLayer((layer) => {
+    geoLayer.eachLayer((layer, layerIndex) => {
       const latlng = typeof layer.getLatLng === "function"
         ? layer.getLatLng()
         : (typeof layer.getBounds === "function" && layer.getBounds()?.isValid?.() ? layer.getBounds().getCenter() : null);
-      if (!latlng || labelCount >= maxLabels) return;
+      if (!latlng) return;
 
-      L.marker(latlng, {
+      const props = feature.properties || {};
+      labelCandidates.push({
+        latlng,
+        text: labelText,
+        id: props.id_relave ?? props.id ?? props.fid ?? `${layerKey}-${featureIndex}-${layerIndex}`,
+        originalIndex: featureIndex
+      });
+    });
+  });
+
+  if (showLabels) {
+    GeoXLabelGrid.selectLabels(map, labelCandidates).forEach((label) => {
+      L.marker(label.latlng, {
         interactive: false,
         keyboard: false,
         icon: L.divIcon({
           className: "noxa-panel-label",
-          html: escapeHtml(labelText),
+          html: escapeHtml(label.text),
           iconSize: null
         })
       }).addTo(cfg.labelsLayerGroup);
-      labelCount += 1;
     });
-  });
+  }
 
   console.log("[GeoNOXA capas_panel] render", {
     layer: layerKey,
