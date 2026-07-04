@@ -502,6 +502,9 @@ button:hover,
   font-weight: 600;
   text-align: left;
   padding: 9px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .search-result-item:hover,
