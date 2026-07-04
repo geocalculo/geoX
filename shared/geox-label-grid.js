@@ -2,9 +2,8 @@
   const GRID_COLUMNS = 3;
   const GRID_ROWS = 3;
   const CSS_PX_PER_CM = 96 / 2.54;
-  const MAX_LABELS_PER_CM2 = 2;
-  const LABEL_HEIGHT_PX = 20;
-  const LABEL_HORIZONTAL_PADDING_PX = 14;
+  const DEFAULT_LABELS_PER_CM2 = 2;
+  let labelsPerCm2 = DEFAULT_LABELS_PER_CM2;
 
   function pxAreaToCm2(widthPx, heightPx) {
     const areaPx = Math.max(0, Number(widthPx) || 0) * Math.max(0, Number(heightPx) || 0);
@@ -15,23 +14,29 @@
     return String(candidate.id ?? candidate.fid ?? candidate.name ?? candidate.text ?? index);
   }
 
-  function getLabelBounds(candidate) {
-    const text = String(candidate.text || "");
-    const width = Math.max(36, Math.ceil(text.length * 7.2) + LABEL_HORIZONTAL_PADDING_PX);
-    const height = LABEL_HEIGHT_PX;
-    const x = candidate.point.x;
-    const y = candidate.point.y;
-
-    return {
-      left: x,
-      right: x + width,
-      top: y - height / 2,
-      bottom: y + height / 2
-    };
+  function normalizeLabelsPerCm2(value) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : DEFAULT_LABELS_PER_CM2;
   }
 
-  function intersects(a, b) {
-    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  async function loadCapacityConfig(configPath = "capas_panel/label_capacity_config.json") {
+    try {
+      const configUrl = new URL(configPath, global.location.href).toString();
+      const response = await fetch(configUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`No se pudo cargar ${configPath}`);
+
+      const config = await response.json();
+      labelsPerCm2 = normalizeLabelsPerCm2(config && config.labels_per_cm2);
+    } catch (error) {
+      labelsPerCm2 = DEFAULT_LABELS_PER_CM2;
+      console.warn("GeoX labels: usando capacidad interna por defecto", error);
+    }
+
+    return labelsPerCm2;
+  }
+
+  function getLabelsPerCm2() {
+    return labelsPerCm2;
   }
 
   function selectFromCell(candidates, maxLabels, center) {
@@ -91,7 +96,7 @@
         widthPx: cellWidth,
         heightPx: cellHeight,
         areaCm2,
-        maxLabels: Math.floor(areaCm2 * MAX_LABELS_PER_CM2),
+        maxLabels: Math.floor(areaCm2 * getLabelsPerCm2()),
         center: { x: col * cellWidth + cellWidth / 2, y: row * cellHeight + cellHeight / 2 },
         candidates: [],
         selected: [],
@@ -111,8 +116,7 @@
 
     const selected = [];
     cells.forEach((cell) => {
-      let labelsToShow = Math.min(cell.candidates.length, cell.maxLabels);
-      if (cell.candidates.length > 0 && labelsToShow === 0) labelsToShow = 1;
+      const labelsToShow = Math.min(cell.candidates.length, cell.maxLabels);
       cell.selected = selectFromCell(cell.candidates, labelsToShow, cell.center);
       selected.push(...cell.selected.map((candidate) => ({ ...candidate, cellIndex: cell.index })));
     });
@@ -123,12 +127,9 @@
       return a.stableId.localeCompare(b.stableId, "es");
     });
 
-    const accepted = [];
-    selected.forEach((candidate) => {
-      const bounds = getLabelBounds(candidate);
-      if (accepted.some((item) => intersects(bounds, item.bounds))) return;
-      accepted.push({ ...candidate, bounds });
+    const accepted = selected.map((candidate) => {
       cells[candidate.cellIndex].final.push(candidate);
+      return { ...candidate };
     });
 
     if (options.debug) {
@@ -140,7 +141,7 @@
         maxLabelsCell: cell.maxLabels,
         candidates: cell.candidates.length,
         selected: cell.selected.length,
-        finalAfterCollision: cell.final.length
+        final: cell.final.length
       }));
     }
 
@@ -150,7 +151,9 @@
   global.GeoXLabelGrid = {
     GRID_COLUMNS,
     GRID_ROWS,
-    MAX_LABELS_PER_CM2,
+    DEFAULT_LABELS_PER_CM2,
+    loadCapacityConfig,
+    getLabelsPerCm2,
     pxAreaToCm2,
     selectLabels
   };
