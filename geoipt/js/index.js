@@ -562,6 +562,7 @@ function switchBaseMap(type) {
 
   setMapToggleActive(type);
   actualizarEstiloPerimetrosIptVisibles();
+  scheduleTerritorialLabelUpdate();
 }
 
 // GEOFACTORY TOSEARCH
@@ -1674,7 +1675,10 @@ function iniciarPanelTerritorial() {
   map.on("moveend zoomend", () => {
     actualizarPerimetrosIptVisibles();
   });
+
+  window.addEventListener("resize", scheduleTerritorialLabelUpdate);
 }
+
 
 function alternarPerimetrosIpt(activo) {
   panelPerimetrosActivo = Boolean(activo);
@@ -1886,11 +1890,28 @@ function createTerritorialLabelMarker(labelText, latlng) {
 }
 
 async function cargarLabelDensityConfig() {
-  // Revert Smart Labels density rollout: keep labels independent from JSON config for now.
+  if (window.GeoXLabelGrid && typeof GeoXLabelGrid.loadCapacityConfig === "function") {
+    const labelsPerCm2 = await GeoXLabelGrid.loadCapacityConfig("capas_panel/label_capacity_config.json");
+    console.log(`[GeoIPT Labels] labels_per_cm2: ${labelsPerCm2}`);
+  }
 }
 
 function getLabelDensityMaxLabels() {
   return DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
+}
+
+function buildGeoIptLabelBox(candidate) {
+  const point = candidate?.point;
+  if (!point) return null;
+  const textLength = String(candidate.text || "").length;
+  const width = Math.max(46, Math.min(280, textLength * 7.5 + 20));
+  const height = 24;
+  return {
+    left: point.x - width / 2,
+    right: point.x + width / 2,
+    top: point.y - height / 2,
+    bottom: point.y + height / 2
+  };
 }
 
 function getLabelDensityMinZoom() {
@@ -1912,16 +1933,13 @@ function updateTerritorialLabels() {
 
   const maxLabels = getLabelDensityMaxLabels();
   const mapBounds = map.getBounds();
-  let labelCount = 0;
+  const labelCandidates = [];
 
   for (const item of panelCapasListado) {
-    if (labelCount >= maxLabels) break;
-
     const panelLayer = panelCapasCargadas.get(item.id);
     if (!panelLayer || !map.hasLayer(panelLayer)) continue;
 
     panelLayer.eachLayer((featureLayer) => {
-      if (labelCount >= maxLabels) return;
       if (!layerIntersectsViewport(featureLayer, mapBounds)) return;
 
       const labelText = getFeatureLabelText(featureLayer.feature);
@@ -1930,13 +1948,54 @@ function updateTerritorialLabels() {
       const latlng = getVisibleLabelLatLng(featureLayer, map);
       if (!latlng || !mapBounds.contains(latlng)) return;
 
-      const marker = createTerritorialLabelMarker(labelText, latlng);
-      if (!marker) return;
-
-      marker.addTo(territorialLabelsLayer);
-      labelCount += 1;
+      const props = featureLayer.feature?.properties || {};
+      labelCandidates.push({
+        latlng,
+        text: labelText,
+        id: props.id ?? props.fid ?? props.fid_origen ?? `${item.id}-${labelCandidates.length}`,
+        originalIndex: labelCandidates.length
+      });
     });
   }
+
+  const labelsToRender = window.GeoXLabelGrid && typeof GeoXLabelGrid.selectLabels === "function"
+    ? GeoXLabelGrid.selectLabels(map, labelCandidates, { estimateLabelBox: buildGeoIptLabelBox })
+    : labelCandidates.slice(0, maxLabels);
+
+  labelsToRender.slice(0, maxLabels).forEach((label) => {
+    const marker = createTerritorialLabelMarker(label.text, label.latlng);
+    if (marker) marker.addTo(territorialLabelsLayer);
+  });
+
+  logGeoIptLabelCapacity(labelCandidates, labelsToRender);
+}
+
+function logGeoIptLabelCapacity(candidates, drawn) {
+  if (!map || !(window.GeoXLabelGrid && typeof GeoXLabelGrid.pxAreaToCm2 === "function")) return;
+
+  const size = map.getSize();
+  const cellWidth = size.x / 3;
+  const cellHeight = size.y / 3;
+  const cells = Array.from({ length: 9 }, () => ({ candidates: 0, drawn: 0 }));
+
+  const addToCell = (label, key) => {
+    const point = map.latLngToContainerPoint(label.latlng);
+    if (!point || point.x < 0 || point.y < 0 || point.x > size.x || point.y > size.y) return;
+    const col = Math.min(2, Math.max(0, Math.floor(point.x / cellWidth)));
+    const row = Math.min(2, Math.max(0, Math.floor(point.y / cellHeight)));
+    cells[row * 3 + col][key] += 1;
+  };
+
+  candidates.forEach((label) => addToCell(label, "candidates"));
+  drawn.forEach((label) => addToCell(label, "drawn"));
+
+  const maxLabels = Math.floor(GeoXLabelGrid.pxAreaToCm2(cellWidth, cellHeight) * GeoXLabelGrid.getLabelsPerCm2());
+  cells.forEach((cell, index) => {
+    const effectiveMax = cell.candidates > 0 ? Math.max(1, maxLabels) : maxLabels;
+    console.log(`[GeoIPT Labels] celda ${index + 1} | candidatos: ${cell.candidates} | maxLabels: ${effectiveMax} | dibujadas: ${cell.drawn}`);
+  });
+  console.log(`[GeoIPT Labels] total candidatas: ${candidates.length}`);
+  console.log(`[GeoIPT Labels] total dibujadas: ${drawn.length}`);
 }
 
 function scheduleTerritorialLabelUpdate() {

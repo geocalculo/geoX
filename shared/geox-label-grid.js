@@ -40,6 +40,7 @@
   }
 
   function selectFromCell(candidates, maxLabels, center) {
+    if (candidates.length > 0 && maxLabels < 1) maxLabels = 1;
     const byTextCounts = new Map();
     const ordered = candidates
       .map((candidate, index) => ({
@@ -79,6 +80,23 @@
     return selected;
   }
 
+  function boxesIntersect(a, b) {
+    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  }
+
+  function estimateDefaultLabelBox(candidate) {
+    if (!candidate || !candidate.point) return null;
+    const textLength = String(candidate.text || "").length;
+    const width = Math.max(42, Math.min(260, textLength * 7.2 + 18));
+    const height = 22;
+    return {
+      left: candidate.point.x - width / 2,
+      right: candidate.point.x + width / 2,
+      top: candidate.point.y - height / 2,
+      bottom: candidate.point.y + height / 2
+    };
+  }
+
   function selectLabels(map, rawCandidates, options = {}) {
     if (!map || typeof map.getSize !== "function" || typeof map.latLngToContainerPoint !== "function") return [];
 
@@ -116,7 +134,9 @@
 
     const selected = [];
     cells.forEach((cell) => {
-      const labelsToShow = Math.min(cell.candidates.length, cell.maxLabels);
+      const labelsToShow = cell.candidates.length > 0
+        ? Math.max(1, Math.min(cell.candidates.length, cell.maxLabels))
+        : 0;
       cell.selected = selectFromCell(cell.candidates, labelsToShow, cell.center);
       selected.push(...cell.selected.map((candidate) => ({ ...candidate, cellIndex: cell.index })));
     });
@@ -127,9 +147,18 @@
       return a.stableId.localeCompare(b.stableId, "es");
     });
 
-    const accepted = selected.map((candidate) => {
+    const accepted = [];
+    const occupiedBoxes = [];
+    const estimateLabelBox = options.estimateLabelBox || estimateDefaultLabelBox;
+
+    selected.forEach((candidate) => {
+      const box = estimateLabelBox(candidate);
+      const collides = box && occupiedBoxes.some((occupied) => boxesIntersect(box, occupied));
+      if (collides) return;
+
+      if (box) occupiedBoxes.push(box);
       cells[candidate.cellIndex].final.push(candidate);
-      return { ...candidate };
+      accepted.push({ ...candidate });
     });
 
     if (options.debug) {
