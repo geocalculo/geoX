@@ -22,7 +22,8 @@ const NEMO_PANEL_LAYER_CONFIG = [
     visibleName: "SNASPE",
     archivos: [
       "./capas_panel/nemo_snaspe_sub10k.geojson",
-      "./capas_panel/snaspe_XL_from_raster.geojson"
+      "./capas_panel/snaspe_XL_from_raster_conti.geojson",
+      "./capas_panel/snaspe_XL_from_raster_mar.geojson"
     ],
     labelFields: ["NOMBRE_TOT", "NOMBRE_UNI"],
     labelGroupFields: ["ID_CATASTR", "NOMBRE_TOT"],
@@ -609,6 +610,28 @@ function getPropInsensitive(props, fieldName) {
   return key ? props[key] : undefined;
 }
 
+function getSummaryCountKey(feature, indicador = {}) {
+  const props = feature && feature.properties ? feature.properties : {};
+  const candidateFields = [
+    indicador.campo,
+    "ID_CATASTR",
+    "NOMBRE_TOT",
+    "NOMBRE_UNI",
+    "SUMMARY_ID",
+    "id_catastro",
+    "nombre"
+  ].filter(Boolean);
+
+  for (const field of candidateFields) {
+    const value = getPropInsensitive(props, field);
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return String(value).trim().toLowerCase();
+    }
+  }
+
+  return null;
+}
+
 function countSummaryFeatures(visibleFeatures, indicador) {
   if (!Array.isArray(visibleFeatures)) return 0;
 
@@ -616,45 +639,31 @@ function countSummaryFeatures(visibleFeatures, indicador) {
     return visibleFeatures.length;
   }
 
-  const candidateFields = [
-    indicador.campo,
-    "SUMMARY_ID",
-    "ID_CATASTR",
-    "id_catastro",
-    "NOMBRE_TOT",
-    "nombre"
-  ].filter(Boolean);
+  const values = new Set();
+  let featuresWithoutKey = 0;
 
-  for (const field of candidateFields) {
-    const values = new Set();
-
-    visibleFeatures.forEach((feature) => {
-      const props = feature.properties || {};
-      const value = getPropInsensitive(props, field);
-
-      if (value !== null && value !== undefined && String(value).trim() !== "") {
-        values.add(String(value).trim());
-      }
-    });
-
-    if (values.size > 0) {
-      return values.size;
+  visibleFeatures.forEach((feature) => {
+    const key = getSummaryCountKey(feature, indicador);
+    if (key) {
+      values.add(key);
+    } else {
+      featuresWithoutKey += 1;
     }
-  }
+  });
 
-  return visibleFeatures.length;
+  return values.size + featuresWithoutKey;
 }
 
 function hasSummaryField(feature, fieldName) {
   if (!fieldName) return false;
   const props = feature && feature.properties ? feature.properties : {};
-  return Object.prototype.hasOwnProperty.call(props, fieldName);
+  return getPropInsensitive(props, fieldName) !== undefined;
 }
 
 function sumSummaryField(features, fieldName) {
   return features.reduce((acc, feature) => {
     const props = feature.properties || {};
-    return acc + parseSummaryNumber(props[fieldName]);
+    return acc + parseSummaryNumber(getPropInsensitive(props, fieldName));
   }, 0);
 }
 

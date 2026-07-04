@@ -8,9 +8,15 @@
       "tipo": "polygon"
     },
     {
-      "id": "nemo_snaspe_xl_vector",
+      "id": "nemo_snaspe_xl_conti",
       "nombre": "Áreas SNASPE",
-      "archivo": "capas_panel/snaspe_XL_from_raster.geojson",
+      "archivo": "capas_panel/snaspe_XL_from_raster_conti.geojson",
+      "tipo": "polygon"
+    },
+    {
+      "id": "nemo_snaspe_xl_mar",
+      "nombre": "Áreas SNASPE",
+      "archivo": "capas_panel/snaspe_XL_from_raster_mar.geojson",
       "tipo": "polygon"
     },
     {
@@ -27,7 +33,8 @@
       "operacion": "count",
       "capas": [
         "nemo_snaspe_sub10k",
-        "nemo_snaspe_xl_vector"
+        "nemo_snaspe_xl_conti",
+        "nemo_snaspe_xl_mar"
       ],
       "campo": "ID_CATASTR",
       "distinct": true,
@@ -41,7 +48,8 @@
       "campo_distinct": "ID_CATASTR",
       "capas": [
         "nemo_snaspe_sub10k",
-        "nemo_snaspe_xl_vector"
+        "nemo_snaspe_xl_conti",
+        "nemo_snaspe_xl_mar"
       ],
       "distinctSum": true,
       "sufijo": "ha",
