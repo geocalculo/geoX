@@ -565,8 +565,11 @@ function switchBaseMap(type) {
 }
 
 // GEOFACTORY TOSEARCH
-const TOSEARCH_LISTADO_PATH = "capas_tosearch/listado_tosearch.json";
+const TOSEARCH_DIR = "capas_tosearch";
+const TOSEARCH_FILE_PREFIX = "perimetros_capas_";
+const TOSEARCH_FILE_COUNT = 16;
 const toSearchIndice = [];
+let toSearchIndicePromise = null;
 let toSearchResultadosActuales = [];
 let toSearchHighlightLayer = null;
 let selectedPRCHighlightLayer = null;
@@ -584,34 +587,47 @@ function normalizarTextoToSearch(value) {
     .trim();
 }
 
-// CARGA listado_tosearch.json
+// CARGA índice nacional desde capas_tosearch/perimetros_capas_XX.geojson
 async function cargarListadoToSearch() {
-  try {
-    const response = await fetch(TOSEARCH_LISTADO_PATH);
-    if (!response.ok) throw new Error(`No se pudo cargar ${TOSEARCH_LISTADO_PATH}`);
+  if (toSearchIndice.length) return toSearchIndice;
+  if (toSearchIndicePromise) return toSearchIndicePromise;
 
-    const listado = await response.json();
-    const capasActivas = Array.isArray(listado)
-      ? listado.filter((item) => item && item.activo === true && item.archivo)
-      : [];
+  console.log("[GeoIPT Search] cargando índice nacional capas_tosearch/");
 
-    await Promise.all(capasActivas.map((item) => cargarCapaToSearch(item)));
-  } catch (error) {
-    console.warn("GEOFACTORY TOSEARCH: listado_tosearch.json no disponible. El sitio continúa sin búsqueda por localidad.", error);
-  }
+  toSearchIndicePromise = (async () => {
+    const archivos = Array.from({ length: TOSEARCH_FILE_COUNT }, (_, index) => {
+      const numero = String(index + 1).padStart(2, "0");
+      return `${TOSEARCH_DIR}/${TOSEARCH_FILE_PREFIX}${numero}.geojson`;
+    });
+
+    await Promise.all(archivos.map((archivo) => cargarCapaToSearch({ archivo })));
+
+    console.log(`[GeoIPT Search] índice nacional listo | total features: ${toSearchIndice.length}`);
+    return toSearchIndice;
+  })();
+
+  return toSearchIndicePromise;
 }
 
 async function cargarCapaToSearch(layerConfig) {
+  const archivo = layerConfig?.archivo;
+  if (!archivo) return;
+
   try {
-    const response = await fetch(layerConfig.archivo);
-    if (!response.ok) throw new Error(`No se pudo cargar ${layerConfig.archivo}`);
+    const response = await fetch(archivo);
+    if (response.status === 404) {
+      console.warn(`[GeoIPT Search] archivo no encontrado: ${archivo.split("/").pop()}`);
+      return;
+    }
+    if (!response.ok) throw new Error(`No se pudo cargar ${archivo}`);
 
     const geojson = await response.json();
     const features = Array.isArray(geojson.features) ? geojson.features : [];
 
     features.forEach((feature) => agregarFeatureAlIndiceToSearch(feature, layerConfig));
+    console.log(`[GeoIPT Search] archivo cargado: ${archivo.split("/").pop()} | features: ${features.length}`);
   } catch (error) {
-    console.warn("GEOFACTORY TOSEARCH: no se pudo cargar GeoJSON de búsqueda.", layerConfig.archivo, error);
+    console.warn(`[GeoIPT Search] archivo no encontrado: ${archivo.split("/").pop()}`, error);
   }
 }
 
@@ -1124,42 +1140,57 @@ function getPRCDisplayName(feature) {
 
 // RESULTADO LOCALIDAD COMUNA REGION
 function construirTextoResultadoToSearch(props) {
+  const nombreBusq = obtenerPropTexto(props, ["nombre_busq", "NOMBRE_BUSQ"]);
   const localidad = obtenerPropTexto(props, ["localidad", "LOC", "LOCALIDAD"]);
   const comuna = obtenerPropTexto(props, ["comuna", "COM", "COMUNA"]);
+  const nombrePrc = obtenerPropTexto(props, ["nombre_prc", "PRC", "prc", "nombre", "NOMBRE"]);
   const region = obtenerPropTexto(props, ["region", "REG", "REGION", "region_nombre"]);
+  const zona = obtenerPropTexto(props, ["zona", "ZONA"]);
 
-  const partes = [];
-  for (const valor of [localidad, comuna, region]) {
-    if (!valor) continue;
-    const anterior = partes[partes.length - 1];
-    if (anterior && anterior.toLowerCase() === valor.toLowerCase()) continue;
-    partes.push(valor);
-  }
+  const encabezado = [localidad, comuna].filter(Boolean);
+  const partesDisplay = [];
+  if (encabezado.length) partesDisplay.push(encabezado.join(" / "));
+  if (nombrePrc) partesDisplay.push(nombrePrc);
+  if (region) partesDisplay.push(region);
+
+  const textoResultado = partesDisplay.join(" - ") || nombreBusq || "PRC sin nombre";
+  const textoBusqueda = normalizarTextoToSearch(
+    [nombreBusq, localidad, comuna, nombrePrc, region, zona].filter(Boolean).join(" ")
+  );
 
   return {
+    id: obtenerPropTexto(props, ["id", "ID", "fid_origen"]),
+    text: nombreBusq || textoResultado,
     texto_localidad: localidad,
     texto_comuna: comuna,
+    texto_nombre_prc: nombrePrc,
     texto_region: region,
-    texto_resultado: partes.join(" - "),
-    texto_busqueda: normalizarTextoToSearch([localidad, comuna, region].join(" "))
+    texto_zona: zona,
+    texto_resultado: textoResultado,
+    texto_busqueda: textoBusqueda
   };
 }
 
 function agregarFeatureAlIndiceToSearch(feature, layerConfig) {
-  if (!feature || !feature.geometry) return;
+  if (!feature) return;
 
   const props = feature.properties || {};
   const textosTerritoriales = construirTextoResultadoToSearch(props);
-
-  if (!textosTerritoriales.texto_localidad || !textosTerritoriales.texto_resultado) return;
+  if (!textosTerritoriales.texto_busqueda) return;
 
   const bounds = obtenerBoundsFeatureToSearch(feature);
-  if (!bounds || !bounds.isValid()) return;
+  if (!bounds || !bounds.isValid()) {
+    console.warn("[GeoIPT Search] geometría inválida para feature de búsqueda", props);
+    return;
+  }
 
   toSearchIndice.push({
     ...textosTerritoriales,
+    nombre: textosTerritoriales.texto_localidad || textosTerritoriales.texto_nombre_prc || textosTerritoriales.texto_resultado,
     texto_display: textosTerritoriales.texto_resultado,
     feature,
+    geometry: feature.geometry || null,
+    source_file: layerConfig?.archivo || "",
     layer_config: layerConfig,
     bounds
   });
@@ -1167,11 +1198,19 @@ function agregarFeatureAlIndiceToSearch(feature, layerConfig) {
 
 function obtenerBoundsFeatureToSearch(feature) {
   try {
-    return L.geoJSON(feature).getBounds();
+    if (feature?.geometry) {
+      const bounds = L.geoJSON(feature).getBounds();
+      if (bounds?.isValid?.()) return bounds;
+    }
+
+    const bbox = normalizarBboxPerimetro(feature?.bbox);
+    if (bbox) return L.latLngBounds(bbox);
   } catch (error) {
-    console.warn("GEOFACTORY TOSEARCH: no se pudieron calcular bounds de feature.", error);
-    return null;
+    console.warn("[GeoIPT Search] geometría inválida; se intentará bbox si existe.", error);
   }
+
+  const bbox = normalizarBboxPerimetro(feature?.bbox);
+  return bbox ? L.latLngBounds(bbox) : null;
 }
 
 function getFeatureBounds(feature) {
@@ -1214,10 +1253,13 @@ function buscarResultadosToSearch(texto) {
   const query = normalizarTextoToSearch(texto);
   if (!query) return [];
 
-  return toSearchIndice
+  const resultados = toSearchIndice
     .filter((item) => item.texto_busqueda.includes(query))
     .sort((a, b) => a.texto_resultado.localeCompare(b.texto_resultado, "es"))
     .slice(0, 20);
+
+  console.log(`[GeoIPT Search] búsqueda: ${texto} | resultados: ${resultados.length}`);
+  return resultados;
 }
 
 function mostrarResultadosToSearch(texto) {
@@ -1238,7 +1280,16 @@ function mostrarResultadosToSearch(texto) {
     const boton = document.createElement("button");
     boton.type = "button";
     boton.className = "search-result-item";
-    boton.textContent = item.texto_resultado;
+
+    const titulo = document.createElement("span");
+    titulo.className = "search-result-title";
+    titulo.textContent = item.texto_localidad || item.texto_comuna || item.texto_nombre_prc || item.texto_resultado;
+
+    const meta = document.createElement("span");
+    meta.className = "search-result-meta";
+    meta.textContent = [item.texto_nombre_prc, item.texto_region].filter(Boolean).join(" · ");
+
+    boton.append(titulo, meta);
     boton.addEventListener("click", () => seleccionarResultadoToSearch(item));
     contenedor.appendChild(boton);
   });
@@ -1307,6 +1358,8 @@ async function seleccionarResultadoBusqueda(item, options = {}) {
   if (searchInput) {
     searchInput.value = item.nombre || item.texto_localidad || item.texto_resultado || "";
   }
+
+  console.log(`[GeoIPT Search] zoom extent a: ${[item.texto_nombre_prc, item.texto_comuna, item.texto_region].filter(Boolean).join(" / ")}`);
 
   ocultarResultadosBusqueda();
 
