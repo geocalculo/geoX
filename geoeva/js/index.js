@@ -9,6 +9,15 @@ const CROSS_ACCESS_PARAM_VALUE = "crossaccess";
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
+const GEOEVA_SEARCH_PATH = "./capas_tosearch/geoeva_tosearch_proyectos.geojson";
+const GEOEVA_SEARCH_MIN_CHARS = 3;
+const GEOEVA_SEARCH_MAX_RESULTS = 15;
+const GEOEVA_SEARCH_DEBOUNCE_MS = 200;
+let geoEvaSearchIndex = [];
+let geoEvaSearchLoaded = false;
+let geoEvaSearchMarker = null;
+let geoEvaSearchTimer = null;
+
 let summaryConfig = null;
 let summaryFeaturesByLayer = {};
 
@@ -457,6 +466,209 @@ function initGeoXMyLocationButton(mapInstance) {
   });
 }
 
+function normalizeGeoEVASearchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function getGeoEVASearchName(props) {
+  return props.nombre_proyecto || props.nombre || props.titular || "Proyecto sin nombre";
+}
+
+function getGeoEVASearchLatLon(feature) {
+  const props = feature.properties || {};
+  const lat = Number(props.lat);
+  const lon = Number(props.lon);
+
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    return { lat, lon };
+  }
+
+  if (
+    feature.geometry &&
+    feature.geometry.type === "Point" &&
+    Array.isArray(feature.geometry.coordinates)
+  ) {
+    const geometryLon = Number(feature.geometry.coordinates[0]);
+    const geometryLat = Number(feature.geometry.coordinates[1]);
+
+    if (Number.isFinite(geometryLat) && Number.isFinite(geometryLon)) {
+      return { lat: geometryLat, lon: geometryLon };
+    }
+  }
+
+  return null;
+}
+
+function buildGeoEVASearchIndex(features) {
+  const index = [];
+
+  features.forEach((feature, featureIndex) => {
+    const props = feature.properties || {};
+    const coords = getGeoEVASearchLatLon(feature);
+
+    if (!coords) {
+      console.warn("[GeoEVA Search] registro omitido por coordenadas inválidas", featureIndex, props);
+      return;
+    }
+
+    const nombre_proyecto = getGeoEVASearchName(props);
+    const titular = props.titular || "";
+    const region = props.region || "";
+    const comuna = props.comuna || "";
+    const sector = props.sector || "";
+    const estado = props.estado || "";
+    const searchText = normalizeGeoEVASearchText([
+      nombre_proyecto,
+      titular,
+      comuna,
+      region,
+      sector,
+      estado
+    ].join(" "));
+
+    index.push({
+      index: featureIndex,
+      nombre_proyecto,
+      titular,
+      region,
+      comuna,
+      sector,
+      estado,
+      lat: coords.lat,
+      lon: coords.lon,
+      geometry: feature.geometry,
+      searchText
+    });
+  });
+
+  return index;
+}
+
+async function loadGeoEVASearchIndex() {
+  if (geoEvaSearchLoaded) return geoEvaSearchIndex;
+
+  console.log(`[GeoEVA Search] cargando ${GEOEVA_SEARCH_PATH}`);
+  const response = await fetch(GEOEVA_SEARCH_PATH, { cache: "no-store" });
+  if (!response.ok) throw new Error(`No se pudo cargar ${GEOEVA_SEARCH_PATH}`);
+
+  const geojson = await response.json();
+  const features = Array.isArray(geojson.features) ? geojson.features : [];
+  console.log("[GeoEVA Search] features cargadas:", features.length);
+
+  geoEvaSearchIndex = buildGeoEVASearchIndex(features);
+  geoEvaSearchLoaded = true;
+  console.log("[GeoEVA Search] índice nacional listo:", geoEvaSearchIndex.length, "registros válidos");
+
+  return geoEvaSearchIndex;
+}
+
+function formatGeoEVASearchResult(item) {
+  return item.titular ? `${item.nombre_proyecto} · ${item.titular}` : item.nombre_proyecto;
+}
+
+function clearGeoEVASearchResults() {
+  const results = document.getElementById("search-results");
+  if (!results) return;
+  results.innerHTML = "";
+  results.classList.remove("is-open");
+}
+
+function searchGeoEVAProjects(query) {
+  const normalizedQuery = normalizeGeoEVASearchText(query);
+  if (normalizedQuery.length < GEOEVA_SEARCH_MIN_CHARS) return [];
+
+  const results = [];
+  for (const item of geoEvaSearchIndex) {
+    if (!item.searchText.includes(normalizedQuery)) continue;
+    results.push(item);
+    if (results.length >= GEOEVA_SEARCH_MAX_RESULTS) break;
+  }
+
+  console.log(`[GeoEVA Search] búsqueda: ${normalizedQuery} | resultados: ${results.length}`);
+  return results;
+}
+
+function renderGeoEVASearchResults(results) {
+  const container = document.getElementById("search-results");
+  if (!container) return;
+
+  container.innerHTML = "";
+  container.classList.toggle("is-open", results.length > 0);
+
+  results.forEach((result) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "search-result-item";
+    button.textContent = formatGeoEVASearchResult(result);
+    button.title = button.textContent;
+    button.addEventListener("click", () => selectGeoEVASearchResult(result));
+    container.appendChild(button);
+  });
+}
+
+function selectGeoEVASearchResult(result) {
+  if (!map || !result) return;
+
+  const lat = Number(result.lat);
+  const lon = Number(result.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+  map.setView([lat, lon], 15);
+
+  if (geoEvaSearchMarker) {
+    geoEvaSearchMarker.setLatLng([lat, lon]);
+  } else {
+    geoEvaSearchMarker = L.marker([lat, lon]).addTo(map);
+  }
+
+  const input = document.getElementById("search-box");
+  if (input) input.value = formatGeoEVASearchResult(result);
+  clearGeoEVASearchResults();
+
+  console.log(`[GeoEVA Search] zoom a proyecto: ${result.nombre_proyecto} | ${result.titular || ""}`);
+}
+
+function initGeoEVANationalSearch() {
+  const input = document.getElementById("search-box");
+  if (!input) return;
+
+  loadGeoEVASearchIndex().catch((error) => {
+    console.warn("[GeoEVA Search] error cargando índice nacional", error);
+  });
+
+  input.addEventListener("input", () => {
+    if (geoEvaSearchTimer) clearTimeout(geoEvaSearchTimer);
+    geoEvaSearchTimer = setTimeout(async () => {
+      const query = input.value;
+      if (normalizeGeoEVASearchText(query).length < GEOEVA_SEARCH_MIN_CHARS) {
+        clearGeoEVASearchResults();
+        return;
+      }
+
+      try {
+        await loadGeoEVASearchIndex();
+        renderGeoEVASearchResults(searchGeoEVAProjects(query));
+      } catch (error) {
+        console.warn("[GeoEVA Search] búsqueda no disponible", error);
+        clearGeoEVASearchResults();
+      }
+    }, GEOEVA_SEARCH_DEBOUNCE_MS);
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") clearGeoEVASearchResults();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#search-box-wrapper")) clearGeoEVASearchResults();
+  });
+}
+
 function getGeoXMapInstance() {
   if (window.geoxMap && typeof window.geoxMap.getCenter === "function") {
     return window.geoxMap;
@@ -560,6 +772,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   conectarBaseMapToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
+  initGeoEVANationalSearch();
   await loadLabelCapacityConfig();
   initPanelLayers();
   window.addEventListener("resize", scheduleEvaPanelViewportUpdate);
