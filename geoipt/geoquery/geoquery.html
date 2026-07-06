@@ -6,469 +6,536 @@
   <title>GeoQuery | GeoIPT</title>
   <style>
     :root {
-      --geo-bg: #f4f6f8;
-      --geo-header: #1f2529;
-      --geo-header-soft: #30363b;
-      --geo-border: #d9e0e7;
-      --geo-card: #ffffff;
-      --geo-text: #16202a;
-      --geo-muted: #66737f;
-      --geo-accent: #ffd400;
-      --geo-accent-2: #f28c28;
-      --geo-btn: #3b4652;
-      --geo-btn-hover: #26303a;
-      --geo-soft: #eef2f6;
+      --header-bg: #102a43;
+      --header-border: #38bdf8;
+      --page-bg: #f4f6f8;
+      --text: #1f2933;
+      --muted: #64748b;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --border: #d9e2ec;
+      --accent: #0ea5e9;
+      --accent-dark: #0369a1;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
-    html, body {
+    html,
+    body {
       margin: 0;
       min-height: 100%;
       font-family: Arial, Helvetica, sans-serif;
-      background: var(--geo-bg);
-      color: var(--geo-text);
+      background: var(--page-bg);
+      color: var(--text);
     }
 
-    .page {
+    body {
+      line-height: 1.5;
+    }
+
+    .app {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
 
-    .top-header {
-      background: linear-gradient(135deg, var(--geo-header), var(--geo-header-soft));
-      color: #fff;
-      padding: 20px 22px 18px;
-      border-bottom: 3px solid var(--geo-accent);
-    }
-
-    .header-inner {
-      max-width: 1280px;
-      margin: 0 auto;
+    .main-header {
+      background: var(--header-bg);
+      color: #ffffff;
       display: grid;
-      grid-template-columns: 1.2fr 1.8fr;
-      gap: 22px;
+      grid-template-columns: minmax(240px, 440px) 1fr;
       align-items: center;
+      gap: 18px;
+      min-height: 104px;
+      padding: 18px clamp(18px, 4vw, 42px);
+      border-bottom: 3px solid var(--header-border);
     }
 
-    .brand h1 {
-      margin: 0 0 6px;
-      font-size: 30px;
-      line-height: 1;
-      letter-spacing: -0.4px;
+    .brand-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    .brand h2 {
-      margin: 0 0 8px;
+    .site-title {
+      margin: 0;
+      font-size: clamp(25px, 4vw, 34px);
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+
+    .site-subtitle {
+      margin: 0;
+      color: #cbd5e1;
       font-size: 15px;
       font-weight: 700;
     }
 
-    .brand p {
+    .site-description {
       margin: 0;
-      max-width: 620px;
+      color: #dbeafe;
       font-size: 13px;
-      line-height: 1.4;
-      color: rgba(255, 255, 255, 0.92);
+    }
+
+    .header-note {
+      justify-self: end;
+      max-width: 360px;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #e0f2fe;
+      font-size: 14px;
+      text-align: right;
+    }
+
+    .content {
+      width: min(1120px, calc(100% - 32px));
+      margin: 26px auto 32px;
+      flex: 1;
     }
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(4, minmax(116px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 14px;
+      margin-bottom: 18px;
     }
 
-    .card-kpi {
-      min-height: 62px;
-      padding: 11px 12px;
-      text-align: center;
-      border-radius: 9px;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
-    }
-
-    .card-kpi strong {
-      display: block;
-      font-size: 19px;
-      line-height: 1.15;
-      color: #fff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .card-kpi span {
-      display: block;
-      margin-top: 4px;
-      font-size: 11px;
-      color: #e8eef5;
-    }
-
-    .action-bar {
-      background: #fff;
-      border-bottom: 1px solid var(--geo-border);
-      padding: 10px 18px;
-    }
-
-    .action-inner {
-      max-width: 1280px;
-      margin: 0 auto;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .btn {
-      border: 0;
-      border-radius: 8px;
-      padding: 9px 14px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      color: #fff;
-      background: var(--geo-btn);
-    }
-
-    .btn:hover { background: var(--geo-btn-hover); }
-
-    .btn.secondary {
-      background: #e8edf3;
-      color: #1f2a35;
-      cursor: default;
-    }
-
-    .btn.accent {
-      background: #4f5965;
-    }
-
-    .main {
-      width: 100%;
-      max-width: 1280px;
-      margin: 22px auto;
-      padding: 0 18px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
+    .card,
     .panel {
-      background: var(--geo-card);
-      border: 1px solid var(--geo-border);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 12px 26px rgba(16, 24, 40, 0.08);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
     }
 
-    .panel-head {
-      padding: 17px 20px;
-      background: #fbfcfe;
-      border-bottom: 1px solid var(--geo-border);
+    .card {
+      padding: 16px;
+      min-height: 104px;
     }
 
-    .panel-head h3 {
-      margin: 0;
-      font-size: 20px;
-      letter-spacing: -0.2px;
-    }
-
-    .panel-head p {
-      margin: 6px 0 0;
-      font-size: 13px;
-      line-height: 1.35;
-      color: var(--geo-muted);
-    }
-
-    .panel-body { padding: 19px 20px 20px; }
-
-    .coord-table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-
-    .coord-table th,
-    .coord-table td {
-      text-align: left;
-      padding: 11px 8px;
-      border-bottom: 1px solid #edf1f5;
-      font-size: 14px;
-      vertical-align: top;
-    }
-
-    .coord-table th {
-      width: 40%;
-      color: var(--geo-muted);
+    .card-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
       font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
-    .coord-table td {
-      font-weight: 700;
-      color: var(--geo-text);
+    .card-value {
+      display: block;
+      margin-top: 8px;
+      color: #102a43;
+      font-size: clamp(18px, 2.4vw, 24px);
+      font-weight: 800;
       word-break: break-word;
     }
 
-    .status-ok { color: #157347; font-weight: 800; }
-    .status-error { color: #b42318; font-weight: 800; }
+    .card-value.status-ok {
+      color: var(--success);
+    }
 
-    .visual-box {
-      min-height: 365px;
+    .card-value.status-error {
+      color: var(--warning);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .panel {
+      padding: clamp(18px, 3vw, 28px);
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      color: #102a43;
+      font-size: 24px;
+    }
+
+    .message {
+      padding: 16px;
+      border-radius: 14px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      font-weight: 700;
+    }
+
+    .details {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+    }
+
+    .detail-row {
+      display: grid;
+      grid-template-columns: minmax(150px, 220px) 1fr;
+      gap: 14px;
+      padding: 13px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: var(--panel-soft);
+    }
+
+    .detail-row dt {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .detail-row dd {
+      margin: 0;
+      color: #0f172a;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .visual-panel {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       justify-content: center;
-      position: relative;
-      background:
-        linear-gradient(90deg, rgba(31,37,41,0.045) 1px, transparent 1px),
-        linear-gradient(0deg, rgba(31,37,41,0.045) 1px, transparent 1px),
-        radial-gradient(circle at center, rgba(255, 212, 0, 0.20), transparent 37%),
-        linear-gradient(135deg, #eef2f6, #ffffff);
-      background-size: 42px 42px, 42px 42px, auto, auto;
+      align-items: center;
+      text-align: center;
+      min-height: 100%;
     }
 
     .target {
-      width: 178px;
-      height: 178px;
-      border-radius: 50%;
-      border: 2px dashed rgba(255, 212, 0, 0.95);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: min(260px, 72vw);
+      aspect-ratio: 1;
       position: relative;
-      background: rgba(255,255,255,0.35);
+      display: grid;
+      place-items: center;
+      margin: 8px auto 20px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, rgba(14, 165, 233, 0.18) 0 14%, transparent 15% 100%),
+        repeating-radial-gradient(circle, rgba(14, 165, 233, 0.14) 0 2px, transparent 2px 42px),
+        linear-gradient(135deg, #eff6ff, #f8fafc);
+      border: 1px solid #bfdbfe;
+      box-shadow: inset 0 0 0 18px rgba(255, 255, 255, 0.6), var(--shadow);
     }
 
     .target::before,
     .target::after {
       content: "";
       position: absolute;
-      border-radius: 50%;
-      border: 1px solid rgba(255, 212, 0, 0.75);
+      background: rgba(3, 105, 161, 0.28);
     }
 
-    .target::before { width: 116px; height: 116px; }
-    .target::after { width: 58px; height: 58px; }
-
-    .cross-h,
-    .cross-v {
-      position: absolute;
-      background: rgba(31, 37, 41, 0.24);
+    .target::before {
+      width: 1px;
+      height: 76%;
     }
 
-    .cross-h { width: 240px; height: 1px; }
-    .cross-v { width: 1px; height: 240px; }
+    .target::after {
+      height: 1px;
+      width: 76%;
+    }
 
     .pin {
-      width: 24px;
-      height: 24px;
-      border-radius: 50% 50% 50% 0;
-      background: var(--geo-accent-2);
-      transform: rotate(-45deg);
-      box-shadow: 0 8px 18px rgba(242, 140, 40, 0.38);
       position: relative;
-      z-index: 3;
+      z-index: 1;
+      width: 44px;
+      height: 44px;
+      border-radius: 50% 50% 50% 0;
+      background: var(--accent);
+      transform: rotate(-45deg);
+      box-shadow: 0 12px 22px rgba(3, 105, 161, 0.28);
     }
 
     .pin::after {
       content: "";
-      width: 8px;
-      height: 8px;
-      background: #fff;
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      inset: 14px;
       border-radius: 50%;
-      position: absolute;
-      top: 8px;
-      left: 8px;
+      background: #ffffff;
     }
 
-    .visual-label {
-      position: absolute;
-      bottom: 18px;
-      left: 18px;
-      right: 18px;
-      text-align: center;
-      font-size: 13px;
-      color: var(--geo-muted);
-      font-weight: 700;
+    .visual-caption {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 320px;
     }
 
-    .note {
-      max-width: 1280px;
-      margin: 0 auto 22px;
-      padding: 0 18px;
-      color: var(--geo-muted);
-      font-size: 12px;
+    .actions {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-start;
     }
 
-    .hidden { display: none !important; }
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      background: var(--accent-dark);
+      color: #ffffff;
+      font-weight: 800;
+      text-decoration: none;
+      transition: background 160ms ease, transform 160ms ease;
+    }
+
+    .back-button:hover,
+    .back-button:focus {
+      background: #075985;
+      transform: translateY(-1px);
+    }
 
     @media (max-width: 860px) {
-      .top-header { padding: 18px 16px; }
-      .header-inner { grid-template-columns: 1fr; }
-      .cards { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
-      .main { grid-template-columns: 1fr; margin: 16px auto; }
-      .brand h1 { font-size: 27px; }
-      .visual-box { min-height: 270px; }
-      .coord-table th { width: 44%; }
+      .main-header,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .header-note {
+        justify-self: stretch;
+        text-align: left;
+      }
+
+      .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .content {
+        width: min(100% - 20px, 1120px);
+        margin-top: 16px;
+      }
+
+      .cards,
+      .detail-row {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        min-height: auto;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <header class="top-header">
-      <div class="header-inner">
-        <div class="brand">
-          <h1>GeoQuery | GeoIPT</h1>
-          <h2>Consulta territorial del punto seleccionado</h2>
-          <p>Primera prueba de GeoQuery: recepción de coordenada, normalización y preparación del análisis territorial.</p>
-        </div>
-        <div class="cards">
-          <div class="card-kpi"><strong id="card-lat">—</strong><span>Latitud</span></div>
-          <div class="card-kpi"><strong id="card-lon">—</strong><span>Longitud</span></div>
-          <div class="card-kpi"><strong id="card-site">GeoIPT</strong><span>Sitio origen</span></div>
-          <div class="card-kpi"><strong id="card-status">—</strong><span>Estado</span></div>
-        </div>
+  <div class="app">
+    <header class="main-header">
+      <div class="brand-block">
+        <h1 class="site-title">GeoQuery | GeoIPT</h1>
+        <p class="site-subtitle">Consulta territorial del punto seleccionado</p>
+        <p class="site-description">Primera prueba de GeoQuery</p>
+      </div>
+      <div class="header-note" aria-label="Estado de versión">
+        Punto, coordenadas y estado básico para preparar el análisis territorial.
       </div>
     </header>
 
-    <section class="action-bar">
-      <div class="action-inner">
-        <button class="btn" id="back-btn" type="button">Volver a GeoIPT</button>
-        <button class="btn secondary" type="button" disabled>Exportar KML</button>
-        <button class="btn secondary" type="button" disabled>Exportar PDF</button>
-      </div>
-    </section>
-
-    <main class="main">
-      <section class="panel">
-        <div class="panel-head">
-          <h3>Punto consultado</h3>
-          <p>Coordenada recibida desde el index de GeoIPT mediante parámetros de URL.</p>
-        </div>
-        <div class="panel-body">
-          <table class="coord-table" aria-label="Coordenadas del punto consultado">
-            <tbody>
-              <tr><th>Latitud decimal</th><td id="lat-decimal">—</td></tr>
-              <tr><th>Longitud decimal</th><td id="lon-decimal">—</td></tr>
-              <tr><th>Latitud GMS</th><td id="lat-dms">—</td></tr>
-              <tr><th>Longitud GMS</th><td id="lon-dms">—</td></tr>
-              <tr><th>CRS</th><td>WGS84 / EPSG:4326</td></tr>
-              <tr><th>Fuente</th><td>Parámetro URL</td></tr>
-              <tr><th>Estado consulta</th><td id="status-text">—</td></tr>
-            </tbody>
-          </table>
-        </div>
+    <main class="content">
+      <section class="cards" aria-label="Resumen de consulta">
+        <article class="card">
+          <span class="card-label">Latitud</span>
+          <span class="card-value" id="card-lat">—</span>
+        </article>
+        <article class="card">
+          <span class="card-label">Longitud</span>
+          <span class="card-value" id="card-lon">—</span>
+        </article>
+        <article class="card">
+          <span class="card-label">Sitio origen</span>
+          <span class="card-value" id="card-site">—</span>
+        </article>
+        <article class="card">
+          <span class="card-label">Estado</span>
+          <span class="card-value" id="card-status">—</span>
+        </article>
       </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <h3>Referencia visual</h3>
-          <p>Representación inicial del punto consultado. El mapa y el análisis espacial se agregarán en etapas posteriores.</p>
-        </div>
-        <div class="visual-box">
-          <div class="cross-h"></div>
-          <div class="cross-v"></div>
-          <div class="target" aria-hidden="true"><div class="pin"></div></div>
-          <div class="visual-label" id="visual-label">Punto preparado para análisis GeoQuery</div>
-        </div>
+      <section class="layout" aria-label="Detalle del punto consultado">
+        <article class="panel">
+          <h2>Punto consultado</h2>
+          <div id="invalid-message" class="message" hidden>No se recibió una coordenada válida.</div>
+          <dl class="details" id="details-panel">
+            <div class="detail-row">
+              <dt>Latitud decimal</dt>
+              <dd id="lat-decimal">—</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Longitud decimal</dt>
+              <dd id="lon-decimal">—</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Latitud GMS</dt>
+              <dd id="lat-dms">—</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Longitud GMS</dt>
+              <dd id="lon-dms">—</dd>
+            </div>
+            <div class="detail-row">
+              <dt>CRS</dt>
+              <dd>WGS84 / EPSG:4326</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Fuente</dt>
+              <dd>parámetro URL</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Estado</dt>
+              <dd id="detail-status">preparado para análisis territorial</dd>
+            </div>
+          </dl>
+          <div class="actions">
+            <a class="back-button" id="back-link" href="../index.html">Volver a GeoIPT</a>
+          </div>
+        </article>
+
+        <aside class="panel visual-panel" aria-label="Representación visual del punto consultado">
+          <div class="target" aria-hidden="true">
+            <div class="pin"></div>
+          </div>
+          <p class="visual-caption" id="visual-caption">Representación simple del punto consultado.</p>
+        </aside>
       </section>
     </main>
-
-    <div class="note">GeoQuery GeoX · Primera prueba HTML · Sin popups · Sin análisis espacial todavía.</div>
   </div>
 
   <script>
-    function getParam(name) {
-      const params = new URLSearchParams(window.location.search);
-      return params.get(name);
-    }
-
-    function parseCoordinate(value) {
-      if (value === null || value === undefined || value === '') return null;
-      const n = Number(String(value).replace(',', '.'));
-      return Number.isFinite(n) ? n : null;
-    }
-
-    function formatDecimal(value) {
-      return Number(value).toFixed(6);
-    }
-
     function decimalToDMS(value, type) {
-      const abs = Math.abs(value);
-      const deg = Math.floor(abs);
-      const minFloat = (abs - deg) * 60;
-      const min = Math.floor(minFloat);
-      const sec = (minFloat - min) * 60;
-      const hemi = type === 'lat'
-        ? (value >= 0 ? 'N' : 'S')
-        : (value >= 0 ? 'E' : 'W');
-      return `${deg}° ${min}' ${sec.toFixed(2)}" ${hemi}`;
+      const absolute = Math.abs(value);
+      let degrees = Math.floor(absolute);
+      const minutesFloat = (absolute - degrees) * 60;
+      let minutes = Math.floor(minutesFloat);
+      let seconds = Number(((minutesFloat - minutes) * 60).toFixed(2));
+
+      if (seconds >= 60) {
+        seconds = 0;
+        minutes += 1;
+      }
+
+      if (minutes >= 60) {
+        minutes = 0;
+        degrees += 1;
+      }
+
+      const direction = type === "lat"
+        ? (value >= 0 ? "N" : "S")
+        : (value >= 0 ? "E" : "W");
+
+      return `${degrees}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
     }
 
-    function buildReturnUrl(lat, lon) {
-      const basemap = getParam('basemap') || 'osm';
-      const zoom = getParam('zoom') || '14';
-      if (lat === null || lon === null) return '../index.html';
-      return `../index.html?from=geoquery&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=${encodeURIComponent(zoom)}&basemap=${encodeURIComponent(basemap)}`;
+    function isValidCoordinate(lat, lon) {
+      return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
     }
 
-    function setText(id, value) {
-      const el = document.getElementById(id);
-      if (el) el.textContent = value;
+    function getParam(params, key, fallback) {
+      return params.get(key) || fallback;
     }
 
-    function initGeoQuery() {
-      const lat = parseCoordinate(getParam('lat'));
-      const lon = parseCoordinate(getParam('lon'));
-      const site = (getParam('site') || 'geoipt').toLowerCase();
-      const valid = lat !== null && lon !== null && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+    (function initGeoQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const lat = Number.parseFloat(params.get("lat"));
+      const lon = Number.parseFloat(params.get("lon"));
+      const site = getParam(params, "site", "geoipt");
+      const basemap = getParam(params, "basemap", "osm");
+      const zoom = getParam(params, "zoom", "14");
+      const valid = isValidCoordinate(lat, lon);
 
-      setText('card-site', site.toUpperCase());
+      const elements = {
+        cardLat: document.getElementById("card-lat"),
+        cardLon: document.getElementById("card-lon"),
+        cardSite: document.getElementById("card-site"),
+        cardStatus: document.getElementById("card-status"),
+        latDecimal: document.getElementById("lat-decimal"),
+        lonDecimal: document.getElementById("lon-decimal"),
+        latDms: document.getElementById("lat-dms"),
+        lonDms: document.getElementById("lon-dms"),
+        detailStatus: document.getElementById("detail-status"),
+        invalidMessage: document.getElementById("invalid-message"),
+        detailsPanel: document.getElementById("details-panel"),
+        backLink: document.getElementById("back-link"),
+        visualCaption: document.getElementById("visual-caption")
+      };
+
+      elements.cardSite.textContent = site;
 
       if (!valid) {
-        setText('card-status', 'Error');
-        document.getElementById('status-text').innerHTML = '<span class="status-error">No se recibió una coordenada válida.</span>';
-        setText('visual-label', 'Coordenada no válida');
-        document.getElementById('back-btn').onclick = function () { window.location.href = '../index.html'; };
+        window.geoQueryState = {
+          site,
+          lat: null,
+          lon: null,
+          lat_decimal: null,
+          lon_decimal: null,
+          lat_dms: null,
+          lon_dms: null,
+          crs: "WGS84 / EPSG:4326",
+          source: "url_params",
+          timestamp: new Date().toISOString()
+        };
+
+        elements.cardStatus.textContent = "Sin coordenada";
+        elements.cardStatus.classList.add("status-error");
+        elements.invalidMessage.hidden = false;
+        elements.detailsPanel.hidden = true;
+        elements.backLink.href = "../index.html";
+        elements.visualCaption.textContent = "No se recibió una coordenada válida.";
         return;
       }
 
-      const latDecimal = formatDecimal(lat);
-      const lonDecimal = formatDecimal(lon);
-      const latDms = decimalToDMS(lat, 'lat');
-      const lonDms = decimalToDMS(lon, 'lon');
-
-      setText('card-lat', latDecimal);
-      setText('card-lon', lonDecimal);
-      setText('card-status', 'Preparado');
-      setText('lat-decimal', latDecimal);
-      setText('lon-decimal', lonDecimal);
-      setText('lat-dms', latDms);
-      setText('lon-dms', lonDms);
-      document.getElementById('status-text').innerHTML = '<span class="status-ok">Preparado para análisis territorial.</span>';
-      setText('visual-label', `${latDecimal}, ${lonDecimal}`);
+      const latDecimal = lat.toFixed(6);
+      const lonDecimal = lon.toFixed(6);
+      const latDms = decimalToDMS(lat, "lat");
+      const lonDms = decimalToDMS(lon, "lon");
 
       window.geoQueryState = {
-        site: site,
-        lat: lat,
-        lon: lon,
+        site,
+        lat,
+        lon,
         lat_decimal: latDecimal,
         lon_decimal: lonDecimal,
         lat_dms: latDms,
         lon_dms: lonDms,
-        crs: 'WGS84 / EPSG:4326',
-        source: 'url_params',
+        lat_decimal: latDecimal,
+        lon_decimal: lonDecimal,
+        lat_dms: latDms,
+        lon_dms: lonDms,
+        crs: "WGS84 / EPSG:4326",
+        source: "url_params",
         timestamp: new Date().toISOString()
       };
 
-      document.getElementById('back-btn').onclick = function () {
-        window.location.href = buildReturnUrl(lat, lon);
-      };
+      elements.cardLat.textContent = latDecimal;
+      elements.cardLon.textContent = lonDecimal;
+      elements.cardStatus.textContent = "Válida";
+      elements.cardStatus.classList.add("status-ok");
+      elements.latDecimal.textContent = latDecimal;
+      elements.lonDecimal.textContent = lonDecimal;
+      elements.latDms.textContent = latDms;
+      elements.lonDms.textContent = lonDms;
+      elements.detailStatus.textContent = "preparado para análisis territorial";
+      elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
 
-      console.log('[GeoQuery GeoIPT] Estado inicial:', window.geoQueryState);
-    }
-
-    document.addEventListener('DOMContentLoaded', initGeoQuery);
+      const backParams = new URLSearchParams({
+        from: "geoquery",
+        lat: String(lat),
+        lon: String(lon),
+        zoom,
+        basemap
+      });
+      elements.backLink.href = `../index.html?${backParams.toString()}`;
+    })();
   </script>
 </body>
 </html>
