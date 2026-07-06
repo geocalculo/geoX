@@ -98,6 +98,9 @@
           <button id="btn-my-location" title="Centrar en mi ubicación" aria-label="Centrar en mi ubicación">
             📍
           </button>
+          <button id="geoquery-btn" type="button" title="Abrir GeoQuery con el punto seleccionado" aria-label="Abrir GeoQuery con el punto seleccionado">
+            📌
+          </button>
           <button
             id="mobile-layer-toggle"
             type="button"
@@ -110,6 +113,8 @@
             <span class="mobile-layer-toggle-text">IPT</span>
           </button>
         </div>
+
+        <div id="geoquery-toast" role="status" aria-live="polite"></div>
 
         <div id="mobile-summary-drawer">
           <button id="mobile-summary-toggle" type="button" aria-expanded="false">
