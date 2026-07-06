@@ -4,6 +4,9 @@ let satLayer;
 let currentBaseLayer;
 let currentBasemap = "osm";
 let initialCrossAccessState = null;
+let selectedPoint = null;
+let selectedFeatureContext = null;
+const SITE_ID = "geoipt";
 const CROSS_ACCESS_PARAM_NAME = "from";
 const CROSS_ACCESS_PARAM_VALUE = "crossaccess";
 
@@ -57,6 +60,26 @@ function getInitialBasemapFromUrl() {
 
 
 let userLocationMarker = null;
+
+function captureSelectedPoint(event, featureContext = null) {
+  const latlng = event?.latlng || event;
+  if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) return null;
+
+  const originalEvent = event?.originalEvent;
+  if (featureContext && originalEvent) originalEvent.__geoxFeatureContext = featureContext;
+
+  selectedPoint = {
+    lat: latlng.lat,
+    lon: latlng.lng,
+    source: "map_click",
+    site: SITE_ID,
+    timestamp: new Date().toISOString()
+  };
+  selectedFeatureContext = featureContext || originalEvent?.__geoxFeatureContext || null;
+  window.selectedPoint = selectedPoint;
+  window.selectedFeatureContext = selectedFeatureContext;
+  return selectedPoint;
+}
 
 function getLocationByGps() {
   return new Promise((resolve, reject) => {
@@ -127,7 +150,7 @@ function applyUserLocation(mapInstance, location, zoomLevel = 14) {
     userLocationMarker = L.marker([lat, lon]).addTo(mapInstance);
   }
 
-  userLocationMarker.bindPopup("Mi ubicación aproximada").openPopup();
+  captureSelectedPoint({ lat, lng: lon });
 }
 
 async function initGeoXInitialLocation(mapInstance) {
@@ -671,23 +694,15 @@ function obtenerLatLngRepresentativoFeature(feature, bounds) {
 
 function handlePRCSelection(feature, clickedLatLng, options = {}) {
   const punto = normalizarLatLng(clickedLatLng);
-  const nombrePrc = obtenerNombrePrc(feature);
-  const source = options.source || "direct";
-  const coords = punto
-    ? `${punto.lat.toFixed(6)}, ${punto.lng.toFixed(6)}`
-    : "Sin coordenadas disponibles";
+  if (!punto) return;
 
-  const detalle = [
-    "Consulta PRC",
-    `Coordenadas consultadas: ${coords}`,
-    `PRC seleccionado: ${nombrePrc}`,
-    `Modo de selección: ${source}`
-  ];
-
-  if (Number.isFinite(options.rank)) detalle.push(`Ranking cercano: ${options.rank}`);
-  if (Number.isFinite(options.distanceMeters)) detalle.push(`Distancia: ${Math.round(options.distanceMeters).toLocaleString("es-CL")} m`);
-
-  alert(detalle.join("\n"));
+  captureSelectedPoint(punto, {
+    site: SITE_ID,
+    layer_id: options.layer_id || "prc",
+    feature_id: feature?.properties?.id || feature?.properties?.fid || feature?.id || null,
+    feature_name: obtenerNombrePrc(feature),
+    source_layer: options.source || "direct"
+  });
 }
 
 function puntoEnAnillo(lonLat, ring) {
@@ -821,48 +836,6 @@ function getRegionFromFeatureOrSelector(feature) {
   return getRegionActualParaGeoCard();
 }
 
-function abrirGeoCardDesdeClick(lat, lon, feature) {
-  if (!map) return;
-
-  const bounds = map.getBounds();
-  const bboxStr = [
-    bounds.getNorth(),
-    bounds.getEast(),
-    bounds.getSouth(),
-    bounds.getWest()
-  ].join(",");
-  const nombrePrc = getPRCDisplayName(feature);
-  const archivoPrc = getPRCArchivoFromFeature(feature);
-
-  const params = new URLSearchParams({
-    lat: String(lat),
-    lon: String(lon),
-    zoom: String(map.getZoom()),
-    bbox: bboxStr,
-    sitio: "GeoIPT",
-    region: getRegionFromFeatureOrSelector(feature),
-    dominio_prc: "1",
-    prc_nombre: nombrePrc || "",
-    prc_archivo: archivoPrc || ""
-  });
-
-  if (archivoPrc) params.set("capa_kml", archivoPrc);
-
-  window.open(`geo-card.html?${params.toString()}`, "_blank");
-}
-
-function confirmarConsultaGeoCard(clickedLatLng) {
-  if (!clickedLatLng) return false;
-
-  return confirm(
-    "Consulta territorial\n\n" +
-    "Punto consultado:\n" +
-    "Lat: " + clickedLatLng.lat.toFixed(6) + "\n" +
-    "Lng: " + clickedLatLng.lng.toFixed(6) + "\n\n" +
-    "¿Abrir GeoCard para analizar este punto?"
-  );
-}
-
 function buscarItemPrcContenedor(latLng) {
   return toSearchIndice.find((item) => item?.bounds?.contains?.(latLng) && puntoEnFeature(latLng, item.feature)) || null;
 }
@@ -871,24 +844,15 @@ function handleMapClick(event) {
   if (!event?.latlng) return;
 
   const clickedLatLng = event.latlng;
-  const lat = clickedLatLng.lat;
-  const lon = clickedLatLng.lng;
-
-  colocarMarcadorPunto(clickedLatLng);
-
   const containingPRC = findContainingPRCFromPerimetros(clickedLatLng);
 
-  if (containingPRC) {
-    ocultarResultadosBusqueda();
-    if (confirmarConsultaGeoCard(clickedLatLng)) {
-      abrirGeoCardDesdeClick(lat, lon, containingPRC);
-    }
-    return;
-  }
-
-  const cercanos = obtenerPrcCercanosDesdePerimetros(lat, lon, 3);
-  bloquearCierreBusquedaPorClickMapa = true;
-  renderFallbackResultadosCercanos(cercanos);
+  captureSelectedPoint(clickedLatLng, containingPRC ? {
+    site: SITE_ID,
+    layer_id: "prc",
+    feature_id: containingPRC?.properties?.id || containingPRC?.properties?.fid || containingPRC?.id || null,
+    feature_name: obtenerNombrePrc(containingPRC),
+    source_layer: "perimetros_ipt"
+  } : null);
 }
 
 function getSearchInputElement() {
