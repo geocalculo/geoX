@@ -542,28 +542,6 @@ function openGeoQueryFromLatLng(lat, lon) {
   window.location.href = queryUrl;
 }
 
-function initGeoQueryButton() {
-  const button = document.getElementById("geoquery-btn");
-  if (!button) return;
-
-  button.addEventListener("click", () => {
-    const point = isValidSelectedPoint(window.selectedPoint) ? window.selectedPoint : selectedPoint;
-
-    if (!isValidSelectedPoint(point)) {
-      showGeoQueryNotice("Haz click en el mapa para seleccionar un punto.");
-      return;
-    }
-
-    const queryUrl = buildGeoQueryUrl(point);
-    if (!queryUrl) {
-      showGeoQueryNotice("No se pudo abrir GeoQuery. Intenta nuevamente.");
-      return;
-    }
-
-    window.location.href = queryUrl;
-  });
-}
-
 function showToast(message) {
   if (typeof showGeoQueryNotice === "function") {
     showGeoQueryNotice(message);
@@ -638,8 +616,6 @@ function conectarEventos() {
   });
 
   initGeoXMyLocationButton(map);
-  initGeoQueryButton();
-
   conectarMobileSummaryDrawer();
   conectarSearchBoxToSearch();
 }
