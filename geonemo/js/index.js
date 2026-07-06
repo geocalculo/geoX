@@ -25,7 +25,7 @@ const NEMO_PANEL_LAYER_CONFIG = [
       "./capas_panel/snaspe_XL_from_raster_conti.geojson",
       "./capas_panel/snaspe_XL_from_raster_mar.geojson"
     ],
-    labelFields: ["NOMBRE_TOT", "NOMBRE_UNI"],
+    labelFields: ["NOMBRE_TOT", "NOMBRE_UNI", "nombre", "Nombre", "NOMBRE"],
     labelGroupFields: ["ID_CATASTR", "NOMBRE_TOT"],
     style: { ...NEMO_LAYER_STYLE_BASE }
   },
@@ -33,7 +33,8 @@ const NEMO_PANEL_LAYER_CONFIG = [
     id: "ramsar",
     visibleName: "Sitios Ramsar",
     archivo: "./capas_panel/nemo_ramsar_panel.geojson",
-    labelFields: ["Nombre"],
+    labelFields: ["Nombre", "nombre", "NOMBRE"],
+    labelGroupFields: ["Id", "Nombre"],
     style: { ...NEMO_LAYER_STYLE_BASE }
   }
 ];
@@ -53,18 +54,44 @@ let geoNemoSearchActiveIndex = -1;
 let geoNemoSearchMarker = null;
 let summaryConfig = null;
 let summaryFeaturesByLayer = {};
-const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0 };
+const LABEL_CAPACITY_CONFIG_PATH = "./capas_panel/label_capacity_config.json";
+const DEFAULT_LABEL_CAPACITY_CONFIG = { labels_per_cm2: 2, label_font_height_mm: 4 };
+let labelCapacityConfig = { ...DEFAULT_LABEL_CAPACITY_CONFIG };
 
 async function loadLabelDensityConfig() {
-  // Revert Smart Labels density rollout: keep labels independent from JSON config for now.
+  labelCapacityConfig = { ...DEFAULT_LABEL_CAPACITY_CONFIG };
+
+  try {
+    const response = await fetch(LABEL_CAPACITY_CONFIG_PATH, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const config = await response.json();
+    const labelsPerCm2 = Number(config?.labels_per_cm2);
+    const labelFontHeightMm = Number(config?.label_font_height_mm);
+
+    labelCapacityConfig = {
+      labels_per_cm2: Number.isFinite(labelsPerCm2) && labelsPerCm2 > 0 ? labelsPerCm2 : DEFAULT_LABEL_CAPACITY_CONFIG.labels_per_cm2,
+      label_font_height_mm: Number.isFinite(labelFontHeightMm) && labelFontHeightMm > 0 ? labelFontHeightMm : DEFAULT_LABEL_CAPACITY_CONFIG.label_font_height_mm
+    };
+  } catch (error) {
+    console.warn("[GeoNEMO Labels] label_capacity_config.json no disponible o inválido; usando valores por defecto.", error);
+  }
+
+  applyGeoNemoLabelFontSize();
+  console.log("[GeoNEMO Labels] labels_per_cm2:", labelCapacityConfig.labels_per_cm2);
+  console.log("[GeoNEMO Labels] label_font_height_mm:", labelCapacityConfig.label_font_height_mm);
 }
 
-function getLabelDensityMaxLabels() {
-  return DEFAULT_LABEL_DENSITY_CONFIG.maxLabels;
+function applyGeoNemoLabelFontSize() {
+  if (!document?.documentElement) return;
+  document.documentElement.style.setProperty(
+    "--geox-label-font-size",
+    `${labelCapacityConfig.label_font_height_mm * 3.7795}px`
+  );
 }
 
 function getLabelDensityMinZoom() {
-  return DEFAULT_LABEL_DENSITY_CONFIG.minZoom;
+  return 0;
 }
 
 function isCrossAccessNavigationFromUrl() {
@@ -617,7 +644,7 @@ function iniciarMapa() {
   switchBaseMap(getInitialBasemapFromUrl());
   initGeoNemoPanelLayers(map);
   map.on("click", captureSelectedPoint);
-  map.on("zoomend", () => applyGeoNemoLabelVisibility());
+  map.on("moveend zoomend resize", () => applyGeoNemoLabelVisibility());
 
   L.control.scale({
     imperial: false
@@ -1147,23 +1174,6 @@ function getGeoNemoFeatureLabelKey(feature, labelText, layerId) {
   return `${layerId}:${String(id).trim().toLowerCase()}`;
 }
 
-function createGeoNemoLabelMarker(layer, labelText) {
-  if (!layer || typeof layer.getBounds !== "function") return null;
-
-  const bounds = layer.getBounds();
-  if (!bounds || !bounds.isValid()) return null;
-
-  return L.marker(bounds.getCenter(), {
-    interactive: false,
-    pane: "nemo-panel-labels",
-    icon: L.divIcon({
-      className: "geonemo-panel-label",
-      html: `<span>${escapeHtml(labelText)}</span>`,
-      iconSize: null
-    })
-  });
-}
-
 function getGeoNemoLayerBounds(layer) {
   if (!layer || typeof layer.getBounds !== "function") return null;
   const bounds = layer.getBounds();
@@ -1183,26 +1193,121 @@ function collectGeoNemoLabelRecord(recordsByKey, feature, layer, config) {
   const current = recordsByKey.get(labelKey);
   if (current) {
     current.bounds.extend(bounds);
+    current.fragmentCount += 1;
     return;
   }
 
   recordsByKey.set(labelKey, {
+    key: labelKey,
+    layerId: config.id,
     labelText,
-    bounds: L.latLngBounds(bounds.getSouthWest(), bounds.getNorthEast())
+    bounds: L.latLngBounds(bounds.getSouthWest(), bounds.getNorthEast()),
+    fragmentCount: 1
   });
 }
 
-function addGroupedGeoNemoLabels(recordsByKey, labelGroup, config) {
-  const maxLabels = getLabelDensityMaxLabels(config.id);
-  let labelCount = 0;
+function getGeoNemoViewportAnchor(record, viewport) {
+  const south = Math.max(record.bounds.getSouth(), viewport.getSouth());
+  const north = Math.min(record.bounds.getNorth(), viewport.getNorth());
+  const west = Math.max(record.bounds.getWest(), viewport.getWest());
+  const east = Math.min(record.bounds.getEast(), viewport.getEast());
 
-  recordsByKey.forEach((record) => {
-    if (!record || !record.labelText || labelCount >= maxLabels) return;
-    const marker = createGeoNemoLabelMarkerAtLatLng(record.bounds.getCenter(), record.labelText);
-    if (!marker) return;
-    labelGroup.addLayer(marker);
-    labelCount += 1;
+  if (south <= north && west <= east) {
+    return L.latLngBounds([south, west], [north, east]).getCenter();
+  }
+
+  return record.bounds.getCenter();
+}
+
+function getGeoNemoVisibleLabelCandidates(entry) {
+  if (!map || !entry?.labelRecordsByKey) return [];
+  const viewport = map.getBounds();
+  const rawRecords = Array.from(entry.labelRecordsByKey.values());
+  const visibleRecords = rawRecords.filter((record) => record?.bounds?.isValid?.() && viewport.intersects(record.bounds));
+
+  const debugName = entry.config.id === "snaspe" ? "SNASPE" : entry.config.id === "ramsar" ? "Ramsar" : (entry.config.visibleName || entry.config.id);
+  console.log(`[GeoNEMO Labels] ${debugName} candidatos visibles: ${visibleRecords.length}`);
+  console.log(`[GeoNEMO Labels] ${debugName} únicos: ${visibleRecords.length}`);
+
+  return visibleRecords.map((record) => ({
+    ...record,
+    latlng: getGeoNemoViewportAnchor(record, viewport),
+    textKey: normalizeGeoNemoSearchText(record.labelText)
+  }));
+}
+
+function getGeoNemoLabelRect(candidate) {
+  const point = map.latLngToContainerPoint(candidate.latlng);
+  const fontPx = labelCapacityConfig.label_font_height_mm * 3.7795;
+  const width = Math.min(220, Math.max(48, candidate.labelText.length * fontPx * 0.62 + 18));
+  const height = Math.max(22, fontPx * 1.15 + 8);
+  return { left: point.x - width / 2, right: point.x + width / 2, top: point.y - height / 2, bottom: point.y + height / 2 };
+}
+
+function doGeoNemoLabelRectsCollide(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function rebuildGeoNemoControlledLabels() {
+  if (!map) return;
+  const entries = Object.values(nemoPanelLayers).filter((entry) => entry.labelsVisible);
+  const size = map.getSize();
+  const cm2PerCell = ((size.x / 96) * 2.54 / 3) * ((size.y / 96) * 2.54 / 3);
+  const allSelected = [];
+
+  entries.forEach((entry) => entry.labelGroup.clearLayers());
+
+  const candidates = entries.flatMap(getGeoNemoVisibleLabelCandidates)
+    .filter((candidate) => candidate.labelText && map.getBounds().contains(candidate.latlng));
+
+  for (let row = 0; row < 3; row += 1) {
+    for (let col = 0; col < 3; col += 1) {
+      const cellIndex = row * 3 + col + 1;
+      const minX = col * size.x / 3;
+      const maxX = (col + 1) * size.x / 3;
+      const minY = row * size.y / 3;
+      const maxY = (row + 1) * size.y / 3;
+      const center = L.point((minX + maxX) / 2, (minY + maxY) / 2);
+      const cellCandidates = candidates.filter((candidate) => {
+        const point = map.latLngToContainerPoint(candidate.latlng);
+        return point.x >= minX && point.x < maxX && point.y >= minY && point.y < maxY;
+      });
+      const maxLabelsCell = cellCandidates.length ? Math.max(1, Math.floor(cm2PerCell * labelCapacityConfig.labels_per_cm2)) : 0;
+      const seenText = new Set();
+      const selected = cellCandidates
+        .map((candidate) => ({
+          ...candidate,
+          distanceToCellCenter: map.latLngToContainerPoint(candidate.latlng).distanceTo(center)
+        }))
+        .sort((a, b) => a.distanceToCellCenter - b.distanceToCellCenter || a.key.localeCompare(b.key))
+        .filter((candidate) => {
+          if (seenText.has(candidate.textKey)) return false;
+          seenText.add(candidate.textKey);
+          return true;
+        })
+        .slice(0, maxLabelsCell);
+
+      allSelected.push(...selected);
+      console.log(`[GeoNEMO Labels] celda ${cellIndex} | candidatos: ${cellCandidates.length} | max: ${maxLabelsCell} | dibujadas: ${selected.length}`);
+    }
+  }
+
+  const finalLabels = [];
+  const finalTextKeys = new Set();
+  allSelected.forEach((candidate) => {
+    if (finalTextKeys.has(candidate.textKey)) return;
+    const rect = getGeoNemoLabelRect(candidate);
+    if (finalLabels.some((accepted) => doGeoNemoLabelRectsCollide(rect, accepted.rect))) return;
+    finalTextKeys.add(candidate.textKey);
+    finalLabels.push({ ...candidate, rect });
   });
+
+  finalLabels.forEach((candidate) => {
+    const entry = nemoPanelLayers[candidate.layerId];
+    const marker = createGeoNemoLabelMarkerAtLatLng(candidate.latlng, candidate.labelText);
+    if (entry && marker) entry.labelGroup.addLayer(marker);
+  });
+  console.log(`[GeoNEMO Labels] total etiquetas finales: ${finalLabels.length}`);
 }
 
 function captureGeoNemoFeatureContext(layer, feature, config) {
@@ -1225,7 +1330,7 @@ function getSnaspeRasterAttributes(item) {
 }
 
 function getSnaspeRasterLabelText(attributes) {
-  const label = getPropInsensitive(attributes, "NOMBRE_TOT") || getPropInsensitive(attributes, "NOMBRE_UNI");
+  const label = getPropInsensitive(attributes, "NOMBRE_TOT") || getPropInsensitive(attributes, "NOMBRE_UNI") || getPropInsensitive(attributes, "nombre") || getPropInsensitive(attributes, "Nombre") || getPropInsensitive(attributes, "NOMBRE");
   return label === null || label === undefined ? "" : String(label).trim();
 }
 
@@ -1394,10 +1499,23 @@ async function loadSnaspeGeoTiffRaster(record, snaspeEntry) {
     addSnaspeGeoRasterLayer(record, snaspeEntry);
 
     const labelLatLng = getSnaspeRasterLabelLatLng(record.metadata) || getSnaspeRasterLabelLatLngFromGeoraster(record.georaster);
-    const marker = createGeoNemoLabelMarkerAtLatLng(labelLatLng, record.labelText);
-    if (marker) {
-      record.labelMarker = marker;
-      snaspeEntry.labelGroup.addLayer(marker);
+    if (labelLatLng && record.labelText) {
+      const labelKey = getGeoNemoFeatureLabelKey({ properties: record.attributes }, record.labelText, "snaspe");
+      const bounds = L.latLngBounds(labelLatLng, labelLatLng);
+      const current = snaspeEntry.labelRecordsByKey.get(labelKey);
+      if (current) {
+        current.bounds.extend(bounds);
+        current.fragmentCount += 1;
+      } else {
+        snaspeEntry.labelRecordsByKey.set(labelKey, {
+          key: labelKey,
+          layerId: "snaspe",
+          labelText: record.labelText,
+          bounds,
+          fragmentCount: 1
+        });
+      }
+      rebuildGeoNemoControlledLabels();
     }
 
     return true;
@@ -1483,7 +1601,7 @@ async function loadGeoNemoPanelLayer(mapInstance, config) {
   const geometryGroup = L.layerGroup([], { pane: "nemo-panel-geometries" }).addTo(mapInstance);
   const labelGroup = L.layerGroup([], { pane: "nemo-panel-labels" });
   const labelRecordsByKey = new Map();
-  nemoPanelLayers[config.id] = { config, geometryGroup, labelGroup, labelsVisible: false, rasterRecords: [] };
+  nemoPanelLayers[config.id] = { config, geometryGroup, labelGroup, labelRecordsByKey, labelsVisible: false, rasterRecords: [] };
 
   const archivos = Array.isArray(config.archivos) ? config.archivos : [config.archivo].filter(Boolean);
 
@@ -1511,7 +1629,7 @@ async function loadGeoNemoPanelLayer(mapInstance, config) {
     }
   }));
 
-  addGroupedGeoNemoLabels(labelRecordsByKey, labelGroup, config);
+  rebuildGeoNemoControlledLabels();
 }
 
 function applyGeoNemoLabelVisibility(layerId = null, visible = null) {
@@ -1523,6 +1641,7 @@ function applyGeoNemoLabelVisibility(layerId = null, visible = null) {
     entry.labelsVisible = desiredVisibility;
 
     if (shouldShow && !map.hasLayer(entry.labelGroup)) {
+      rebuildGeoNemoControlledLabels();
       entry.labelGroup.addTo(map);
     }
 
@@ -1530,6 +1649,8 @@ function applyGeoNemoLabelVisibility(layerId = null, visible = null) {
       map.removeLayer(entry.labelGroup);
     }
   });
+
+  rebuildGeoNemoControlledLabels();
 
   const entries = Object.values(nemoPanelLayers);
   nemoLabelsVisible = entries.length > 0 && entries.every((entry) => entry.labelsVisible);
@@ -1659,6 +1780,7 @@ function switchBaseMap(type) {
   syncGeoNemoBasemapClass();
   updateGeoNemoPanelLayerStyles();
   rebuildSnaspeRasterLayers();
+  applyGeoNemoLabelVisibility();
 }
 
 function setBaseMapToggleActive(type) {
