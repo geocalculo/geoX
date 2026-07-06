@@ -238,29 +238,6 @@ button:hover,
   z-index: 1;
 }
 
-#geoquery-btn {
-  position: absolute;
-  top: 64px;
-  right: 14px;
-  z-index: 1005;
-  width: 42px;
-  height: 42px;
-  border: 0;
-  border-radius: 999px;
-  cursor: pointer;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ec4899, #be185d);
-  box-shadow: 0 8px 20px rgba(190, 24, 93, 0.32);
-  font-size: 20px;
-  line-height: 1;
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
-}
-
-#geoquery-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(190, 24, 93, 0.42);
-}
-
 #geoquery-toast {
   position: absolute;
   right: 14px;
@@ -642,7 +619,6 @@ button:hover,
 
   #mobile-map-controls .map-toggle,
   #mobile-map-controls #btn-my-location,
-  #mobile-map-controls #geoquery-btn,
   #mobile-map-controls #mobile-layer-toggle {
     position: absolute;
     pointer-events: auto;
@@ -665,15 +641,6 @@ button:hover,
     bottom: auto;
     width: 40px;
     height: 40px;
-  }
-
-  #mobile-map-controls #geoquery-btn {
-    top: 164px;
-    right: 12px;
-    bottom: auto;
-    width: 40px;
-    height: 40px;
-    z-index: 1100;
   }
 
   #geoquery-toast {
