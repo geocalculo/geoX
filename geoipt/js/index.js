@@ -5,6 +5,7 @@ let currentBaseLayer;
 let currentBasemap = "osm";
 let initialCrossAccessState = null;
 let selectedPoint = null;
+let geoqueryToastTimeoutId = null;
 let selectedFeatureContext = null;
 const SITE_ID = "geoipt";
 const CROSS_ACCESS_PARAM_NAME = "from";
@@ -61,6 +62,41 @@ function getInitialBasemapFromUrl() {
 
 let userLocationMarker = null;
 
+function isValidSelectedPoint(point) {
+  return Boolean(
+    point &&
+    Number.isFinite(Number(point.lat)) &&
+    Number.isFinite(Number(point.lon))
+  );
+}
+
+function setSelectedPoint(lat, lon, source) {
+  const numericLat = Number(lat);
+  const numericLon = Number(lon);
+
+  if (!Number.isFinite(numericLat) || !Number.isFinite(numericLon)) return null;
+
+  selectedPoint = {
+    lat: numericLat,
+    lon: numericLon,
+    source,
+    site: SITE_ID,
+    timestamp: new Date().toISOString()
+  };
+  window.selectedPoint = selectedPoint;
+  return selectedPoint;
+}
+
+function initSelectedPointFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const lat = Number(params.get("lat"));
+  const lon = Number(params.get("lon"));
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  return setSelectedPoint(lat, lon, "url_params");
+}
+
 function captureSelectedPoint(event, featureContext = null) {
   const latlng = event?.latlng || event;
   if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) return null;
@@ -68,13 +104,7 @@ function captureSelectedPoint(event, featureContext = null) {
   const originalEvent = event?.originalEvent;
   if (featureContext && originalEvent) originalEvent.__geoxFeatureContext = featureContext;
 
-  selectedPoint = {
-    lat: latlng.lat,
-    lon: latlng.lng,
-    source: "map_click",
-    site: SITE_ID,
-    timestamp: new Date().toISOString()
-  };
+  setSelectedPoint(latlng.lat, latlng.lng, "map_click");
   selectedFeatureContext = featureContext || originalEvent?.__geoxFeatureContext || null;
   window.selectedPoint = selectedPoint;
   window.selectedFeatureContext = selectedFeatureContext;
@@ -330,6 +360,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.warn("No se pudo cargar summary_config o capas summary:", err);
     }
 
+    initSelectedPointFromUrl();
     iniciarMapa(params);
     initGeoXCrossPortalNavigation();
     await cargarRegionesSelector();
@@ -451,6 +482,55 @@ function iniciarMapa(params) {
   map.on("moveend zoomend", scheduleTerritorialLabelUpdate);
 }
 
+
+function showGeoQueryNotice(message) {
+  const toast = document.getElementById("geoquery-toast");
+  if (!toast) return;
+
+  toast.textContent = message;
+  toast.classList.add("is-visible");
+
+  if (geoqueryToastTimeoutId) window.clearTimeout(geoqueryToastTimeoutId);
+  geoqueryToastTimeoutId = window.setTimeout(() => {
+    toast.classList.remove("is-visible");
+  }, 2600);
+}
+
+function buildGeoQueryUrl(point) {
+  const lat = Number(point?.lat);
+  const lon = Number(point?.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !map) return null;
+
+  return `./geoquery/geoquery.html?site=geoipt` +
+    `&lat=${encodeURIComponent(lat)}` +
+    `&lon=${encodeURIComponent(lon)}` +
+    `&zoom=${encodeURIComponent(map.getZoom())}` +
+    `&basemap=${encodeURIComponent(currentBasemap || "osm")}` +
+    `&from=index`;
+}
+
+function initGeoQueryButton() {
+  const button = document.getElementById("geoquery-btn");
+  if (!button) return;
+
+  button.addEventListener("click", () => {
+    const point = isValidSelectedPoint(window.selectedPoint) ? window.selectedPoint : selectedPoint;
+
+    if (!isValidSelectedPoint(point)) {
+      showGeoQueryNotice("Haz click en el mapa para seleccionar un punto.");
+      return;
+    }
+
+    const queryUrl = buildGeoQueryUrl(point);
+    if (!queryUrl) {
+      showGeoQueryNotice("No se pudo abrir GeoQuery. Intenta nuevamente.");
+      return;
+    }
+
+    window.location.href = queryUrl;
+  });
+}
+
 function conectarEventos() {
   const regionSelector = document.getElementById("region-selector");
 
@@ -485,6 +565,7 @@ function conectarEventos() {
   });
 
   initGeoXMyLocationButton(map);
+  initGeoQueryButton();
 
   conectarMobileSummaryDrawer();
   conectarSearchBoxToSearch();
