@@ -14,6 +14,16 @@ let summaryFeaturesByLayer = {};
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
+const GEONOXA_SEARCH_PATH = "./capas_tosearch/geonoxa_tosearch_objetos.geojson";
+const GEONOXA_SEARCH_MIN_CHARS = 3;
+const GEONOXA_SEARCH_MAX_RESULTS = 15;
+const GEONOXA_SEARCH_DEBOUNCE_MS = 200;
+let geoNoxaSearchIndex = [];
+let geoNoxaSearchLoaded = false;
+let geoNoxaSearchMarker = null;
+let geoNoxaSearchTimer = null;
+let selectedSearchResult = null;
+
 let noxaPanelUpdateTimer = null;
 async function loadLabelCapacityConfig() {
   if (window.GeoXLabelGrid && typeof GeoXLabelGrid.loadCapacityConfig === "function") {
@@ -252,6 +262,279 @@ function initGeoXMyLocationButton(mapInstance) {
   });
 }
 
+
+function normalizeGeoNOXASearchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function getGeoNOXASearchBBox(rawBbox) {
+  if (!Array.isArray(rawBbox) || rawBbox.length < 4) return null;
+  const bbox = rawBbox.slice(0, 4).map(Number);
+  if (!bbox.every(Number.isFinite)) return null;
+  const [minLon, minLat, maxLon, maxLat] = bbox;
+  if (minLon > maxLon || minLat > maxLat) return null;
+  return bbox;
+}
+
+function getGeoNOXASearchLatLon(feature, props, bbox) {
+  const lat = Number(props.lat);
+  const lon = Number(props.lon);
+  if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+
+  if (bbox) {
+    const [minLon, minLat, maxLon, maxLat] = bbox;
+    return {
+      lat: (minLat + maxLat) / 2,
+      lon: (minLon + maxLon) / 2
+    };
+  }
+
+  if (feature?.geometry?.type === "Point" && Array.isArray(feature.geometry.coordinates)) {
+    const geometryLon = Number(feature.geometry.coordinates[0]);
+    const geometryLat = Number(feature.geometry.coordinates[1]);
+    if (Number.isFinite(geometryLat) && Number.isFinite(geometryLon)) {
+      return { lat: geometryLat, lon: geometryLon };
+    }
+  }
+
+  return null;
+}
+
+function getGeoNOXASearchName(props) {
+  return props.nombre_objeto || props.recurso || props.contaminante || props.nombre_zona || props.faena || "Objeto GeoNOXA";
+}
+
+function buildGeoNOXASearchIndex(features) {
+  const index = [];
+
+  features.forEach((feature, featureIndex) => {
+    const props = feature.properties || {};
+    const bbox = getGeoNOXASearchBBox(props.bbox);
+    const coords = getGeoNOXASearchLatLon(feature, props, bbox);
+
+    if (!coords) {
+      console.warn("[GeoNOXA Search] registro omitido por coordenadas inválidas", featureIndex, props);
+      return;
+    }
+
+    const familia = props.familia || "";
+    const tipo_objeto = props.tipo_objeto || "Objeto";
+    const nombre_objeto = getGeoNOXASearchName(props);
+    const titular = props.titular || props.empresa || "";
+    const empresa = props.empresa || "";
+    const comuna = props.comuna || "";
+    const recurso = props.recurso || "";
+    const contaminante = props.contaminante || "";
+    const nombre_zona = props.nombre_zona || "";
+    const saturado = props.saturado || "";
+    const latentes = props.latentes || "";
+    const zonaEstadoText = [
+      saturado && normalizeGeoNOXASearchText(saturado) !== "no aplica" ? "zona saturada" : "",
+      latentes && normalizeGeoNOXASearchText(latentes) !== "no aplica" ? "zona latente" : ""
+    ].join(" ");
+    const searchText = normalizeGeoNOXASearchText([
+      props.nombre_busq,
+      nombre_objeto,
+      recurso,
+      contaminante,
+      titular,
+      empresa,
+      comuna,
+      tipo_objeto,
+      familia,
+      nombre_zona,
+      props.zona_dec,
+      saturado,
+      latentes,
+      zonaEstadoText,
+      props.faena
+    ].join(" "));
+
+    index.push({
+      index: featureIndex,
+      familia,
+      tipo_objeto,
+      id_objeto: props.id_objeto || "",
+      nombre_objeto,
+      nombre_busq: props.nombre_busq || "",
+      recurso,
+      contaminante,
+      comuna,
+      titular,
+      empresa,
+      nombre_zona,
+      lat: coords.lat,
+      lon: coords.lon,
+      bbox,
+      geometry: feature.geometry,
+      searchText
+    });
+  });
+
+  return index;
+}
+
+async function loadGeoNOXASearchIndex() {
+  if (geoNoxaSearchLoaded) return geoNoxaSearchIndex;
+
+  console.log(`[GeoNOXA Search] cargando ${GEONOXA_SEARCH_PATH}`);
+  const response = await fetch(GEONOXA_SEARCH_PATH, { cache: "no-store" });
+  if (!response.ok) throw new Error(`No se pudo cargar ${GEONOXA_SEARCH_PATH}`);
+
+  const geojson = await response.json();
+  const features = Array.isArray(geojson.features) ? geojson.features : [];
+  console.log("[GeoNOXA Search] features cargadas:", features.length);
+
+  geoNoxaSearchIndex = buildGeoNOXASearchIndex(features);
+  geoNoxaSearchLoaded = true;
+  console.log("[GeoNOXA Search] índice nacional listo:", geoNoxaSearchIndex.length, "registros válidos");
+
+  return geoNoxaSearchIndex;
+}
+
+function formatGeoNOXASearchResult(item) {
+  const family = normalizeGeoNOXASearchText(item.familia);
+  const type = family.includes("zona") ? "Zona" : "Relave";
+
+  if (type === "Zona") {
+    return [type, item.contaminante, item.nombre_zona || item.nombre_objeto].filter(Boolean).join(" · ");
+  }
+
+  return [type, item.nombre_objeto || item.recurso, item.comuna].filter(Boolean).join(" · ");
+}
+
+function clearGeoNOXASearchResults() {
+  const results = document.getElementById("search-results");
+  if (!results) return;
+  results.innerHTML = "";
+  results.classList.remove("is-open");
+}
+
+function searchGeoNOXAObjects(query) {
+  const normalizedQuery = normalizeGeoNOXASearchText(query);
+  if (normalizedQuery.length < GEONOXA_SEARCH_MIN_CHARS) return [];
+
+  const results = [];
+  for (const item of geoNoxaSearchIndex) {
+    if (!item.searchText.includes(normalizedQuery)) continue;
+    results.push(item);
+    if (results.length >= GEONOXA_SEARCH_MAX_RESULTS) break;
+  }
+
+  console.log(`[GeoNOXA Search] búsqueda: ${normalizedQuery} | resultados: ${results.length}`);
+  return results;
+}
+
+function renderGeoNOXASearchResults(results) {
+  const container = document.getElementById("search-results");
+  if (!container) return;
+
+  container.innerHTML = "";
+  container.classList.toggle("is-open", results.length > 0);
+
+  results.forEach((result) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "search-result-item";
+    button.textContent = formatGeoNOXASearchResult(result);
+    button.title = button.textContent;
+    button.addEventListener("click", () => selectGeoNOXASearchResult(result));
+    container.appendChild(button);
+  });
+}
+
+function selectGeoNOXASearchResult(result) {
+  if (!map || !result) return;
+
+  console.log(`[GeoNOXA Search] seleccionado: ${result.tipo_objeto} | ${result.nombre_objeto}`);
+
+  const hasValidBBox = Array.isArray(result.bbox);
+  if (hasValidBBox) {
+    const [minLon, minLat, maxLon, maxLat] = result.bbox;
+    const bounds = L.latLngBounds([minLat, minLon], [maxLat, maxLon]);
+    if (bounds.isValid()) {
+      console.log("[GeoNOXA Search] usando bbox para fitBounds");
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    }
+  } else {
+    const lat = Number(result.lat);
+    const lon = Number(result.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      console.log("[GeoNOXA Search] usando lat/lon fallback");
+      map.setView([lat, lon], 14);
+    }
+  }
+
+  const markerLat = Number(result.lat);
+  const markerLon = Number(result.lon);
+  if (Number.isFinite(markerLat) && Number.isFinite(markerLon)) {
+    if (geoNoxaSearchMarker) {
+      geoNoxaSearchMarker.setLatLng([markerLat, markerLon]);
+    } else {
+      geoNoxaSearchMarker = L.marker([markerLat, markerLon]).addTo(map);
+    }
+  }
+
+  selectedSearchResult = {
+    site: SITE_ID,
+    familia: result.familia,
+    tipo_objeto: result.tipo_objeto,
+    id_objeto: result.id_objeto,
+    nombre_objeto: result.nombre_objeto,
+    lat: result.lat,
+    lon: result.lon,
+    bbox: result.bbox,
+    source: "search",
+    timestamp: new Date().toISOString()
+  };
+  window.selectedSearchResult = selectedSearchResult;
+
+  const input = document.getElementById("search-box");
+  if (input) input.value = formatGeoNOXASearchResult(result);
+  clearGeoNOXASearchResults();
+}
+
+function initGeoNOXANationalSearch() {
+  const input = document.getElementById("search-box");
+  if (!input) return;
+
+  loadGeoNOXASearchIndex().catch((error) => {
+    console.warn("[GeoNOXA Search] error cargando índice nacional", error);
+  });
+
+  input.addEventListener("input", () => {
+    if (geoNoxaSearchTimer) clearTimeout(geoNoxaSearchTimer);
+    geoNoxaSearchTimer = setTimeout(async () => {
+      const query = input.value;
+      if (normalizeGeoNOXASearchText(query).length < GEONOXA_SEARCH_MIN_CHARS) {
+        clearGeoNOXASearchResults();
+        return;
+      }
+
+      try {
+        await loadGeoNOXASearchIndex();
+        renderGeoNOXASearchResults(searchGeoNOXAObjects(query));
+      } catch (error) {
+        console.warn("[GeoNOXA Search] búsqueda no disponible", error);
+        clearGeoNOXASearchResults();
+      }
+    }, GEONOXA_SEARCH_DEBOUNCE_MS);
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") clearGeoNOXASearchResults();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#search-box-wrapper")) clearGeoNOXASearchResults();
+  });
+}
+
 function getGeoXMapInstance() {
   if (window.geoxMap && typeof window.geoxMap.getCenter === "function") {
     return window.geoxMap;
@@ -355,6 +638,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   conectarBaseMapToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
+  initGeoNOXANationalSearch();
   await loadLabelCapacityConfig();
   initGeoNoxaPanelLayers();
   window.addEventListener("resize", scheduleGeoNoxaPanelViewportUpdate);
