@@ -164,6 +164,16 @@ async function getLocationByIp() {
   }
 }
 
+function updateUserLocationMarker(lat, lon) {
+  if (!map || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return;
+
+  if (userLocationMarker) {
+    userLocationMarker.setLatLng([lat, lon]);
+  } else {
+    userLocationMarker = L.marker([lat, lon]).addTo(map);
+  }
+}
+
 function applyUserLocation(mapInstance, location, zoomLevel = 14) {
   if (!mapInstance || !location) return;
 
@@ -173,14 +183,43 @@ function applyUserLocation(mapInstance, location, zoomLevel = 14) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
   mapInstance.setView([lat, lon], zoomLevel);
+  updateUserLocationMarker(lat, lon);
+}
 
-  if (userLocationMarker) {
-    userLocationMarker.setLatLng([lat, lon]);
-  } else {
-    userLocationMarker = L.marker([lat, lon]).addTo(mapInstance);
+function locateUser() {
+  if (!navigator.geolocation) {
+    showToast("Tu navegador no permite obtener ubicación.");
+    return;
   }
 
-  captureSelectedPoint({ lat, lng: lon });
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+
+      map.setView([lat, lon], 15);
+
+      if (typeof updateUserLocationMarker === "function") {
+        updateUserLocationMarker(lat, lon);
+      }
+
+      window.userLocation = {
+        lat,
+        lon,
+        source: "geolocation",
+        site: "geoipt",
+        timestamp: new Date().toISOString()
+      };
+    },
+    () => {
+      showToast("No fue posible obtener tu ubicación.");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
 }
 
 async function initGeoXInitialLocation(mapInstance) {
@@ -229,26 +268,10 @@ function initGeoXMyLocationButton(mapInstance) {
     return;
   }
 
-  button.addEventListener("click", async () => {
-    try {
-      const gpsLocation = await getLocationByGps();
-
-      if (gpsLocation) {
-        applyUserLocation(mapInstance, gpsLocation, 14);
-        return;
-      }
-    } catch (error) {
-      console.warn("GeoX: GPS no disponible desde botón", error);
-    }
-
-    const ipLocation = await getLocationByIp();
-
-    if (ipLocation) {
-      applyUserLocation(mapInstance, ipLocation, 10);
-      return;
-    }
-
-    console.warn("GeoX: no se pudo determinar ubicación");
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    locateUser();
   });
 }
 
@@ -496,6 +519,10 @@ function showGeoQueryNotice(message) {
   }, 2600);
 }
 
+function getCurrentBasemap() {
+  return currentBasemap || "osm";
+}
+
 function buildGeoQueryUrl(point) {
   const lat = Number(point?.lat);
   const lon = Number(point?.lon);
@@ -505,8 +532,14 @@ function buildGeoQueryUrl(point) {
     `&lat=${encodeURIComponent(lat)}` +
     `&lon=${encodeURIComponent(lon)}` +
     `&zoom=${encodeURIComponent(map.getZoom())}` +
-    `&basemap=${encodeURIComponent(currentBasemap || "osm")}` +
+    `&basemap=${encodeURIComponent(getCurrentBasemap())}` +
     `&from=index`;
+}
+
+function openGeoQueryFromLatLng(lat, lon) {
+  const queryUrl = buildGeoQueryUrl({ lat, lon });
+  if (!queryUrl) return;
+  window.location.href = queryUrl;
 }
 
 function initGeoQueryButton() {
@@ -531,7 +564,47 @@ function initGeoQueryButton() {
   });
 }
 
+function showToast(message) {
+  if (typeof showGeoQueryNotice === "function") {
+    showGeoQueryNotice(message);
+    return;
+  }
+  console.info(message);
+}
+
+function disableClickPropagationForElement(element) {
+  if (!element || !window.L || !L.DomEvent) return;
+  L.DomEvent.disableClickPropagation(element);
+  L.DomEvent.disableScrollPropagation(element);
+}
+
+function disableUiClickPropagation() {
+  [
+    "btn-my-location",
+    "my-location-btn",
+    "locate-btn",
+    "btn-osm",
+    "btn-sat",
+    "territorial-panel",
+    "search-box-wrapper",
+    "region-selector",
+    "country-selector",
+    "main-footer",
+    "btn-clear",
+    "btn-search",
+    "mobile-map-controls",
+    "mobile-summary-drawer",
+    "mobile-layer-toggle"
+  ].forEach((id) => disableClickPropagationForElement(document.getElementById(id)));
+
+  document.querySelectorAll(
+    ".leaflet-control, .map-toggle, .search-result-item, footer a"
+  ).forEach(disableClickPropagationForElement);
+}
+
 function conectarEventos() {
+  disableUiClickPropagation();
+
   const regionSelector = document.getElementById("region-selector");
 
   if (regionSelector) {
@@ -934,6 +1007,8 @@ function handleMapClick(event) {
     feature_name: obtenerNombrePrc(containingPRC),
     source_layer: "perimetros_ipt"
   } : null);
+
+  openGeoQueryFromLatLng(clickedLatLng.lat, clickedLatLng.lng);
 }
 
 function getSearchInputElement() {
