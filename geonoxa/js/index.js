@@ -4,6 +4,9 @@ let satLayer;
 let currentBaseLayer;
 let currentBasemap = "osm";
 let initialCrossAccessState = null;
+let selectedPoint = null;
+let selectedFeatureContext = null;
+const SITE_ID = "geonoxa";
 const CROSS_ACCESS_PARAM_NAME = "from";
 const CROSS_ACCESS_PARAM_VALUE = "crossaccess";
 let summaryConfig = null;
@@ -88,6 +91,26 @@ function getInitialBasemapFromUrl() {
 
 let userLocationMarker = null;
 
+function captureSelectedPoint(event, featureContext = null) {
+  const latlng = event?.latlng || event;
+  if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) return null;
+
+  const originalEvent = event?.originalEvent;
+  if (featureContext && originalEvent) originalEvent.__geoxFeatureContext = featureContext;
+
+  selectedPoint = {
+    lat: latlng.lat,
+    lon: latlng.lng,
+    source: "map_click",
+    site: SITE_ID,
+    timestamp: new Date().toISOString()
+  };
+  selectedFeatureContext = featureContext || originalEvent?.__geoxFeatureContext || null;
+  window.selectedPoint = selectedPoint;
+  window.selectedFeatureContext = selectedFeatureContext;
+  return selectedPoint;
+}
+
 function getLocationByGps() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -157,7 +180,7 @@ function applyUserLocation(mapInstance, location, zoomLevel = 14) {
     userLocationMarker = L.marker([lat, lon]).addTo(mapInstance);
   }
 
-  userLocationMarker.bindPopup("Mi ubicación aproximada").openPopup();
+  captureSelectedPoint({ lat, lng: lon });
 }
 
 async function initGeoXInitialLocation(mapInstance) {
@@ -362,6 +385,7 @@ function iniciarMapa() {
     imperial: false
   }).addTo(map);
 
+  map.on("click", captureSelectedPoint);
   map.on("moveend zoomend", scheduleGeoNoxaPanelViewportUpdate);
 }
 
@@ -545,6 +569,15 @@ function renderGeoNoxaPanelLayer(layerKey) {
 
     const geoLayer = L.geoJSON(feature, {
       style: getGeoNoxaPanelPolygonStyle,
+      onEachFeature: function (geoFeature, layer) {
+        layer.on("click", (event) => captureSelectedPoint(event, {
+          site: SITE_ID,
+          layer_id: layerKey,
+          feature_id: geoFeature?.properties?.id_relave ?? geoFeature?.properties?.id ?? geoFeature?.properties?.fid ?? null,
+          feature_name: geoFeature?.properties?.recurso || geoFeature?.properties?.nombre || geoFeature?.properties?.name || "",
+          source_layer: cfg.file || layerKey
+        }));
+      },
       pointToLayer: function (_feature, latlng) {
         if (!Number.isFinite(latlng?.lat) || !Number.isFinite(latlng?.lng)) return null;
 

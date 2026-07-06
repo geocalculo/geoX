@@ -38,6 +38,9 @@ const NEMO_PANEL_LAYER_CONFIG = [
   }
 ];
 let initialCrossAccessState = null;
+let selectedPoint = null;
+let selectedFeatureContext = null;
+const SITE_ID = "geonemo";
 const CROSS_ACCESS_PARAM_NAME = "from";
 const CROSS_ACCESS_PARAM_VALUE = "crossaccess";
 const REGIONES_PATH = "capas_selector/regiones.json";
@@ -111,6 +114,26 @@ function getInitialBasemapFromUrl() {
 
 let userLocationMarker = null;
 
+function captureSelectedPoint(event, featureContext = null) {
+  const latlng = event?.latlng || event;
+  if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) return null;
+
+  const originalEvent = event?.originalEvent;
+  if (featureContext && originalEvent) originalEvent.__geoxFeatureContext = featureContext;
+
+  selectedPoint = {
+    lat: latlng.lat,
+    lon: latlng.lng,
+    source: "map_click",
+    site: SITE_ID,
+    timestamp: new Date().toISOString()
+  };
+  selectedFeatureContext = featureContext || originalEvent?.__geoxFeatureContext || null;
+  window.selectedPoint = selectedPoint;
+  window.selectedFeatureContext = selectedFeatureContext;
+  return selectedPoint;
+}
+
 function getLocationByGps() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -180,7 +203,7 @@ function applyUserLocation(mapInstance, location, zoomLevel = 14) {
     userLocationMarker = L.marker([lat, lon]).addTo(mapInstance);
   }
 
-  userLocationMarker.bindPopup("Mi ubicación aproximada").openPopup();
+  captureSelectedPoint({ lat, lng: lon });
 }
 
 async function initGeoXInitialLocation(mapInstance) {
@@ -593,6 +616,7 @@ function iniciarMapa() {
 
   switchBaseMap(getInitialBasemapFromUrl());
   initGeoNemoPanelLayers(map);
+  map.on("click", captureSelectedPoint);
   map.on("zoomend", () => applyGeoNemoLabelVisibility());
 
   L.control.scale({
@@ -1181,33 +1205,16 @@ function addGroupedGeoNemoLabels(recordsByKey, labelGroup, config) {
   });
 }
 
-function bindGeoNemoFeaturePopup(layer, feature, config) {
-  if (!layer || typeof layer.bindPopup !== "function" || config.id !== "snaspe") return;
-  const props = feature && feature.properties ? feature.properties : {};
-  const fields = [
-    "NOMBRE_TOT",
-    "NOMBRE_UNI",
-    "CATEGORIA",
-    "REGION",
-    "TERRITORIO",
-    "SUPERFICIE",
-    "DECRETO",
-    "EMISOR_DEC",
-    "NumVerts",
-    "_src_fid",
-    "_part_id",
-    "_verts_in",
-    "_verts_out",
-    "_source"
-  ];
-  const title = getGeoNemoLabelText(feature, config.labelFields) || config.visibleName;
-  const rows = fields.map((field) => {
-    const value = getPropInsensitive(props, field);
-    if (value === null || value === undefined || String(value).trim() === "") return "";
-    return `<tr><th>${escapeHtml(field)}</th><td>${escapeHtml(value)}</td></tr>`;
-  }).filter(Boolean).join("");
-
-  layer.bindPopup(`<strong>${escapeHtml(title)}</strong><table>${rows}</table>`);
+function captureGeoNemoFeatureContext(layer, feature, config) {
+  if (!layer || typeof layer.on !== "function") return;
+  const props = feature?.properties || {};
+  layer.on("click", (event) => captureSelectedPoint(event, {
+    site: SITE_ID,
+    layer_id: config?.id || null,
+    feature_id: props.id || props.fid || props._src_fid || feature?.id || null,
+    feature_name: getGeoNemoLabelText(feature, config?.labelFields) || config?.visibleName || "",
+    source_layer: config?.file || config?.id || null
+  }));
 }
 
 
@@ -1220,17 +1227,6 @@ function getSnaspeRasterAttributes(item) {
 function getSnaspeRasterLabelText(attributes) {
   const label = getPropInsensitive(attributes, "NOMBRE_TOT") || getPropInsensitive(attributes, "NOMBRE_UNI");
   return label === null || label === undefined ? "" : String(label).trim();
-}
-
-function getSnaspeRasterPopupHtml(attributes, archivo) {
-  const fields = ["NOMBRE_TOT", "CATEGORIA", "REGION", "TERRITORIO", "SUPERFICIE", "DECRETO", "EMISOR_DEC", "NumVerts"];
-  const rows = fields.map((field) => {
-    const value = getPropInsensitive(attributes, field);
-    if (value === null || value === undefined || String(value).trim() === "") return "";
-    return `<tr><th>${escapeHtml(field)}</th><td>${escapeHtml(value)}</td></tr>`;
-  }).filter(Boolean).join("");
-
-  return `<strong>${escapeHtml(getSnaspeRasterLabelText(attributes) || archivo)}</strong><table>${rows}</table>`;
 }
 
 function getSnaspeRasterBounds(item) {
@@ -1355,8 +1351,14 @@ function addSnaspeGeoRasterLayer(record, snaspeEntry) {
   if (!record || !record.georaster || !snaspeEntry || !window.GeoRasterLayer) return null;
 
   const rasterLayer = new GeoRasterLayer(getSnaspeGeoRasterLayerOptions(record));
-  if (typeof rasterLayer.bindPopup === "function") {
-    rasterLayer.bindPopup(getSnaspeRasterPopupHtml(record.attributes, record.archivo));
+  if (typeof rasterLayer.on === "function") {
+    rasterLayer.on("click", (event) => captureSelectedPoint(event, {
+      site: SITE_ID,
+      layer_id: "snaspe",
+      feature_id: record.archivo || null,
+      feature_name: getSnaspeRasterLabelText(record.attributes) || "",
+      source_layer: record.archivo || "snaspe_raster"
+    }));
   }
 
   record.layer = rasterLayer;
@@ -1498,7 +1500,7 @@ async function loadGeoNemoPanelLayer(mapInstance, config) {
         pointToLayer: (feature, latlng) => L.circleMarker(latlng, getGeoNemoLayerStyle(config)),
         onEachFeature: (feature, layer) => {
           geometryGroup.addLayer(layer);
-          bindGeoNemoFeaturePopup(layer, feature, config);
+          captureGeoNemoFeatureContext(layer, feature, config);
           collectGeoNemoLabelRecord(labelRecordsByKey, feature, layer, config);
         }
       });
