@@ -41,7 +41,13 @@ let initialCrossAccessState = null;
 const CROSS_ACCESS_PARAM_NAME = "from";
 const CROSS_ACCESS_PARAM_VALUE = "crossaccess";
 const REGIONES_PATH = "capas_selector/regiones.json";
+const GEONEMO_SEARCH_PATH = "./capas_tosearch/geonemo_tosearch_areas.geojson";
+const GEONEMO_SEARCH_MAX_RESULTS = 8;
 let regionesSelector = [];
+let geoNemoSearchIndex = [];
+let geoNemoSearchResults = [];
+let geoNemoSearchActiveIndex = -1;
+let geoNemoSearchMarker = null;
 let summaryConfig = null;
 let summaryFeaturesByLayer = {};
 const DEFAULT_LABEL_DENSITY_CONFIG = { maxLabels: Number.POSITIVE_INFINITY, minZoom: 0 };
@@ -352,7 +358,219 @@ document.addEventListener("DOMContentLoaded", async () => {
   initGeoNemoMobileLabelToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
+  initGeoNemoSearch();
 });
+
+
+function normalizeGeoNemoSearchText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function getGeoNemoSearchLabel(props) {
+  return [props.nombre_area, props.tipo_area, props.region]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function getGeoNemoSearchPoint(feature) {
+  const props = feature && feature.properties ? feature.properties : {};
+
+  if (feature && feature.geometry && feature.geometry.type === "Point" && Array.isArray(feature.geometry.coordinates)) {
+    const lon = Number(feature.geometry.coordinates[0]);
+    const lat = Number(feature.geometry.coordinates[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+  }
+
+  const lat = Number(props.lat);
+  const lon = Number(props.lon);
+  return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+}
+
+function getGeoNemoSearchBBox(feature) {
+  const props = feature && feature.properties ? feature.properties : {};
+  const rawBbox = props.bbox || (feature && feature.bbox);
+  let bbox = rawBbox;
+
+  if (typeof rawBbox === "string") {
+    try {
+      bbox = JSON.parse(rawBbox);
+    } catch (error) {
+      bbox = rawBbox.split(",").map((value) => value.trim());
+    }
+  }
+
+  if (!Array.isArray(bbox) || bbox.length !== 4) return null;
+
+  const [minLon, minLat, maxLon, maxLat] = bbox.map(Number);
+  if (![minLon, minLat, maxLon, maxLat].every(Number.isFinite)) return null;
+  if (minLon >= maxLon || minLat >= maxLat) return null;
+
+  return { minLon, minLat, maxLon, maxLat };
+}
+
+function clearGeoNemoSearchResults() {
+  geoNemoSearchResults = [];
+  geoNemoSearchActiveIndex = -1;
+
+  const container = document.getElementById("search-results");
+  if (!container) return;
+
+  container.innerHTML = "";
+  container.hidden = true;
+  container.classList.remove("is-open", "is-visible");
+}
+
+async function loadGeoNemoSearchIndex() {
+  try {
+    const response = await fetch(GEONEMO_SEARCH_PATH, { cache: "no-store" });
+    if (!response.ok) throw new Error(`No se pudo cargar ${GEONEMO_SEARCH_PATH}`);
+
+    const geojson = await response.json();
+    geoNemoSearchIndex = (Array.isArray(geojson.features) ? geojson.features : [])
+      .map((feature) => {
+        const props = feature.properties || {};
+        const label = getGeoNemoSearchLabel(props) || String(props.nombre_busq || props.nombre_area || "Área sin nombre");
+        const searchText = normalizeGeoNemoSearchText([
+          props.nombre_busq,
+          props.nombre_area,
+          props.tipo_area,
+          props.region,
+          props.comuna,
+          props.provincia,
+          props.territorio,
+          props.nombre_unidad,
+          props.familia
+        ].filter(Boolean).join(" "));
+
+        return { feature, props, label, searchText };
+      })
+      .filter((item) => item.searchText);
+
+    console.log("[GeoNEMO Search] índice cargado", geoNemoSearchIndex.length);
+  } catch (error) {
+    geoNemoSearchIndex = [];
+    console.warn("[GeoNEMO Search] no se pudo cargar el índice", error);
+  }
+}
+
+function searchGeoNemoAreas(query) {
+  const normalizedQuery = normalizeGeoNemoSearchText(query);
+  if (normalizedQuery.length < 2) return [];
+
+  return geoNemoSearchIndex
+    .filter((item) => item.searchText.includes(normalizedQuery))
+    .slice(0, GEONEMO_SEARCH_MAX_RESULTS);
+}
+
+function renderGeoNemoSearchResults(results) {
+  const container = document.getElementById("search-results");
+  if (!container) return;
+
+  geoNemoSearchResults = results;
+  geoNemoSearchActiveIndex = -1;
+  container.innerHTML = "";
+
+  if (!results.length) {
+    clearGeoNemoSearchResults();
+    return;
+  }
+
+  results.forEach((item, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "search-result-item";
+    button.textContent = item.label;
+    button.addEventListener("click", () => selectGeoNemoSearchResult(index));
+    container.appendChild(button);
+  });
+
+  container.hidden = false;
+  container.classList.add("is-open", "is-visible");
+}
+
+function selectGeoNemoSearchResult(index) {
+  const item = geoNemoSearchResults[index];
+  if (!item || !map) return;
+
+  const selectedName = String(item.props.nombre_area || item.label || "").trim();
+  console.log("[GeoNEMO Search] resultado seleccionado:", selectedName);
+
+  const input = document.getElementById("search-box");
+  if (input) input.value = item.label;
+  clearGeoNemoSearchResults();
+
+  const bbox = getGeoNemoSearchBBox(item.feature);
+  if (bbox) {
+    console.log("[GeoNEMO Search] bbox usado:", bbox.minLon, bbox.minLat, bbox.maxLon, bbox.maxLat);
+    const bounds = L.latLngBounds(
+      [bbox.minLat, bbox.minLon],
+      [bbox.maxLat, bbox.maxLon]
+    );
+
+    map.fitBounds(bounds, {
+      padding: [40, 40],
+      maxZoom: 13
+    });
+    console.log("[GeoNEMO Search] fitBounds aplicado al área protegida");
+  } else {
+    const point = getGeoNemoSearchPoint(item.feature);
+    console.warn("[GeoNEMO Search] bbox inválido, usando punto central", selectedName);
+    if (point) map.setView([point.lat, point.lon], 12);
+  }
+
+  const point = getGeoNemoSearchPoint(item.feature);
+  if (point) {
+    if (geoNemoSearchMarker) {
+      geoNemoSearchMarker.setLatLng([point.lat, point.lon]);
+    } else {
+      geoNemoSearchMarker = L.marker([point.lat, point.lon]).addTo(map);
+    }
+  }
+}
+
+async function initGeoNemoSearch() {
+  const input = document.getElementById("search-box");
+  const container = document.getElementById("search-results");
+  if (!input || !container) return;
+
+  container.hidden = true;
+  await loadGeoNemoSearchIndex();
+
+  input.addEventListener("input", () => renderGeoNemoSearchResults(searchGeoNemoAreas(input.value)));
+  input.addEventListener("keydown", (event) => {
+    if (!geoNemoSearchResults.length) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      geoNemoSearchActiveIndex = Math.min(geoNemoSearchActiveIndex + 1, geoNemoSearchResults.length - 1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      geoNemoSearchActiveIndex = Math.max(geoNemoSearchActiveIndex - 1, 0);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      selectGeoNemoSearchResult(Math.max(geoNemoSearchActiveIndex, 0));
+      return;
+    } else if (event.key === "Escape") {
+      clearGeoNemoSearchResults();
+      return;
+    } else {
+      return;
+    }
+
+    container.querySelectorAll(".search-result-item").forEach((button, index) => {
+      button.classList.toggle("is-active", index === geoNemoSearchActiveIndex);
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#search-box-wrapper")) clearGeoNemoSearchResults();
+  });
+}
 
 function iniciarMapa() {
   map = L.map("map").setView([-30.0, -71.0], 5);
