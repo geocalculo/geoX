@@ -146,21 +146,67 @@
       color: var(--warning);
     }
 
-    .layout {
+    .geoquery-section {
+      scroll-margin-top: 18px;
+    }
+
+    .geoquery-primary-grid,
+    .geoquery-secondary-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
       gap: 18px;
       align-items: stretch;
+    }
+
+    .geoquery-primary-grid {
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      margin-bottom: 18px;
+    }
+
+    .geoquery-secondary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .panel {
       padding: clamp(18px, 3vw, 28px);
     }
 
-    .panel h2 {
+    .panel h2,
+    .panel h3 {
       margin: 0 0 16px;
       color: #102a43;
+      line-height: 1.2;
+    }
+
+    .panel h2 {
       font-size: 24px;
+    }
+
+    .panel h3 {
+      font-size: 20px;
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      color: #102a43;
+      font-size: 20px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .placeholder-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
     }
 
     .message {
@@ -207,6 +253,17 @@
       align-items: center;
       text-align: center;
       min-height: 100%;
+    }
+
+    .map-reference {
+      width: 100%;
+      display: grid;
+      place-items: center;
+      margin-top: 8px;
+    }
+
+    #geoquery-map {
+      width: 100%;
     }
 
     .target {
@@ -274,20 +331,26 @@
       margin-top: 20px;
       display: flex;
       justify-content: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
-    .back-button {
+    .back-button,
+    .download-button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       min-height: 42px;
       padding: 10px 16px;
       border-radius: 10px;
-      background: var(--accent-dark);
-      color: #ffffff;
       font-weight: 800;
       text-decoration: none;
       transition: background 160ms ease, transform 160ms ease;
+    }
+
+    .back-button {
+      background: var(--accent-dark);
+      color: #ffffff;
     }
 
     .back-button:hover,
@@ -296,9 +359,17 @@
       transform: translateY(-1px);
     }
 
+    .download-button {
+      border: 1px solid var(--border);
+      background: #e2e8f0;
+      color: #64748b;
+      cursor: not-allowed;
+    }
+
     @media (max-width: 860px) {
       .main-header,
-      .layout {
+      .geoquery-primary-grid,
+      .geoquery-secondary-grid {
         grid-template-columns: 1fr;
       }
 
@@ -331,7 +402,11 @@
 </head>
 <body>
   <div class="app">
-    <header class="main-header">
+    <!-- =====================================================
+         01. HEADER GEOQUERY
+    ===================================================== -->
+    <header id="geoquery-header" class="main-header geoquery-section">
+      <h2 class="sr-only">Header GeoQuery</h2>
       <div class="brand-block">
         <h1 class="site-title">GeoQuery | GeoIPT</h1>
         <p class="site-subtitle">Consulta territorial del punto seleccionado</p>
@@ -343,7 +418,12 @@
     </header>
 
     <main class="content">
-      <section class="cards" aria-label="Resumen de consulta">
+      <!-- =====================================================
+           02. CARDS RESUMEN DE GEOQUERY
+      ===================================================== -->
+      <section id="geoquery-summary-cards" class="geoquery-section" aria-label="Resumen de consulta">
+        <h2 class="section-title">Resumen de consulta</h2>
+        <div class="cards">
         <article class="card">
           <span class="card-label">Latitud</span>
           <span class="card-value" id="card-lat">—</span>
@@ -360,10 +440,14 @@
           <span class="card-label">Estado</span>
           <span class="card-value" id="card-status">—</span>
         </article>
+        </div>
       </section>
 
-      <section class="layout" aria-label="Detalle del punto consultado">
-        <article class="panel">
+      <div class="geoquery-primary-grid" aria-label="Paneles principales de GeoQuery">
+        <!-- =====================================================
+             03. DATOS DEL PUNTO CONSULTADO
+        ===================================================== -->
+        <section id="geoquery-point-panel" class="panel geoquery-section">
           <h2>Punto consultado</h2>
           <div id="invalid-message" class="message" hidden>No se recibió una coordenada válida.</div>
           <dl class="details" id="details-panel">
@@ -399,15 +483,76 @@
           <div class="actions">
             <a class="back-button" id="back-link" href="../index.html">Volver a GeoIPT</a>
           </div>
-        </article>
+        </section>
 
-        <aside class="panel visual-panel" aria-label="Representación visual del punto consultado">
-          <div class="target" aria-hidden="true">
-            <div class="pin"></div>
+        <!-- =====================================================
+             04. MAPA DE UBICACIÓN CON FEATURES RELACIONADAS
+        ===================================================== -->
+        <section id="geoquery-map-panel" class="panel visual-panel geoquery-section" aria-label="Mapa de ubicación del punto consultado">
+          <h2>Mapa de ubicación</h2>
+          <p class="placeholder-text">Mapa de ubicación centrado en el punto consultado. Escala de referencia 1:50.000. Las features relacionadas se incorporarán desde capas_query.</p>
+          <div id="geoquery-map" class="map-reference" data-reference-scale="1:50000" data-reference-zoom="13">
+            <div class="target" aria-hidden="true">
+              <div class="pin"></div>
+            </div>
           </div>
           <p class="visual-caption" id="visual-caption">Representación simple del punto consultado.</p>
-        </aside>
-      </section>
+        </section>
+      </div>
+
+      <div class="geoquery-secondary-grid" aria-label="Paneles futuros de GeoQuery">
+        <!-- =====================================================
+             05. FEATURES RELACIONADAS
+        ===================================================== -->
+        <section id="geoquery-related-features-panel" class="panel geoquery-section">
+          <h3>Features relacionadas</h3>
+          <p class="placeholder-text">En esta sección se listarán las features relacionadas al punto consultado desde capas_query/features.geojson.</p>
+        </section>
+
+        <!-- =====================================================
+             06. DESCRIPTORES GEOMÉTRICOS DE FEATURES RELACIONADAS
+        ===================================================== -->
+        <section id="geoquery-geometry-panel" class="panel geoquery-section">
+          <h3>Descriptores geométricos</h3>
+          <p class="placeholder-text">Área, perímetro, distancia, longitud, superficie relacionada y otros descriptores geométricos.</p>
+        </section>
+
+        <!-- =====================================================
+             07. METADATA DE FEATURES RELACIONADAS
+        ===================================================== -->
+        <section id="geoquery-metadata-panel" class="panel geoquery-section">
+          <h3>Metadata de features</h3>
+          <p class="placeholder-text">Campos descriptivos y técnicos de las features relacionadas.</p>
+        </section>
+
+        <!-- =====================================================
+             08. INDICADORES DE RELACIÓN ENTRE PUNTO Y FEATURES
+        ===================================================== -->
+        <section id="geoquery-relation-indicators-panel" class="panel geoquery-section">
+          <h3>Indicadores de relación espacial</h3>
+          <p class="placeholder-text">Indicadores como intersecta, contiene, dentro de, distancia al punto, cercanía y relación territorial.</p>
+        </section>
+
+        <!-- =====================================================
+             09. PANEL DE GRÁFICOS
+        ===================================================== -->
+        <section id="geoquery-charts-panel" class="panel geoquery-section">
+          <h3>Gráficos</h3>
+          <p class="placeholder-text">Panel reservado para gráficos derivados de las features relacionadas.</p>
+        </section>
+
+        <!-- =====================================================
+             10. DESCARGAS PDF Y KML
+        ===================================================== -->
+        <section id="geoquery-downloads-panel" class="panel geoquery-section">
+          <h3>Descargas PDF y KML</h3>
+          <p class="placeholder-text">Las descargas estarán disponibles cuando se habilite el análisis territorial.</p>
+          <div class="actions">
+            <button class="download-button" type="button" disabled>Descargar PDF</button>
+            <button class="download-button" type="button" disabled>Descargar KML</button>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
 
@@ -440,8 +585,22 @@
       return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
     }
 
+    const GEOQUERY_REFERENCE_ZOOM = 13;
+
     function getParam(params, key, fallback) {
       return params.get(key) || fallback;
+    }
+
+    function buildReturnUrl(lat, lon, zoom, basemap) {
+      const backParams = new URLSearchParams({
+        from: "geoquery",
+        lat: String(lat),
+        lon: String(lon),
+        zoom,
+        basemap
+      });
+
+      return `../index.html?${backParams.toString()}`;
     }
 
     (function initGeoQuery() {
@@ -482,6 +641,8 @@
           lon_dms: null,
           crs: "WGS84 / EPSG:4326",
           source: "url_params",
+          reference_scale: "1:50000",
+          reference_zoom: GEOQUERY_REFERENCE_ZOOM,
           timestamp: new Date().toISOString()
         };
 
@@ -507,12 +668,10 @@
         lon_decimal: lonDecimal,
         lat_dms: latDms,
         lon_dms: lonDms,
-        lat_decimal: latDecimal,
-        lon_decimal: lonDecimal,
-        lat_dms: latDms,
-        lon_dms: lonDms,
         crs: "WGS84 / EPSG:4326",
         source: "url_params",
+        reference_scale: "1:50000",
+        reference_zoom: GEOQUERY_REFERENCE_ZOOM,
         timestamp: new Date().toISOString()
       };
 
@@ -527,14 +686,7 @@
       elements.detailStatus.textContent = "preparado para análisis territorial";
       elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
 
-      const backParams = new URLSearchParams({
-        from: "geoquery",
-        lat: String(lat),
-        lon: String(lon),
-        zoom,
-        basemap
-      });
-      elements.backLink.href = `../index.html?${backParams.toString()}`;
+      elements.backLink.href = buildReturnUrl(lat, lon, zoom, basemap);
     })();
   </script>
 </body>
