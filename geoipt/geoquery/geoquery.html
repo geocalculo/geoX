@@ -49,11 +49,11 @@
       background: var(--header-bg);
       color: #ffffff;
       display: grid;
-      grid-template-columns: minmax(240px, 440px) 1fr;
+      grid-template-columns: minmax(260px, 420px) 1fr;
       align-items: center;
-      gap: 18px;
-      min-height: 104px;
-      padding: 18px clamp(18px, 4vw, 42px);
+      gap: 16px;
+      min-height: 86px;
+      padding: 12px 18px;
       border-bottom: 3px solid var(--header-border);
     }
 
@@ -65,15 +65,16 @@
 
     .site-title {
       margin: 0;
-      font-size: clamp(25px, 4vw, 34px);
-      font-weight: 800;
-      letter-spacing: 0.4px;
+      color: #ffffff;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
     }
 
     .site-subtitle {
       margin: 0;
       color: #cbd5e1;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
     }
 
@@ -81,14 +82,15 @@
       margin: 0;
       color: #dbeafe;
       font-size: 13px;
+      line-height: 1.35;
     }
 
     .header-note {
       justify-self: end;
-      max-width: 360px;
-      padding: 12px 16px;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 16px;
+      max-width: 420px;
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
       background: rgba(255, 255, 255, 0.08);
       color: #e0f2fe;
       font-size: 14px;
@@ -354,6 +356,14 @@
       background: #e2e8f0;
       color: #64748b;
       cursor: not-allowed;
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .download-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      pointer-events: none;
     }
 
     @media (max-width: 860px) {
@@ -414,8 +424,8 @@
 
     <nav class="top-actions" aria-label="Acciones de GeoQuery">
       <a class="back-button" id="back-link" href="../index.html">Volver a GeoIPT</a>
-      <button class="download-button" type="button" disabled>Descargar PDF</button>
-      <button class="download-button" type="button" disabled>Descargar KML</button>
+      <button class="download-button" type="button" disabled title="Disponible cuando exista análisis territorial.">Descargar PDF</button>
+      <button class="download-button" type="button" disabled title="Disponible cuando exista análisis territorial.">Descargar KML</button>
     </nav>
 
     <main class="content">
@@ -542,8 +552,8 @@
           <h3>Descargas PDF y KML</h3>
           <p class="placeholder-text">Disponible cuando exista análisis territorial.</p>
           <div class="actions">
-            <button class="download-button" type="button" disabled>Descargar PDF</button>
-            <button class="download-button" type="button" disabled>Descargar KML</button>
+            <button class="download-button" type="button" disabled title="Disponible cuando exista análisis territorial.">Descargar PDF</button>
+            <button class="download-button" type="button" disabled title="Disponible cuando exista análisis territorial.">Descargar KML</button>
           </div>
         </section>
       </div>
@@ -610,8 +620,8 @@
       const lat = Number.parseFloat(params.get("lat"));
       const lon = Number.parseFloat(params.get("lon"));
       const site = getParam(params, "site", "geoipt");
-      const requestedBasemap = getParam(params, "basemap", "osm");
-      let currentBasemap = requestedBasemap === "sat" ? "sat" : "osm";
+      const basemapParam = (getParam(params, "basemap", "osm") || "osm").toLowerCase();
+      let currentBasemap = basemapParam === "sat" ? "sat" : "osm";
       const zoomFromIndex = getParam(params, "zoom", "14");
       const valid = isValidCoordinate(lat, lon);
 
@@ -694,7 +704,7 @@
       elements.detailStatus.textContent = "preparado para análisis territorial";
       elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
 
-      const map = L.map("geoquery-map", {
+      const geoQueryMap = L.map("geoquery-map", {
         zoomControl: true,
         zoomSnap: 0.25,
         zoomDelta: 0.25
@@ -729,11 +739,11 @@
       function switchBasemap(nextBasemap) {
         currentBasemap = nextBasemap === "sat" ? "sat" : "osm";
         if (currentBasemap === "sat") {
-          if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
-          if (!map.hasLayer(satLayer)) satLayer.addTo(map);
+          if (geoQueryMap.hasLayer(osmLayer)) geoQueryMap.removeLayer(osmLayer);
+          if (!geoQueryMap.hasLayer(satLayer)) satLayer.addTo(geoQueryMap);
         } else {
-          if (map.hasLayer(satLayer)) map.removeLayer(satLayer);
-          if (!map.hasLayer(osmLayer)) osmLayer.addTo(map);
+          if (geoQueryMap.hasLayer(satLayer)) geoQueryMap.removeLayer(satLayer);
+          if (!geoQueryMap.hasLayer(osmLayer)) osmLayer.addTo(geoQueryMap);
         }
 
         osmButton.classList.toggle("active", currentBasemap === "osm");
@@ -746,23 +756,26 @@
       satButton.addEventListener("click", () => switchBasemap("sat"));
 
       switchBasemap(currentBasemap);
-      map.setView([lat, lon], targetZoom);
+      geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
 
       L.circleMarker([lat, lon], {
         radius: 7,
         weight: 3,
         fillOpacity: 0.9
-      }).bindTooltip("Punto consultado").addTo(map);
+      }).addTo(geoQueryMap);
 
       L.control.scale({
         position: "bottomleft",
         metric: true,
         imperial: false,
         maxWidth: 120
-      }).addTo(map);
+      }).addTo(geoQueryMap);
 
       updateReturnLink();
-      setTimeout(() => map.invalidateSize(), 100);
+      setTimeout(() => {
+        geoQueryMap.invalidateSize();
+        geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
+      }, 150);
     })();
   </script>
 </body>
