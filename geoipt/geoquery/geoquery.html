@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GeoQuery | GeoIPT</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root {
       --header-bg: #102a43;
@@ -96,8 +97,17 @@
 
     .content {
       width: min(1120px, calc(100% - 32px));
-      margin: 26px auto 32px;
+      margin: 18px auto 32px;
       flex: 1;
+    }
+
+    .top-actions {
+      width: min(1120px, calc(100% - 32px));
+      margin: 18px auto 0;
+      display: flex;
+      justify-content: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
     .cards {
@@ -249,82 +259,62 @@
     .visual-panel {
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
       min-height: 100%;
     }
 
-    .map-reference {
-      width: 100%;
-      display: grid;
-      place-items: center;
-      margin-top: 8px;
-    }
-
     #geoquery-map {
+      position: relative;
       width: 100%;
-    }
-
-    .target {
-      width: min(260px, 72vw);
-      aspect-ratio: 1;
-      position: relative;
-      display: grid;
-      place-items: center;
-      margin: 8px auto 20px;
-      border-radius: 50%;
-      background:
-        radial-gradient(circle, rgba(14, 165, 233, 0.18) 0 14%, transparent 15% 100%),
-        repeating-radial-gradient(circle, rgba(14, 165, 233, 0.14) 0 2px, transparent 2px 42px),
-        linear-gradient(135deg, #eff6ff, #f8fafc);
+      height: 420px;
+      margin-top: 14px;
       border: 1px solid #bfdbfe;
-      box-shadow: inset 0 0 0 18px rgba(255, 255, 255, 0.6), var(--shadow);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      background: #e2e8f0;
     }
 
-    .target::before,
-    .target::after {
-      content: "";
+    .map-toggle {
       position: absolute;
-      background: rgba(3, 105, 161, 0.28);
+      top: 14px;
+      right: 14px;
+      z-index: 1005;
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(20, 20, 20, 0.72);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
     }
 
-    .target::before {
-      width: 1px;
-      height: 76%;
+    .map-toggle-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      color: #ffffff;
+      background: transparent;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
     }
 
-    .target::after {
-      height: 1px;
-      width: 76%;
+    .map-toggle-btn:hover {
+      background: transparent;
+      transform: translateY(-1px);
     }
 
-    .pin {
-      position: relative;
-      z-index: 1;
-      width: 44px;
-      height: 44px;
-      border-radius: 50% 50% 50% 0;
-      background: var(--accent);
-      transform: rotate(-45deg);
-      box-shadow: 0 12px 22px rgba(3, 105, 161, 0.28);
-    }
-
-    .pin::after {
-      content: "";
-      position: absolute;
-      width: 16px;
-      height: 16px;
-      inset: 14px;
-      border-radius: 50%;
+    .map-toggle-btn.active {
+      color: #111111;
       background: #ffffff;
     }
 
     .visual-caption {
-      margin: 0;
+      margin: 12px 0 0;
       color: var(--muted);
       font-size: 14px;
-      max-width: 320px;
     }
 
     .actions {
@@ -384,9 +374,14 @@
     }
 
     @media (max-width: 560px) {
-      .content {
+      .content,
+      .top-actions {
         width: min(100% - 20px, 1120px);
         margin-top: 16px;
+      }
+
+      #geoquery-map {
+        height: 320px;
       }
 
       .cards,
@@ -416,6 +411,12 @@
         Punto, coordenadas y estado básico para preparar el análisis territorial.
       </div>
     </header>
+
+    <nav class="top-actions" aria-label="Acciones de GeoQuery">
+      <a class="back-button" id="back-link" href="../index.html">Volver a GeoIPT</a>
+      <button class="download-button" type="button" disabled>Descargar PDF</button>
+      <button class="download-button" type="button" disabled>Descargar KML</button>
+    </nav>
 
     <main class="content">
       <!-- =====================================================
@@ -480,9 +481,6 @@
               <dd id="detail-status">preparado para análisis territorial</dd>
             </div>
           </dl>
-          <div class="actions">
-            <a class="back-button" id="back-link" href="../index.html">Volver a GeoIPT</a>
-          </div>
         </section>
 
         <!-- =====================================================
@@ -490,13 +488,9 @@
         ===================================================== -->
         <section id="geoquery-map-panel" class="panel visual-panel geoquery-section" aria-label="Mapa de ubicación del punto consultado">
           <h2>Mapa de ubicación</h2>
-          <p class="placeholder-text">Mapa de ubicación centrado en el punto consultado. Escala de referencia 1:50.000. Las features relacionadas se incorporarán desde capas_query.</p>
-          <div id="geoquery-map" class="map-reference" data-reference-scale="1:50000" data-reference-zoom="13">
-            <div class="target" aria-hidden="true">
-              <div class="pin"></div>
-            </div>
-          </div>
-          <p class="visual-caption" id="visual-caption">Representación simple del punto consultado.</p>
+          <p class="placeholder-text">Mapa centrado en el punto consultado. Escala de referencia 1:20.000.</p>
+          <div id="geoquery-map" data-reference-scale="1:20000"></div>
+          <p class="visual-caption" id="visual-caption">Marcador del punto consultado.</p>
         </section>
       </div>
 
@@ -506,7 +500,7 @@
         ===================================================== -->
         <section id="geoquery-related-features-panel" class="panel geoquery-section">
           <h3>Features relacionadas</h3>
-          <p class="placeholder-text">En esta sección se listarán las features relacionadas al punto consultado desde capas_query/features.geojson.</p>
+          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
         </section>
 
         <!-- =====================================================
@@ -514,7 +508,7 @@
         ===================================================== -->
         <section id="geoquery-geometry-panel" class="panel geoquery-section">
           <h3>Descriptores geométricos</h3>
-          <p class="placeholder-text">Área, perímetro, distancia, longitud, superficie relacionada y otros descriptores geométricos.</p>
+          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
         </section>
 
         <!-- =====================================================
@@ -522,7 +516,7 @@
         ===================================================== -->
         <section id="geoquery-metadata-panel" class="panel geoquery-section">
           <h3>Metadata de features</h3>
-          <p class="placeholder-text">Campos descriptivos y técnicos de las features relacionadas.</p>
+          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
         </section>
 
         <!-- =====================================================
@@ -530,7 +524,7 @@
         ===================================================== -->
         <section id="geoquery-relation-indicators-panel" class="panel geoquery-section">
           <h3>Indicadores de relación espacial</h3>
-          <p class="placeholder-text">Indicadores como intersecta, contiene, dentro de, distancia al punto, cercanía y relación territorial.</p>
+          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
         </section>
 
         <!-- =====================================================
@@ -538,7 +532,7 @@
         ===================================================== -->
         <section id="geoquery-charts-panel" class="panel geoquery-section">
           <h3>Gráficos</h3>
-          <p class="placeholder-text">Panel reservado para gráficos derivados de las features relacionadas.</p>
+          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
         </section>
 
         <!-- =====================================================
@@ -546,7 +540,7 @@
         ===================================================== -->
         <section id="geoquery-downloads-panel" class="panel geoquery-section">
           <h3>Descargas PDF y KML</h3>
-          <p class="placeholder-text">Las descargas estarán disponibles cuando se habilite el análisis territorial.</p>
+          <p class="placeholder-text">Disponible cuando exista análisis territorial.</p>
           <div class="actions">
             <button class="download-button" type="button" disabled>Descargar PDF</button>
             <button class="download-button" type="button" disabled>Descargar KML</button>
@@ -556,6 +550,7 @@
     </main>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     function decimalToDMS(value, type) {
       const absolute = Math.abs(value);
@@ -585,7 +580,14 @@
       return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
     }
 
-    const GEOQUERY_REFERENCE_ZOOM = 13;
+    function getZoomForApproxScale(lat, scaleDenominator = 20000) {
+      const dpi = 96;
+      const metersPerPixelTarget = scaleDenominator * 0.0254 / dpi;
+      const earthCircumference = 156543.03392;
+      const latRad = lat * Math.PI / 180;
+      const zoom = Math.log2((earthCircumference * Math.cos(latRad)) / metersPerPixelTarget);
+      return Math.max(0, Math.min(20, zoom));
+    }
 
     function getParam(params, key, fallback) {
       return params.get(key) || fallback;
@@ -608,8 +610,9 @@
       const lat = Number.parseFloat(params.get("lat"));
       const lon = Number.parseFloat(params.get("lon"));
       const site = getParam(params, "site", "geoipt");
-      const basemap = getParam(params, "basemap", "osm");
-      const zoom = getParam(params, "zoom", "14");
+      const requestedBasemap = getParam(params, "basemap", "osm");
+      let currentBasemap = requestedBasemap === "sat" ? "sat" : "osm";
+      const zoomFromIndex = getParam(params, "zoom", "14");
       const valid = isValidCoordinate(lat, lon);
 
       const elements = {
@@ -641,8 +644,10 @@
           lon_dms: null,
           crs: "WGS84 / EPSG:4326",
           source: "url_params",
-          reference_scale: "1:50000",
-          reference_zoom: GEOQUERY_REFERENCE_ZOOM,
+          basemap: currentBasemap,
+          zoom_from_index: getParam(params, "zoom", null),
+          map_reference_scale: "1:20.000",
+          map_reference_zoom: null,
           timestamp: new Date().toISOString()
         };
 
@@ -659,6 +664,7 @@
       const lonDecimal = lon.toFixed(6);
       const latDms = decimalToDMS(lat, "lat");
       const lonDms = decimalToDMS(lon, "lon");
+      const targetZoom = getZoomForApproxScale(lat, 20000);
 
       window.geoQueryState = {
         site,
@@ -670,8 +676,10 @@
         lon_dms: lonDms,
         crs: "WGS84 / EPSG:4326",
         source: "url_params",
-        reference_scale: "1:50000",
-        reference_zoom: GEOQUERY_REFERENCE_ZOOM,
+        basemap: currentBasemap,
+        zoom_from_index: getParam(params, "zoom", null),
+        map_reference_scale: "1:20.000",
+        map_reference_zoom: targetZoom,
         timestamp: new Date().toISOString()
       };
 
@@ -686,7 +694,75 @@
       elements.detailStatus.textContent = "preparado para análisis territorial";
       elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
 
-      elements.backLink.href = buildReturnUrl(lat, lon, zoom, basemap);
+      const map = L.map("geoquery-map", {
+        zoomControl: true,
+        zoomSnap: 0.25,
+        zoomDelta: 0.25
+      });
+
+      const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 20,
+        attribution: "&copy; OpenStreetMap"
+      });
+
+      const satLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 20,
+        attribution: "Tiles &copy; Esri"
+      });
+
+      const toggle = L.DomUtil.create("div", "map-toggle");
+      toggle.innerHTML = `
+        <button id="btn-osm" class="map-toggle-btn" type="button" data-map="osm">OSM</button>
+        <button id="btn-sat" class="map-toggle-btn" type="button" data-map="sat">SAT</button>
+      `;
+      document.getElementById("geoquery-map").appendChild(toggle);
+      L.DomEvent.disableClickPropagation(toggle);
+      L.DomEvent.disableScrollPropagation(toggle);
+
+      const osmButton = toggle.querySelector('[data-map="osm"]');
+      const satButton = toggle.querySelector('[data-map="sat"]');
+
+      function updateReturnLink() {
+        elements.backLink.href = buildReturnUrl(lat, lon, zoomFromIndex || "14", currentBasemap);
+      }
+
+      function switchBasemap(nextBasemap) {
+        currentBasemap = nextBasemap === "sat" ? "sat" : "osm";
+        if (currentBasemap === "sat") {
+          if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
+          if (!map.hasLayer(satLayer)) satLayer.addTo(map);
+        } else {
+          if (map.hasLayer(satLayer)) map.removeLayer(satLayer);
+          if (!map.hasLayer(osmLayer)) osmLayer.addTo(map);
+        }
+
+        osmButton.classList.toggle("active", currentBasemap === "osm");
+        satButton.classList.toggle("active", currentBasemap === "sat");
+        window.geoQueryState.basemap = currentBasemap;
+        updateReturnLink();
+      }
+
+      osmButton.addEventListener("click", () => switchBasemap("osm"));
+      satButton.addEventListener("click", () => switchBasemap("sat"));
+
+      switchBasemap(currentBasemap);
+      map.setView([lat, lon], targetZoom);
+
+      L.circleMarker([lat, lon], {
+        radius: 7,
+        weight: 3,
+        fillOpacity: 0.9
+      }).bindTooltip("Punto consultado").addTo(map);
+
+      L.control.scale({
+        position: "bottomleft",
+        metric: true,
+        imperial: false,
+        maxWidth: 120
+      }).addTo(map);
+
+      updateReturnLink();
+      setTimeout(() => map.invalidateSize(), 100);
     })();
   </script>
 </body>
