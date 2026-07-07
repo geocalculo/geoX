@@ -333,31 +333,31 @@
       align-items: center;
       justify-content: center;
       min-height: 42px;
-      padding: 10px 16px;
+      padding: 10px 18px;
+      border: 1px solid var(--border);
       border-radius: 10px;
       font-weight: 800;
       text-decoration: none;
-      transition: background 160ms ease, transform 160ms ease;
+      transition: background 160ms ease, color 160ms ease, transform 160ms ease;
     }
 
     .back-button {
-      background: var(--accent-dark);
-      color: #ffffff;
+      background: #ffffff;
+      color: #1f2a35;
+      cursor: pointer;
+      opacity: 1;
     }
 
     .back-button:hover,
     .back-button:focus {
-      background: #075985;
+      background: #eef3f8;
+      color: #102a43;
       transform: translateY(-1px);
     }
 
     .download-button {
-      border: 1px solid var(--border);
       background: #e2e8f0;
       color: #64748b;
-      cursor: not-allowed;
-      opacity: 0.45;
-      pointer-events: none;
     }
 
     .download-button:disabled {
@@ -604,12 +604,16 @@
     }
 
     function buildReturnUrl(lat, lon, zoom, basemap) {
+      if (lat === null || lon === null) {
+        return "../index.html";
+      }
+
       const backParams = new URLSearchParams({
         from: "geoquery",
         lat: String(lat),
         lon: String(lon),
-        zoom,
-        basemap
+        zoom: zoom || "14",
+        basemap: basemap || "osm"
       });
 
       return `../index.html?${backParams.toString()}`;
@@ -704,6 +708,10 @@
       elements.detailStatus.textContent = "preparado para análisis territorial";
       elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
 
+      // Regla futura GeoQuery:
+      // En la versión analítica completa, el zoom y la posición del mapa
+      // dependerán del punto consultado y de la feature relacionada encontrada.
+      // Por ahora se usa una escala de referencia 1:20.000 centrada en el punto.
       const geoQueryMap = L.map("geoquery-map", {
         zoomControl: true,
         zoomSnap: 0.25,
@@ -722,8 +730,8 @@
 
       const toggle = L.DomUtil.create("div", "map-toggle");
       toggle.innerHTML = `
-        <button id="btn-osm" class="map-toggle-btn" type="button" data-map="osm">OSM</button>
-        <button id="btn-sat" class="map-toggle-btn" type="button" data-map="sat">SAT</button>
+        <button id="geoquery-osm-btn" class="map-toggle-btn" type="button" data-map="osm">OSM</button>
+        <button id="geoquery-sat-btn" class="map-toggle-btn" type="button" data-map="sat">SAT</button>
       `;
       document.getElementById("geoquery-map").appendChild(toggle);
       L.DomEvent.disableClickPropagation(toggle);
@@ -736,26 +744,42 @@
         elements.backLink.href = buildReturnUrl(lat, lon, zoomFromIndex || "14", currentBasemap);
       }
 
-      function switchBasemap(nextBasemap) {
-        currentBasemap = nextBasemap === "sat" ? "sat" : "osm";
-        if (currentBasemap === "sat") {
-          if (geoQueryMap.hasLayer(osmLayer)) geoQueryMap.removeLayer(osmLayer);
-          if (!geoQueryMap.hasLayer(satLayer)) satLayer.addTo(geoQueryMap);
-        } else {
-          if (geoQueryMap.hasLayer(satLayer)) geoQueryMap.removeLayer(satLayer);
-          if (!geoQueryMap.hasLayer(osmLayer)) osmLayer.addTo(geoQueryMap);
+      function setBasemapButtonActive(type) {
+        const osmBtn = document.getElementById("geoquery-osm-btn");
+        const satBtn = document.getElementById("geoquery-sat-btn");
+
+        if (!osmBtn || !satBtn) return;
+
+        osmBtn.classList.toggle("active", type === "osm");
+        satBtn.classList.toggle("active", type === "sat");
+      }
+
+      function setBasemap(type) {
+        if (type === currentBasemap && (geoQueryMap.hasLayer(osmLayer) || geoQueryMap.hasLayer(satLayer))) {
+          setBasemapButtonActive(currentBasemap);
+          return;
         }
 
-        osmButton.classList.toggle("active", currentBasemap === "osm");
-        satButton.classList.toggle("active", currentBasemap === "sat");
+        if (geoQueryMap.hasLayer(osmLayer)) geoQueryMap.removeLayer(osmLayer);
+        if (geoQueryMap.hasLayer(satLayer)) geoQueryMap.removeLayer(satLayer);
+
+        if (type === "sat") {
+          satLayer.addTo(geoQueryMap);
+          currentBasemap = "sat";
+        } else {
+          osmLayer.addTo(geoQueryMap);
+          currentBasemap = "osm";
+        }
+
+        setBasemapButtonActive(currentBasemap);
         window.geoQueryState.basemap = currentBasemap;
         updateReturnLink();
       }
 
-      osmButton.addEventListener("click", () => switchBasemap("osm"));
-      satButton.addEventListener("click", () => switchBasemap("sat"));
+      osmButton.addEventListener("click", () => setBasemap("osm"));
+      satButton.addEventListener("click", () => setBasemap("sat"));
 
-      switchBasemap(currentBasemap);
+      setBasemap(currentBasemap);
       geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
 
       L.circleMarker([lat, lon], {
