@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GeoQuery | GeoNOXA</title>
+  <style>
+    :root {
+      --header-bg: #1A120F;
+      --header-border: #F59E0B;
+      --page-bg: #f4f6f8;
+      --text: #1f2933;
+      --muted: #64748b;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --border: #d9e2ec;
+      --accent: #F59E0B;
+      --accent-dark: #EA7A00;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--page-bg);
+      color: var(--text);
+    }
+
+    body {
+      line-height: 1.5;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main-header {
+      background: linear-gradient(135deg, #1A120F, #2A1F1B);
+      color: #ffffff;
+      display: grid;
+      grid-template-columns: minmax(240px, 440px) 1fr;
+      align-items: center;
+      gap: 18px;
+      min-height: 104px;
+      padding: 18px clamp(18px, 4vw, 42px);
+      border-bottom: 3px solid var(--header-border);
+    }
+
+    .brand-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .site-title {
+      margin: 0;
+      font-size: clamp(25px, 4vw, 34px);
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+
+    .site-subtitle {
+      margin: 0;
+      color: #cbd5e1;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .site-description {
+      margin: 0;
+      color: #dbeafe;
+      font-size: 13px;
+    }
+
+    .header-note {
+      justify-self: end;
+      max-width: 360px;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #e0f2fe;
+      font-size: 14px;
+      text-align: right;
+    }
+
+    .content {
+      width: min(1120px, calc(100% - 32px));
+      margin: 26px auto 32px;
+      flex: 1;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .card,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    .card {
+      padding: 16px;
+      min-height: 104px;
+    }
+
+    .card-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .card-value {
+      display: block;
+      margin-top: 8px;
+      color: #2A1F1B;
+      font-size: clamp(18px, 2.4vw, 24px);
+      font-weight: 800;
+      word-break: break-word;
+    }
+
+    .card-value.status-ok {
+      color: var(--success);
+    }
+
+    .card-value.status-error {
+      color: var(--warning);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .panel {
+      padding: clamp(18px, 3vw, 28px);
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      color: #2A1F1B;
+      font-size: 24px;
+    }
+
+    .message {
+      padding: 16px;
+      border-radius: 14px;
+      background: rgba(245, 158, 11, 0.18);
+      border: 1px solid #F59E0B;
+      color: #2A1F1B;
+      font-weight: 700;
+    }
+
+    .details {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+    }
+
+    .detail-row {
+      display: grid;
+      grid-template-columns: minmax(150px, 220px) 1fr;
+      gap: 14px;
+      padding: 13px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: var(--panel-soft);
+    }
+
+    .detail-row dt {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .detail-row dd {
+      margin: 0;
+      color: #0f172a;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .visual-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      min-height: 100%;
+    }
+
+    .target {
+      width: min(260px, 72vw);
+      aspect-ratio: 1;
+      position: relative;
+      display: grid;
+      place-items: center;
+      margin: 8px auto 20px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, rgba(245, 158, 11, 0.18) 0 14%, transparent 15% 100%),
+        repeating-radial-gradient(circle, rgba(245, 158, 11, 0.18) 0 2px, transparent 2px 42px),
+        linear-gradient(135deg, #eff6ff, #f8fafc);
+      border: 1px solid #F59E0B;
+      box-shadow: inset 0 0 0 18px rgba(255, 255, 255, 0.6), var(--shadow);
+    }
+
+    .target::before,
+    .target::after {
+      content: "";
+      position: absolute;
+      background: rgba(3, 105, 161, 0.28);
+    }
+
+    .target::before {
+      width: 1px;
+      height: 76%;
+    }
+
+    .target::after {
+      height: 1px;
+      width: 76%;
+    }
+
+    .pin {
+      position: relative;
+      z-index: 1;
+      width: 44px;
+      height: 44px;
+      border-radius: 50% 50% 50% 0;
+      background: var(--accent);
+      transform: rotate(-45deg);
+      box-shadow: 0 12px 22px rgba(3, 105, 161, 0.28);
+    }
+
+    .pin::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      inset: 14px;
+      border-radius: 50%;
+      background: #ffffff;
+    }
+
+    .visual-caption {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 320px;
+    }
+
+    .actions {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      background: var(--accent-dark);
+      color: #ffffff;
+      font-weight: 800;
+      text-decoration: none;
+      transition: background 160ms ease, transform 160ms ease;
+    }
+
+    .back-button:hover,
+    .back-button:focus {
+      background: #C45F00;
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 860px) {
+      .main-header,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .header-note {
+        justify-self: stretch;
+        text-align: left;
+      }
+
+      .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .content {
+        width: min(100% - 20px, 1120px);
+        margin-top: 16px;
+      }
+
+      .cards,
+      .detail-row {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="main-header">
+      <div class="brand-block">
+        <h1 class="site-title">GeoQuery | GeoNOXA</h1>
+        <p class="site-subtitle">Consulta territorial del punto seleccionado</p>
+        <p class="site-description">Relaves, zonas saturadas y restricciones ambientales</p>
+      </div>
+      <div class="header-note" aria-label="Estado de versión">
+        Punto, coordenadas y estado básico para preparar el análisis territorial.
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="cards" aria-label="Resumen de consulta">
+        <article class="card">
+          <span class="card-label">Latitud</span>
+          <span class="card-value" id="card-lat">—</span>
+        </article>
+        <article class="card">
+          <span class="card-label">Longitud</span>
+          <span class="card-value" id="card-lon">—</span>
+        </article>
+        <article class="card">
+          <span class="card-label">Sitio origen</span>
+          <span class="card-value" id="card-site">—</span>
+        </article>
+        <article class="card">
+          <span class="card-label">Estado</span>
+          <span class="card-value" id="card-status">—</span>
+        </article>
+      </section>
+
+      <section class="layout" aria-label="Detalle del punto consultado">
+        <article class="panel">
+          <h2>Punto consultado</h2>
+          <div id="invalid-message" class="message" hidden>No se recibió una coordenada válida.</div>
+          <dl class="details" id="details-panel">
+            <div class="detail-row">
+              <dt>Latitud decimal</dt>
+              <dd id="lat-decimal">—</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Longitud decimal</dt>
+              <dd id="lon-decimal">—</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Latitud GMS</dt>
+              <dd id="lat-dms">—</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Longitud GMS</dt>
+              <dd id="lon-dms">—</dd>
+            </div>
+            <div class="detail-row">
+              <dt>CRS</dt>
+              <dd>WGS84 / EPSG:4326</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Fuente</dt>
+              <dd>parámetro URL</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Estado</dt>
+              <dd id="detail-status">preparado para análisis territorial</dd>
+            </div>
+          </dl>
+          <div class="actions">
+            <a class="back-button" id="back-link" href="../index.html">Volver a GeoNOXA</a>
+          </div>
+        </article>
+
+        <aside class="panel visual-panel" aria-label="Representación visual del punto consultado">
+          <div class="target" aria-hidden="true">
+            <div class="pin"></div>
+          </div>
+          <p class="visual-caption" id="visual-caption">Representación simple del punto consultado.</p>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    function decimalToDMS(value, type) {
+      const absolute = Math.abs(value);
+      let degrees = Math.floor(absolute);
+      const minutesFloat = (absolute - degrees) * 60;
+      let minutes = Math.floor(minutesFloat);
+      let seconds = Number(((minutesFloat - minutes) * 60).toFixed(2));
+
+      if (seconds >= 60) {
+        seconds = 0;
+        minutes += 1;
+      }
+
+      if (minutes >= 60) {
+        minutes = 0;
+        degrees += 1;
+      }
+
+      const direction = type === "lat"
+        ? (value >= 0 ? "N" : "S")
+        : (value >= 0 ? "E" : "W");
+
+      return `${degrees}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
+    }
+
+    function isValidCoordinate(lat, lon) {
+      return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+    }
+
+    function getParam(params, key, fallback) {
+      return params.get(key) || fallback;
+    }
+
+    (function initGeoQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const lat = Number.parseFloat(params.get("lat"));
+      const lon = Number.parseFloat(params.get("lon"));
+      const site = getParam(params, "site", "geonoxa");
+      const basemap = getParam(params, "basemap", "osm");
+      const zoom = getParam(params, "zoom", "14");
+      const valid = isValidCoordinate(lat, lon);
+
+      const elements = {
+        cardLat: document.getElementById("card-lat"),
+        cardLon: document.getElementById("card-lon"),
+        cardSite: document.getElementById("card-site"),
+        cardStatus: document.getElementById("card-status"),
+        latDecimal: document.getElementById("lat-decimal"),
+        lonDecimal: document.getElementById("lon-decimal"),
+        latDms: document.getElementById("lat-dms"),
+        lonDms: document.getElementById("lon-dms"),
+        detailStatus: document.getElementById("detail-status"),
+        invalidMessage: document.getElementById("invalid-message"),
+        detailsPanel: document.getElementById("details-panel"),
+        backLink: document.getElementById("back-link"),
+        visualCaption: document.getElementById("visual-caption")
+      };
+
+      elements.cardSite.textContent = site;
+
+      if (!valid) {
+        window.geoQueryState = {
+          site,
+          lat: null,
+          lon: null,
+          lat_decimal: null,
+          lon_decimal: null,
+          lat_dms: null,
+          lon_dms: null,
+          crs: "WGS84 / EPSG:4326",
+          source: "url_params",
+          timestamp: new Date().toISOString()
+        };
+
+        elements.cardStatus.textContent = "Sin coordenada";
+        elements.cardStatus.classList.add("status-error");
+        elements.invalidMessage.hidden = false;
+        elements.detailsPanel.hidden = true;
+        elements.backLink.href = "../index.html";
+        elements.visualCaption.textContent = "No se recibió una coordenada válida.";
+        return;
+      }
+
+      const latDecimal = lat.toFixed(6);
+      const lonDecimal = lon.toFixed(6);
+      const latDms = decimalToDMS(lat, "lat");
+      const lonDms = decimalToDMS(lon, "lon");
+
+      window.geoQueryState = {
+        site,
+        lat,
+        lon,
+        lat_decimal: latDecimal,
+        lon_decimal: lonDecimal,
+        lat_dms: latDms,
+        lon_dms: lonDms,
+        crs: "WGS84 / EPSG:4326",
+        source: "url_params",
+        timestamp: new Date().toISOString()
+      };
+
+      elements.cardLat.textContent = latDecimal;
+      elements.cardLon.textContent = lonDecimal;
+      elements.cardStatus.textContent = "Válida";
+      elements.cardStatus.classList.add("status-ok");
+      elements.latDecimal.textContent = latDecimal;
+      elements.lonDecimal.textContent = lonDecimal;
+      elements.latDms.textContent = latDms;
+      elements.lonDms.textContent = lonDms;
+      elements.detailStatus.textContent = "preparado para análisis territorial";
+      elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
+
+      const backParams = new URLSearchParams({
+        from: "geoquery",
+        lat: String(lat),
+        lon: String(lon),
+        zoom,
+        basemap
+      });
+      elements.backLink.href = `../index.html?${backParams.toString()}`;
+    })();
+  </script>
+</body>
+</html>

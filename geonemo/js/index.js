@@ -141,6 +141,22 @@ function getInitialBasemapFromUrl() {
 
 let userLocationMarker = null;
 
+function openGeoQueryFromLatLng(lat, lon) {
+  if (!map || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+  const zoom = map.getZoom();
+  const basemap = currentBasemap || "osm";
+  const url =
+    `./geoquery/geoquery.html?site=${SITE_ID}` +
+    `&lat=${encodeURIComponent(lat)}` +
+    `&lon=${encodeURIComponent(lon)}` +
+    `&zoom=${encodeURIComponent(zoom)}` +
+    `&basemap=${encodeURIComponent(basemap)}` +
+    `&from=index`;
+
+  window.location.href = url;
+}
+
 function captureSelectedPoint(event, featureContext = null) {
   const latlng = event?.latlng || event;
   if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) return null;
@@ -158,7 +174,29 @@ function captureSelectedPoint(event, featureContext = null) {
   selectedFeatureContext = featureContext || originalEvent?.__geoxFeatureContext || null;
   window.selectedPoint = selectedPoint;
   window.selectedFeatureContext = selectedFeatureContext;
+
+  if (event?.latlng) {
+    openGeoQueryFromLatLng(latlng.lat, latlng.lng);
+  }
+
   return selectedPoint;
+}
+
+function initGeoQueryClickPropagationGuards() {
+  if (!window.L?.DomEvent) return;
+
+  [
+    "#control-bar",
+    "#territorial-panel",
+    "#search-box-wrapper",
+    "#mobile-map-controls",
+    "#main-footer",
+    ".leaflet-control"
+  ].forEach((selector) => {
+    document.querySelectorAll(selector).forEach((element) => {
+      L.DomEvent.disableClickPropagation(element);
+    });
+  });
 }
 
 function getLocationByGps() {
@@ -401,6 +439,7 @@ function initGeoXCrossPortalNavigation() {
 document.addEventListener("DOMContentLoaded", async () => {
   await loadLabelDensityConfig();
   iniciarMapa();
+  initGeoQueryClickPropagationGuards();
   await cargarRegionesSelector();
   conectarRegionSelector();
   conectarBaseMapToggle();
