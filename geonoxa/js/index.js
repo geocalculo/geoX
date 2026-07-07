@@ -67,23 +67,34 @@ function getInitialCrossAccessStateFromUrl() {
 
   const params = new URLSearchParams(window.location.search);
 
+  const from = params.get("from");
   const lat = parseFloat(params.get("lat"));
   const lon = parseFloat(params.get("lon"));
-  const zoom = parseInt(params.get("zoom"), 10);
-  const requestedBasemap = params.get("basemap") || "osm";
+  const viewLat = parseFloat(params.get("viewLat"));
+  const viewLon = parseFloat(params.get("viewLon"));
+  const zoom = parseFloat(params.get("zoom"));
+  const requestedBasemap = (params.get("basemap") || "osm").toLowerCase();
   const basemap = requestedBasemap === "sat" ? "sat" : "osm";
+  const isGeoQueryReturn = from === "geoquery";
+  const hasReturnViewport = Number.isFinite(viewLat) && Number.isFinite(viewLon) && Number.isFinite(zoom);
+  const hasPointViewport = Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(zoom);
 
-  console.log("[GeoX cross_access receive]", {
+  console.log("[GeoX navigation receive]", {
+    from,
     lat,
     lon,
+    viewLat,
+    viewLon,
     zoom,
     basemap
   });
 
   initialCrossAccessState = {
-    viewport: Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(zoom)
-      ? { lat, lon, zoom }
-      : null,
+    viewport: isGeoQueryReturn && hasReturnViewport
+      ? { lat: viewLat, lon: viewLon, zoom }
+      : hasPointViewport
+        ? { lat, lon, zoom }
+        : null,
     basemap
   };
 
@@ -104,12 +115,15 @@ let userLocationMarker = null;
 function openGeoQueryFromLatLng(lat, lon) {
   if (!map || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
+  const center = map.getCenter();
   const zoom = map.getZoom();
   const basemap = currentBasemap || "osm";
   const url =
     `./geoquery/geoquery.html?site=${SITE_ID}` +
     `&lat=${encodeURIComponent(lat)}` +
     `&lon=${encodeURIComponent(lon)}` +
+    `&viewLat=${encodeURIComponent(center.lat)}` +
+    `&viewLon=${encodeURIComponent(center.lng)}` +
     `&zoom=${encodeURIComponent(zoom)}` +
     `&basemap=${encodeURIComponent(basemap)}` +
     `&from=index`;
@@ -121,13 +135,17 @@ function captureSelectedPoint(event, featureContext = null) {
   const latlng = event?.latlng || event;
   if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) return null;
 
+  if (featureContext && window.L?.DomEvent && event?.originalEvent) {
+    L.DomEvent.stopPropagation(event);
+  }
+
   const originalEvent = event?.originalEvent;
   if (featureContext && originalEvent) originalEvent.__geoxFeatureContext = featureContext;
 
   selectedPoint = {
     lat: latlng.lat,
     lon: latlng.lng,
-    source: "map_click",
+    source: featureContext ? "layer_click" : "map_click",
     site: SITE_ID,
     timestamp: new Date().toISOString()
   };
