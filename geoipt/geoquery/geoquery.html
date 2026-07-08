@@ -319,6 +319,42 @@
       font-size: 14px;
     }
 
+    .panel-header p {
+      margin: 0 0 16px;
+      color: var(--muted);
+    }
+
+    .panel-body {
+      margin-top: 16px;
+    }
+
+    .related-feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 12px;
+    }
+
+    .related-feature-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .related-feature-item span {
+      display: block;
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+
+    .related-feature-item strong {
+      display: block;
+      font-size: 16px;
+      color: #0f172a;
+      overflow-wrap: anywhere;
+    }
+
     .actions {
       margin-top: 20px;
       display: flex;
@@ -366,6 +402,12 @@
       pointer-events: none;
     }
 
+    @media (max-width: 800px) {
+      .related-feature-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
     @media (max-width: 860px) {
       .main-header,
       .geoquery-primary-grid,
@@ -380,6 +422,12 @@
 
       .cards {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 480px) {
+      .related-feature-grid {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -509,8 +557,10 @@
              05. FEATURES RELACIONADAS
         ===================================================== -->
         <section id="geoquery-related-features-panel" class="panel geoquery-section">
-          <h3>Features relacionadas</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
+          <div class="panel-header">
+            <h3>Feature relacionada</h3>
+            <p>No se encontró feature relacionada para el punto consultado.</p>
+          </div>
         </section>
 
         <!-- =====================================================
@@ -603,6 +653,72 @@
       return params.get(key) || fallback;
     }
 
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function renderRelatedFeaturePanel(selectedFeatureResult) {
+      const panel = document.getElementById("geoquery-related-features-panel");
+      if (!panel) return;
+
+      if (!selectedFeatureResult || !selectedFeatureResult.feature) {
+        panel.innerHTML = `
+          <div class="panel-header">
+            <h3>Feature relacionada</h3>
+            <p>No se encontró feature relacionada para el punto consultado.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const props = selectedFeatureResult.feature.properties || {};
+      const source = selectedFeatureResult.source || {};
+      const relationType = selectedFeatureResult.selectedRelation
+        || selectedFeatureResult.relation_type
+        || "Sin información";
+      const comuna = props.COM || source.comuna || "Sin información";
+      const prc = props.Capa || source.nombre || source.archivo_geojson || "Sin información";
+      const zona = props.ZONA || "Sin información";
+
+      panel.innerHTML = `
+        <div class="panel-header">
+          <h3>Feature relacionada</h3>
+          <p>Objeto territorial seleccionado para el análisis del punto.</p>
+        </div>
+
+        <div class="panel-body">
+          <div class="related-feature-grid">
+            <div class="related-feature-item">
+              <span>Tipo de relación</span>
+              <strong>${escapeHtml(relationType)}</strong>
+            </div>
+
+            <div class="related-feature-item">
+              <span>Comuna</span>
+              <strong>${escapeHtml(comuna)}</strong>
+            </div>
+
+            <div class="related-feature-item">
+              <span>PRC</span>
+              <strong>${escapeHtml(prc)}</strong>
+            </div>
+
+            <div class="related-feature-item">
+              <span>Zona</span>
+              <strong>${escapeHtml(zona)}</strong>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.renderRelatedFeaturePanel = renderRelatedFeaturePanel;
+
     function buildReturnUrl(lat, lon, zoom, basemap) {
       if (lat === null || lon === null) {
         return "../index.html";
@@ -628,6 +744,8 @@
       let currentBasemap = basemapParam === "sat" ? "sat" : "osm";
       const zoomFromIndex = getParam(params, "zoom", "14");
       const valid = isValidCoordinate(lat, lon);
+
+      renderRelatedFeaturePanel(window.geoQuerySelectedFeatureResult || null);
 
       const elements = {
         cardLat: document.getElementById("card-lat"),
