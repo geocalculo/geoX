@@ -568,7 +568,7 @@
         ===================================================== -->
         <section id="geoquery-geometry-panel" class="panel geoquery-section">
           <h3>Descriptores geométricos</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
+          <p class="placeholder-text">Estado: fuente actual geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
         </section>
 
         <!-- =====================================================
@@ -576,7 +576,7 @@
         ===================================================== -->
         <section id="geoquery-metadata-panel" class="panel geoquery-section">
           <h3>Metadata de features</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
+          <p class="placeholder-text">Estado: fuente actual geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
         </section>
 
         <!-- =====================================================
@@ -584,7 +584,7 @@
         ===================================================== -->
         <section id="geoquery-relation-indicators-panel" class="panel geoquery-section">
           <h3>Indicadores de relación espacial</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
+          <p class="placeholder-text">Estado: fuente actual geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
         </section>
 
         <!-- =====================================================
@@ -592,7 +592,7 @@
         ===================================================== -->
         <section id="geoquery-charts-panel" class="panel geoquery-section">
           <h3>Gráficos</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
+          <p class="placeholder-text">Estado: fuente actual geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
         </section>
 
         <!-- =====================================================
@@ -611,6 +611,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script>
     function decimalToDMS(value, type) {
       const absolute = Math.abs(value);
@@ -719,6 +720,258 @@
 
     window.renderRelatedFeaturePanel = renderRelatedFeaturePanel;
 
+    const QUERY_FOLDERS = [
+      "capas_01",
+      "capas_02",
+      "capas_03",
+      "capas_04",
+      "capas_05",
+      "capas_06",
+      "capas_07",
+      "capas_08",
+      "capas_09",
+      "capas_10",
+      "capas_11",
+      "capas_12",
+      "capas_13",
+      "capas_14",
+      "capas_15",
+      "capas_16"
+    ];
+
+    async function loadQueryIndexes() {
+      const items = [];
+      console.log("[GeoQuery GeoIPT] cargando listados regionales");
+
+      for (const folder of QUERY_FOLDERS) {
+        const listadoUrl = `./${folder}/listado.json`;
+
+        try {
+          const res = await fetch(listadoUrl);
+          if (!res.ok) {
+            console.warn("[GeoQuery GeoIPT] listado no encontrado:", listadoUrl);
+            continue;
+          }
+
+          const listado = await res.json();
+          const instrumentos = Array.isArray(listado.instrumentos)
+            ? listado.instrumentos
+            : [];
+
+          for (const inst of instrumentos) {
+            const archivoKml = inst.archivo || "";
+            const archivoGeojson = archivoKml.replace(/\.kml$/i, ".geojson");
+
+            items.push({
+              carpeta: folder,
+              region: listado.region || "",
+              codigo_region: listado.codigo_region || "",
+              archivo_kml: archivoKml,
+              archivo_geojson: archivoGeojson,
+              nombre: inst.nombre || "",
+              tipo: inst.tipo || "",
+              comuna: inst.comuna || "",
+              bbox: inst.bbox || null
+            });
+          }
+        } catch (err) {
+          console.warn("[GeoQuery GeoIPT] error leyendo listado:", listadoUrl, err);
+        }
+      }
+
+      console.log("[GeoQuery GeoIPT] instrumentos indexados:", items.length);
+      return items;
+    }
+
+    function pointInListadoBbox(lat, lon, bbox) {
+      if (!Array.isArray(bbox) || bbox.length !== 2) return false;
+
+      const a = bbox[0];
+      const b = bbox[1];
+
+      if (!Array.isArray(a) || !Array.isArray(b)) return false;
+
+      const lat1 = Number(a[0]);
+      const lon1 = Number(a[1]);
+      const lat2 = Number(b[0]);
+      const lon2 = Number(b[1]);
+
+      if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return false;
+
+      const minLat = Math.min(lat1, lat2);
+      const maxLat = Math.max(lat1, lat2);
+      const minLon = Math.min(lon1, lon2);
+      const maxLon = Math.max(lon1, lon2);
+
+      return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+    }
+
+    function distanceToListadoBboxMeters(lat, lon, bbox) {
+      if (!Array.isArray(bbox) || bbox.length !== 2 || !window.turf) return Infinity;
+
+      const a = bbox[0];
+      const b = bbox[1];
+
+      if (!Array.isArray(a) || !Array.isArray(b)) return Infinity;
+
+      const lat1 = Number(a[0]);
+      const lon1 = Number(a[1]);
+      const lat2 = Number(b[0]);
+      const lon2 = Number(b[1]);
+
+      if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return Infinity;
+
+      const minLat = Math.min(lat1, lat2);
+      const maxLat = Math.max(lat1, lat2);
+      const minLon = Math.min(lon1, lon2);
+      const maxLon = Math.max(lon1, lon2);
+
+      const clampedLat = Math.max(minLat, Math.min(lat, maxLat));
+      const clampedLon = Math.max(minLon, Math.min(lon, maxLon));
+
+      const from = turf.point([lon, lat]);
+      const to = turf.point([clampedLon, clampedLat]);
+
+      return turf.distance(from, to, { units: "kilometers" }) * 1000;
+    }
+
+    function getGeojsonFeatures(geojson) {
+      if (!geojson) return [];
+      if (geojson.type === "FeatureCollection" && Array.isArray(geojson.features)) return geojson.features;
+      if (geojson.type === "Feature") return [geojson];
+      return [];
+    }
+
+    async function loadCandidateGeojson(item) {
+      if (!item || !item.archivo_geojson) return [];
+      const geojsonUrl = `./${item.carpeta}/${item.archivo_geojson}`;
+      console.log("[GeoQuery GeoIPT] cargando GeoJSON candidato:", geojsonUrl);
+
+      try {
+        const res = await fetch(geojsonUrl);
+        if (!res.ok) {
+          console.warn("[GeoQuery GeoIPT] no se pudo cargar:", geojsonUrl);
+          return [];
+        }
+
+        return getGeojsonFeatures(await res.json()).map(feature => ({ feature, source: item }));
+      } catch (error) {
+        console.warn("[GeoQuery GeoIPT] no se pudo cargar:", geojsonUrl, error);
+        return [];
+      }
+    }
+
+    function distancePointToFeatureMeters(point, feature) {
+      try {
+        const geomType = feature.geometry && feature.geometry.type;
+
+        if (geomType === "Polygon" || geomType === "MultiPolygon") {
+          const boundary = turf.polygonToLine(feature);
+          const nearest = turf.nearestPointOnLine(boundary, point, {
+            units: "kilometers"
+          });
+
+          return turf.distance(point, nearest, { units: "kilometers" }) * 1000;
+        }
+
+        return Infinity;
+      } catch (error) {
+        console.warn("[GeoQuery GeoIPT] error distancia feature", error);
+        return Infinity;
+      }
+    }
+
+    function logSelectedFeature(selectedFeatureResult) {
+      if (!selectedFeatureResult) return;
+      const props = selectedFeatureResult.feature.properties || {};
+      const source = selectedFeatureResult.source || {};
+      const relationType = selectedFeatureResult.relation_type || "Sin información";
+      const comuna = props.COM || source.comuna || "Sin información";
+      const prc = props.Capa || source.nombre || source.archivo_geojson || "Sin información";
+      const zona = props.ZONA || "Sin información";
+      console.log("[GeoQuery GeoIPT] feature seleccionada:", relationType, "/", comuna, "/", prc, "/", zona);
+    }
+
+    async function findRelatedFeature(lat, lon) {
+      console.log("[GeoQuery GeoIPT] punto consultado:", lat, lon);
+
+      if (!window.turf) {
+        console.warn("[GeoQuery GeoIPT] Turf no disponible para análisis espacial.");
+        return null;
+      }
+
+      const queryIndex = await loadQueryIndexes();
+      const clickedPoint = turf.point([lon, lat]);
+      const bboxCandidates = queryIndex.filter(item =>
+        pointInListadoBbox(lat, lon, item.bbox)
+      );
+      console.log("[GeoQuery GeoIPT] candidatos por bbox:", bboxCandidates.length, bboxCandidates);
+
+      let featuresEvaluated = 0;
+      let foundMembership = null;
+      let membershipCount = 0;
+
+      for (const item of bboxCandidates) {
+        const candidateFeatures = await loadCandidateGeojson(item);
+        for (const { feature, source } of candidateFeatures) {
+          featuresEvaluated += 1;
+          try {
+            if (feature.geometry && turf.booleanPointInPolygon(clickedPoint, feature)) {
+              membershipCount += 1;
+              foundMembership = {
+                feature,
+                source,
+                relation_type: "Pertenencia"
+              };
+              break;
+            }
+          } catch (error) {
+            console.warn("[GeoQuery GeoIPT] error evaluando pertenencia", error);
+          }
+        }
+        if (foundMembership) break;
+      }
+
+      console.log("[GeoQuery GeoIPT] features evaluadas:", featuresEvaluated);
+      console.log("[GeoQuery GeoIPT] pertenencias encontradas:", membershipCount);
+
+      if (foundMembership) {
+        logSelectedFeature(foundMembership);
+        return foundMembership;
+      }
+
+      console.log("[GeoQuery GeoIPT] sin pertenencia, buscando cercanía");
+      const nearestCandidates = queryIndex
+        .map(item => ({
+          ...item,
+          distance_bbox_m: distanceToListadoBboxMeters(lat, lon, item.bbox)
+        }))
+        .sort((a, b) => a.distance_bbox_m - b.distance_bbox_m)
+        .slice(0, 5);
+
+      let nearestFeature = null;
+      for (const item of nearestCandidates) {
+        const candidateFeatures = await loadCandidateGeojson(item);
+        for (const { feature, source } of candidateFeatures) {
+          featuresEvaluated += 1;
+          const distanceMeters = distancePointToFeatureMeters(clickedPoint, feature);
+          if (Number.isFinite(distanceMeters) && (!nearestFeature || distanceMeters < nearestFeature.distance_meters)) {
+            nearestFeature = {
+              feature,
+              source,
+              relation_type: "Cercanía",
+              distance_meters: distanceMeters
+            };
+          }
+        }
+      }
+
+      console.log("[GeoQuery GeoIPT] features evaluadas:", featuresEvaluated);
+      if (nearestFeature) logSelectedFeature(nearestFeature);
+      return nearestFeature;
+    }
+
+
     function buildReturnUrl(lat, lon, zoom, basemap) {
       if (lat === null || lon === null) {
         return "../index.html";
@@ -735,7 +988,7 @@
       return `../index.html?${backParams.toString()}`;
     }
 
-    (function initGeoQuery() {
+    (async function initGeoQuery() {
       const params = new URLSearchParams(window.location.search);
       const lat = Number.parseFloat(params.get("lat"));
       const lon = Number.parseFloat(params.get("lon"));
@@ -825,6 +1078,16 @@
       elements.lonDms.textContent = lonDms;
       elements.detailStatus.textContent = "preparado para análisis territorial";
       elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
+
+      findRelatedFeature(lat, lon)
+        .then(selectedFeatureResult => {
+          window.geoQuerySelectedFeatureResult = selectedFeatureResult;
+          renderRelatedFeaturePanel(selectedFeatureResult);
+        })
+        .catch(error => {
+          console.warn("[GeoQuery GeoIPT] error buscando feature relacionada", error);
+          renderRelatedFeaturePanel(null);
+        });
 
       // Regla futura GeoQuery:
       // En la versión analítica completa, el zoom y la posición del mapa
