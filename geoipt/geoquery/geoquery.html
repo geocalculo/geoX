@@ -673,17 +673,62 @@
         .replace(/'/g, "&#039;");
     }
 
+
+    function createGeoQueryDebugState() {
+      return {
+        data_base: null,
+        listados_intentados: [],
+        listados_cargados: 0,
+        prc_indexados: 0,
+        candidatos_bbox_punto: 0,
+        candidatos_cercania_bbox: 0,
+        geojson_intentados: [],
+        geojson_cargados: 0,
+        features_pertenencia_evaluadas: 0,
+        features_cercania_evaluadas: 0,
+        resultado_final: null,
+        errores: []
+      };
+    }
+
+    window.geoQueryDebug = window.geoQueryDebug || createGeoQueryDebugState();
+
+    function getGeoQueryDebug() {
+      window.geoQueryDebug = window.geoQueryDebug || createGeoQueryDebugState();
+      return window.geoQueryDebug;
+    }
+
+    function pushGeoQueryDebugError(errorInfo) {
+      getGeoQueryDebug().errores.push(errorInfo);
+    }
+
+    function buildRelatedFeatureDiagnosticsHtml(message) {
+      const debug = getGeoQueryDebug();
+      return `
+        <div class="panel-header">
+          <h3>Feature relacionada</h3>
+          <p>${escapeHtml(message)}</p>
+        </div>
+        <div class="panel-body">
+          <p><strong>Diagnóstico:</strong></p>
+          <ul class="placeholder-text">
+            <li>PRC indexados: ${escapeHtml(debug.prc_indexados)}</li>
+            <li>Candidatos bbox punto: ${escapeHtml(debug.candidatos_bbox_punto)}</li>
+            <li>Candidatos cercanía: ${escapeHtml(debug.candidatos_cercania_bbox)}</li>
+            <li>GeoJSON cargados: ${escapeHtml(debug.geojson_cargados)}</li>
+            <li>Features evaluadas pertenencia: ${escapeHtml(debug.features_pertenencia_evaluadas)}</li>
+            <li>Features evaluadas cercanía: ${escapeHtml(debug.features_cercania_evaluadas)}</li>
+          </ul>
+        </div>
+      `;
+    }
+
     function renderRelatedFeaturePanel(selectedFeatureResult) {
       const panel = document.getElementById("geoquery-related-features-panel");
       if (!panel) return;
 
       if (!selectedFeatureResult || !selectedFeatureResult.feature) {
-        panel.innerHTML = `
-          <div class="panel-header">
-            <h3>Feature relacionada</h3>
-            <p>No se encontró feature relacionada para el punto consultado.</p>
-          </div>
-        `;
+        panel.innerHTML = buildRelatedFeatureDiagnosticsHtml("No se encontró feature relacionada.");
         return;
       }
 
@@ -752,6 +797,7 @@
     ];
 
     console.log("[GeoQuery GeoIPT] base de datos GeoQuery:", GEOQUERY_DATA_BASE);
+    getGeoQueryDebug().data_base = GEOQUERY_DATA_BASE;
 
     function normalizeListadoStyleBbox(bbox) {
       if (!Array.isArray(bbox) || bbox.length !== 2) return null;
@@ -876,28 +922,48 @@
 
     async function loadAllPrcIndex() {
       const items = [];
+      const debug = getGeoQueryDebug();
 
       for (const folder of QUERY_FOLDERS) {
         const listadoUrl = `${GEOQUERY_DATA_BASE}/${folder}/listado.json`;
+        debug.listados_intentados.push(listadoUrl);
         console.log("[GeoQuery GeoIPT] cargando listado:", listadoUrl);
 
-        const { data, url } = await fetchJsonFirst([listadoUrl], "[GeoQuery GeoIPT] error leyendo listado");
+        try {
+          const res = await fetch(listadoUrl);
 
-        if (!data) {
-          console.warn("[GeoQuery GeoIPT] listado no encontrado:", listadoUrl);
-          continue;
-        }
+          if (!res.ok) {
+            console.warn("[GeoQuery GeoIPT] listado no encontrado:", listadoUrl, res.status);
+            pushGeoQueryDebugError({
+              etapa: "listado",
+              url: listadoUrl,
+              status: res.status,
+              mensaje: "No cargó listado.json"
+            });
+            continue;
+          }
 
-        const instrumentos = Array.isArray(data.instrumentos) ? data.instrumentos : [];
+          const data = await res.json();
+          debug.listados_cargados += 1;
+          const instrumentos = Array.isArray(data.instrumentos) ? data.instrumentos : [];
 
-        for (const inst of instrumentos) {
-          if (!isValidGeoQueryPrcInstrument(inst)) continue;
+          for (const inst of instrumentos) {
+            if (!isValidGeoQueryPrcInstrument(inst)) continue;
 
-          const item = buildPrcIndexItem(inst, folder, data, {}, url);
-          if (item) items.push(item);
+            const item = buildPrcIndexItem(inst, folder, data, {}, listadoUrl);
+            if (item) items.push(item);
+          }
+        } catch (error) {
+          console.warn("[GeoQuery GeoIPT] error leyendo listado:", listadoUrl, error);
+          pushGeoQueryDebugError({
+            etapa: "listado",
+            url: listadoUrl,
+            mensaje: "No cargó listado.json"
+          });
         }
       }
 
+      debug.prc_indexados = items.length;
       console.log("[GeoQuery GeoIPT] PRC indexados:", items.length);
       return items;
     }
@@ -949,28 +1015,118 @@
 
     async function loadCandidateGeojson(item) {
       if (!item || !item.archivo_geojson) return [];
+
       const geojsonUrl = `${GEOQUERY_DATA_BASE}/${item.carpeta}/${item.archivo_geojson}`;
+
+      getGeoQueryDebug().geojson_intentados.push(geojsonUrl);
       console.log("[GeoQuery GeoIPT] cargando GeoJSON PRC:", geojsonUrl);
-      const { data, url } = await fetchJsonFirst([geojsonUrl], "[GeoQuery GeoIPT] no se pudo cargar");
-      if (!data) {
-        console.warn("[GeoQuery GeoIPT] GeoJSON no disponible, se omite:", geojsonUrl);
+
+      try {
+        const res = await fetch(geojsonUrl);
+
+        if (!res.ok) {
+          console.warn("[GeoQuery GeoIPT] GeoJSON no disponible, se omite:", geojsonUrl, res.status);
+
+          pushGeoQueryDebugError({
+            etapa: "geojson",
+            url: geojsonUrl,
+            status: res.status,
+            mensaje: "GeoJSON no disponible"
+          });
+
+          return [];
+        }
+
+        const data = await res.json();
+        const features = getGeojsonFeatures(data);
+
+        getGeoQueryDebug().geojson_cargados += 1;
+
+        console.log("[GeoQuery GeoIPT] GeoJSON cargado:", {
+          url: geojsonUrl,
+          type: data.type,
+          features: features.length
+        });
+
+        return features.map(feature => ({
+          feature,
+          source: { ...item, geojson_url: geojsonUrl }
+        }));
+      } catch (error) {
+        console.warn("[GeoQuery GeoIPT] error cargando GeoJSON:", geojsonUrl, error);
+
+        pushGeoQueryDebugError({
+          etapa: "geojson",
+          url: geojsonUrl,
+          mensaje: String(error)
+        });
+
         return [];
       }
-      return getGeojsonFeatures(data).map(feature => ({
-        feature,
-        source: { ...item, geojson_url: url }
-      }));
+    }
+
+    function distancePointToFeatureCentroidMeters(point, feature) {
+      try {
+        const centroid = turf.centroid(feature);
+        return turf.distance(point, centroid, { units: "kilometers" }) * 1000;
+      } catch (error) {
+        console.warn("[GeoQuery GeoIPT] error distancia centroide", error);
+        return Infinity;
+      }
+    }
+
+    function getBoundaryLineFeatures(feature) {
+      try {
+        const boundary = turf.polygonToLine(feature);
+
+        if (!boundary) return [];
+
+        if (boundary.type === "FeatureCollection") {
+          return boundary.features || [];
+        }
+
+        if (boundary.type === "Feature") {
+          return [boundary];
+        }
+
+        return [];
+      } catch (error) {
+        console.warn("[GeoQuery GeoIPT] error generando borde", error);
+        return [];
+      }
     }
 
     function distancePointToFeatureMeters(point, feature) {
       try {
         const geomType = feature.geometry && feature.geometry.type;
+
         if (geomType === "Polygon" || geomType === "MultiPolygon") {
-          const boundary = turf.polygonToLine(feature);
-          const nearest = turf.nearestPointOnLine(boundary, point, { units: "kilometers" });
-          return turf.distance(point, nearest, { units: "kilometers" }) * 1000;
+          const lineFeatures = getBoundaryLineFeatures(feature);
+          let bestDistance = Infinity;
+
+          for (const lineFeature of lineFeatures) {
+            try {
+              const nearest = turf.nearestPointOnLine(lineFeature, point, {
+                units: "kilometers"
+              });
+
+              const distanceMeters =
+                turf.distance(point, nearest, { units: "kilometers" }) * 1000;
+
+              if (Number.isFinite(distanceMeters) && distanceMeters < bestDistance) {
+                bestDistance = distanceMeters;
+              }
+            } catch (error) {
+              console.warn("[GeoQuery GeoIPT] error evaluando línea", error);
+            }
+          }
+
+          if (Number.isFinite(bestDistance)) return bestDistance;
+
+          return distancePointToFeatureCentroidMeters(point, feature);
         }
-        return Infinity;
+
+        return distancePointToFeatureCentroidMeters(point, feature);
       } catch (error) {
         console.warn("[GeoQuery GeoIPT] error distancia feature", error);
         return Infinity;
@@ -1107,9 +1263,56 @@
         .slice(0, limit);
     }
 
+    function updateResultDebug(selectedFeatureResult) {
+      if (!selectedFeatureResult || !selectedFeatureResult.feature) return;
+      const props = selectedFeatureResult.feature.properties || {};
+      const source = selectedFeatureResult.source || {};
+      const relationType = selectedFeatureResult.relation_type || "Sin información";
+      getGeoQueryDebug().resultado_final = {
+        relation_type: relationType,
+        comuna: props.COM || source.comuna || "Sin información",
+        prc: props.Capa || source.nombre || source.archivo_geojson || "Sin información",
+        zona: props.ZONA || "Sin información"
+      };
+    }
+
+    async function debugCheckCopiapoGeojson() {
+      const testUrl = `${GEOQUERY_DATA_BASE}/capas_03/IPT_03_PRC_Copiapo.geojson`;
+
+      try {
+        const res = await fetch(testUrl);
+        console.log("[GeoQuery GeoIPT] test Copiapó GeoJSON:", testUrl, res.status);
+
+        if (!res.ok) {
+          pushGeoQueryDebugError({
+            etapa: "debug-copiapo",
+            url: testUrl,
+            status: res.status,
+            mensaje: "No se encontró IPT_03_PRC_Copiapo.geojson"
+          });
+          return false;
+        }
+
+        return true;
+      } catch (error) {
+        console.warn("[GeoQuery GeoIPT] error test Copiapó GeoJSON:", error);
+        pushGeoQueryDebugError({
+          etapa: "debug-copiapo",
+          url: testUrl,
+          mensaje: String(error)
+        });
+        return false;
+      }
+    }
+
     async function findPertenencia(lat, lon, prcIndex) {
       const pointCandidates = getPointBboxCandidates(prcIndex, lat, lon);
+      getGeoQueryDebug().candidatos_bbox_punto = pointCandidates.length;
       console.log("[GeoQuery GeoIPT] candidatos por bbox del punto:", pointCandidates.length, pointCandidates);
+
+      if (!pointCandidates.length) {
+        console.log("[GeoQuery GeoIPT] sin candidatos bbox del punto para evaluar pertenencia.");
+      }
 
       const clickedPoint = turf.point([lon, lat]);
       let featuresEvaluated = 0;
@@ -1120,6 +1323,7 @@
 
         for (const { feature, source } of candidateFeatures) {
           featuresEvaluated += 1;
+          getGeoQueryDebug().features_pertenencia_evaluadas += 1;
           try {
             const inside = turf.booleanPointInPolygon(clickedPoint, feature, { ignoreBoundary: false });
             if (inside) {
@@ -1131,6 +1335,7 @@
                 feature,
                 source
               };
+              updateResultDebug(selectedFeatureResult);
               console.log("[GeoQuery GeoIPT] features evaluadas pertenencia:", featuresEvaluated);
               console.log("[GeoQuery GeoIPT] pertenencias encontradas:", membershipCount);
               logSelectedFeature(selectedFeatureResult);
@@ -1138,6 +1343,11 @@
             }
           } catch (error) {
             console.warn("[GeoQuery GeoIPT] error evaluando pertenencia", error);
+            pushGeoQueryDebugError({
+              etapa: "pertenencia",
+              url: source && source.geojson_url,
+              mensaje: String(error)
+            });
           }
         }
       }
@@ -1148,8 +1358,15 @@
     }
 
     async function findCercania(lat, lon, prcIndex) {
-      const nearestCandidates = getNearestPrcCandidates(prcIndex, lat, lon, 10);
+      let nearestCandidates = getNearestPrcCandidates(prcIndex, lat, lon, 10);
+      getGeoQueryDebug().candidatos_cercania_bbox = nearestCandidates.length;
       console.log("[GeoQuery GeoIPT] candidatos por cercanía bbox:", nearestCandidates.length, nearestCandidates);
+
+      if (!nearestCandidates.length && prcIndex.length > 0) {
+        nearestCandidates = prcIndex.slice(0, 10);
+        getGeoQueryDebug().candidatos_cercania_bbox = nearestCandidates.length;
+        console.warn("[GeoQuery GeoIPT] fallback cercanía: usando primeros PRC indexados por error/distancia bbox.", nearestCandidates);
+      }
 
       const clickedPoint = turf.point([lon, lat]);
       let featuresEvaluated = 0;
@@ -1162,7 +1379,12 @@
 
         for (const { feature, source } of candidateFeatures) {
           featuresEvaluated += 1;
-          const distanceMeters = distancePointToFeatureMeters(clickedPoint, feature);
+          getGeoQueryDebug().features_cercania_evaluadas += 1;
+          let distanceMeters = distancePointToFeatureMeters(clickedPoint, feature);
+
+          if (!Number.isFinite(distanceMeters)) {
+            distanceMeters = distancePointToFeatureCentroidMeters(clickedPoint, feature);
+          }
 
           if (Number.isFinite(distanceMeters) && distanceMeters < bestDistance) {
             bestDistance = distanceMeters;
@@ -1183,17 +1405,29 @@
         feature: bestFeature,
         source: bestSource
       };
+      updateResultDebug(selectedFeatureResult);
       logSelectedFeature(selectedFeatureResult);
       return selectedFeatureResult;
     }
 
     async function runGeoIptQueryAnalysis(lat, lon, geoQueryMap) {
+      window.geoQueryDebug = createGeoQueryDebugState();
+      const debug = getGeoQueryDebug();
+      debug.data_base = GEOQUERY_DATA_BASE;
       console.log("[GeoQuery GeoIPT] iniciando análisis real:", { lat, lon });
+      console.log("[GeoQuery GeoIPT] base de datos GeoQuery:", GEOQUERY_DATA_BASE);
+      await debugCheckCopiapoGeojson();
 
       if (!window.turf) {
         console.warn("[GeoQuery GeoIPT] Turf no disponible para análisis espacial.");
+        pushGeoQueryDebugError({
+          etapa: "turf",
+          mensaje: "Turf no disponible para análisis espacial"
+        });
         renderRelatedFeaturePanel(null);
         renderGeometryPanel(null);
+        console.table(window.geoQueryDebug);
+        console.log("[GeoQuery GeoIPT] DEBUG COMPLETO:", window.geoQueryDebug);
         return null;
       }
 
@@ -1210,19 +1444,37 @@
         .catch(error => console.warn("[GeoQuery GeoIPT] error calculando contexto viewport", error));
 
       const prcIndex = await loadAllPrcIndex();
-      const selectedByPertenencia = await findPertenencia(lat, lon, prcIndex);
-      let selectedFeatureResult = selectedByPertenencia;
+      let selectedFeatureResult = null;
 
-      if (!selectedFeatureResult) {
+      if (!prcIndex.length) {
+        renderRelatedFeaturePanel({ noIndex: true });
+        const panel = document.getElementById("geoquery-related-features-panel");
+        if (panel) {
+          panel.innerHTML = buildRelatedFeatureDiagnosticsHtml("No se indexaron PRC desde capas_geoquery. Revisar rutas y listado.json.");
+        }
+        renderGeometryPanel(null);
+        console.log("[GeoQuery GeoIPT] resultado final:", selectedFeatureResult);
+        console.table(window.geoQueryDebug);
+        console.log("[GeoQuery GeoIPT] DEBUG COMPLETO:", window.geoQueryDebug);
+        return null;
+      }
+
+      const selectedByPertenencia = await findPertenencia(lat, lon, prcIndex);
+      selectedFeatureResult = selectedByPertenencia;
+
+      if (!selectedFeatureResult && prcIndex.length > 0) {
         console.log("[GeoQuery GeoIPT] sin pertenencia, buscando cercanía");
         selectedFeatureResult = await findCercania(lat, lon, prcIndex);
       }
 
+      if (selectedFeatureResult) updateResultDebug(selectedFeatureResult);
       renderRelatedFeaturePanel(selectedFeatureResult);
       renderGeometryPanel(selectedFeatureResult);
       drawSelectedFeatureOnMap(geoQueryMap, selectedFeatureResult);
 
       console.log("[GeoQuery GeoIPT] resultado final:", selectedFeatureResult);
+      console.table(window.geoQueryDebug);
+      console.log("[GeoQuery GeoIPT] DEBUG COMPLETO:", window.geoQueryDebug);
       return selectedFeatureResult;
     }
 
