@@ -578,7 +578,7 @@
         ===================================================== -->
         <section id="geoquery-geometry-panel" class="panel geoquery-section">
           <h3>Descriptores geométricos</h3>
-          <p class="placeholder-text">Estado: fuente actual geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
+          <p class="placeholder-text">Estado: fuente actual capas_geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
         </section>
 
         <!-- =====================================================
@@ -586,7 +586,7 @@
         ===================================================== -->
         <section id="geoquery-metadata-panel" class="panel geoquery-section">
           <h3>Metadata de features</h3>
-          <p class="placeholder-text">Estado: fuente actual geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
+          <p class="placeholder-text">Estado: fuente actual capas_geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
         </section>
 
         <!-- =====================================================
@@ -594,7 +594,7 @@
         ===================================================== -->
         <section id="geoquery-relation-indicators-panel" class="panel geoquery-section">
           <h3>Indicadores de relación espacial</h3>
-          <p class="placeholder-text">Estado: fuente actual geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
+          <p class="placeholder-text">Estado: fuente actual capas_geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
         </section>
 
         <!-- =====================================================
@@ -602,7 +602,7 @@
         ===================================================== -->
         <section id="geoquery-charts-panel" class="panel geoquery-section">
           <h3>Gráficos</h3>
-          <p class="placeholder-text">Estado: fuente actual geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
+          <p class="placeholder-text">Estado: fuente actual capas_geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
         </section>
 
         <!-- =====================================================
@@ -730,11 +730,28 @@
 
     window.renderRelatedFeaturePanel = renderRelatedFeaturePanel;
 
-    const GEOQUERY_DATA_BASES = [
-      "../capas_geoquery",
-      "../capas",
-      "."
+    const GEOQUERY_DATA_BASE = "../capas_geoquery";
+    const GEOQUERY_REGIONS_URL = `${GEOQUERY_DATA_BASE}/regiones.json`;
+    const QUERY_FOLDERS = [
+      "capas_01",
+      "capas_02",
+      "capas_03",
+      "capas_04",
+      "capas_05",
+      "capas_06",
+      "capas_07",
+      "capas_08",
+      "capas_09",
+      "capas_10",
+      "capas_11",
+      "capas_12",
+      "capas_13",
+      "capas_14",
+      "capas_15",
+      "capas_16"
     ];
+
+    console.log("[GeoQuery GeoIPT] base de datos GeoQuery:", GEOQUERY_DATA_BASE);
 
     function normalizeListadoStyleBbox(bbox) {
       if (!Array.isArray(bbox) || bbox.length !== 2) return null;
@@ -774,16 +791,11 @@
     }
 
     async function loadGeoQueryRegions() {
-      const candidates = [
-        "../capas_geoquery/regiones.json",
-        "../capas/regiones.json",
-        "../capas/regiones/regiones.json",
-        "../regiones.json",
-        "./regiones.json"
-      ];
-      const { data, url } = await fetchJsonFirst(candidates, "[GeoQuery GeoIPT] error leyendo regiones");
-      const regiones = Array.isArray(data) ? data : [];
-      return { regiones, regionesUrl: url || "regiones.json" };
+      const { data, url } = await fetchJsonFirst([GEOQUERY_REGIONS_URL], "[GeoQuery GeoIPT] error leyendo regiones");
+      const regiones = Array.isArray(data)
+        ? data
+        : QUERY_FOLDERS.map(folder => ({ carpeta: folder, activo: true }));
+      return { regiones, regionesUrl: url || GEOQUERY_REGIONS_URL };
     }
 
     function getViewportBbox(geoQueryMap) {
@@ -811,20 +823,24 @@
 
     async function loadRegionalListado(region) {
       const folder = region.carpeta || `capas_${region.codigo_ine || ""}`;
-      const listadoUrls = [
-        `../capas_geoquery/${folder}/listado.json`,
-        `../capas/${folder}/listado.json`,
-        `./${folder}/listado.json`
-      ];
-      console.log("[GeoQuery GeoIPT] cargando listado:", folder, listadoUrls);
-      const { data, url } = await fetchJsonFirst(listadoUrls, "[GeoQuery GeoIPT] error leyendo listado");
+      if (!QUERY_FOLDERS.includes(folder)) {
+        console.warn("[GeoQuery GeoIPT] carpeta regional fuera de QUERY_FOLDERS:", folder);
+        return [];
+      }
+      const listadoUrl = `${GEOQUERY_DATA_BASE}/${folder}/listado.json`;
+      console.log("[GeoQuery GeoIPT] cargando listado:", listadoUrl);
+      const { data, url } = await fetchJsonFirst([listadoUrl], "[GeoQuery GeoIPT] error leyendo listado");
       if (!data) {
         console.warn("[GeoQuery GeoIPT] listado no encontrado:", folder);
         return [];
       }
       const instrumentos = Array.isArray(data.instrumentos) ? data.instrumentos : [];
-      console.log("[GeoQuery GeoIPT] instrumentos leídos:", folder, instrumentos.length);
-      return instrumentos.map(inst => {
+      const instrumentosPrc = instrumentos.filter(inst => {
+        const archivoKml = inst.archivo || "";
+        return inst.tipo === "PRC" && /\.kml$/i.test(archivoKml) && archivoKml.includes("_PRC_");
+      });
+      console.log("[GeoQuery GeoIPT] instrumentos PRC leídos:", folder, instrumentosPrc.length);
+      return instrumentosPrc.map(inst => {
         const archivoKml = inst.archivo || "";
         const archivoGeojson = (inst.archivo_geojson || archivoKml).replace(/\.kml$/i, ".geojson");
         const bboxNormalized = normalizeListadoStyleBbox(inst.bbox);
@@ -891,13 +907,9 @@
 
     async function loadCandidateGeojson(item) {
       if (!item || !item.archivo_geojson) return [];
-      const geojsonUrls = [
-        `../capas_geoquery/${item.carpeta}/${item.archivo_geojson}`,
-        `../capas/${item.carpeta}/${item.archivo_geojson}`,
-        `./${item.carpeta}/${item.archivo_geojson}`
-      ];
-      console.log("[GeoQuery GeoIPT] cargando GeoJSON PRC:", geojsonUrls[0], item);
-      const { data, url } = await fetchJsonFirst(geojsonUrls, "[GeoQuery GeoIPT] no se pudo cargar");
+      const geojsonUrl = `${GEOQUERY_DATA_BASE}/${item.carpeta}/${item.archivo_geojson}`;
+      console.log("[GeoQuery GeoIPT] cargando GeoJSON PRC:", geojsonUrl);
+      const { data, url } = await fetchJsonFirst([geojsonUrl], "[GeoQuery GeoIPT] no se pudo cargar");
       if (!data) return [];
       return getGeojsonFeatures(data).map(feature => ({ feature, source: { ...item, geojson_url: url } }));
     }
