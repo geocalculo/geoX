@@ -328,27 +328,35 @@
       margin-top: 16px;
     }
 
-    .related-feature-grid {
+    .related-feature-grid,
+    .geometry-descriptor-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(120px, 1fr));
       gap: 12px;
     }
 
-    .related-feature-item {
+    .geometry-descriptor-grid {
+      margin-top: 16px;
+    }
+
+    .related-feature-item,
+    .geometry-descriptor-item {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 12px;
       padding: 12px;
     }
 
-    .related-feature-item span {
+    .related-feature-item span,
+    .geometry-descriptor-item span {
       display: block;
       font-size: 12px;
       color: #64748b;
       margin-bottom: 4px;
     }
 
-    .related-feature-item strong {
+    .related-feature-item strong,
+    .geometry-descriptor-item strong {
       display: block;
       font-size: 16px;
       color: #0f172a;
@@ -403,7 +411,8 @@
     }
 
     @media (max-width: 800px) {
-      .related-feature-grid {
+      .related-feature-grid,
+      .geometry-descriptor-grid {
         grid-template-columns: 1fr 1fr;
       }
     }
@@ -426,7 +435,8 @@
     }
 
     @media (max-width: 480px) {
-      .related-feature-grid {
+      .related-feature-grid,
+      .geometry-descriptor-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -919,16 +929,106 @@
       console.log("[GeoQuery GeoIPT] tipo relación:", relationType);
     }
 
-    function renderGeometryPanel(summary) {
+    function formatArea(areaM2) {
+      if (!Number.isFinite(areaM2)) return "Sin información";
+
+      if (areaM2 < 10000) {
+        return `${areaM2.toLocaleString("es-CL", { maximumFractionDigits: 0 })} m²`;
+      }
+
+      const ha = areaM2 / 10000;
+      if (ha < 1000) {
+        return `${ha.toLocaleString("es-CL", { maximumFractionDigits: 2 })} ha`;
+      }
+
+      const km2 = areaM2 / 1000000;
+      return `${km2.toLocaleString("es-CL", { maximumFractionDigits: 2 })} km²`;
+    }
+
+    function formatLength(meters) {
+      if (!Number.isFinite(meters)) return "Sin información";
+
+      if (meters < 1000) {
+        return `${meters.toLocaleString("es-CL", { maximumFractionDigits: 0 })} m`;
+      }
+
+      return `${(meters / 1000).toLocaleString("es-CL", { maximumFractionDigits: 2 })} km`;
+    }
+
+    function calculateGeometryDescriptors(feature) {
+      if (!feature || !feature.geometry || !window.turf) {
+        return null;
+      }
+
+      try {
+        const areaM2 = turf.area(feature);
+        const boundary = turf.polygonToLine(feature);
+        const perimeterKm = turf.length(boundary, { units: "kilometers" });
+        const perimeterM = perimeterKm * 1000;
+        const equivalentDiameterM = 2 * Math.sqrt(areaM2 / Math.PI);
+        const equivalentPerimeterM = Math.PI * equivalentDiameterM;
+
+        return {
+          area_m2: areaM2,
+          area_ha: areaM2 / 10000,
+          area_km2: areaM2 / 1000000,
+          perimeter_m: perimeterM,
+          equivalent_diameter_m: equivalentDiameterM,
+          equivalent_perimeter_m: equivalentPerimeterM
+        };
+      } catch (error) {
+        console.warn("[GeoQuery GeoIPT] Error calculando descriptores geométricos", error);
+        return null;
+      }
+    }
+
+    function renderGeometryPanel(selectedFeatureResult) {
       const panel = document.getElementById("geoquery-geometry-panel");
-      if (!panel || !summary) return;
+      if (!panel) return;
+
+      if (!selectedFeatureResult || !selectedFeatureResult.feature || !selectedFeatureResult.feature.geometry) {
+        panel.innerHTML = `
+          <h3>Descriptores geométricos</h3>
+          <p class="placeholder-text">No hay geometría seleccionada para calcular descriptores.</p>
+        `;
+        return;
+      }
+
+      const descriptors = calculateGeometryDescriptors(selectedFeatureResult.feature);
+
+      if (!descriptors) {
+        panel.innerHTML = `
+          <h3>Descriptores geométricos</h3>
+          <p class="placeholder-text">No fue posible calcular los descriptores geométricos de la zona PRC relacionada.</p>
+        `;
+        return;
+      }
+
       panel.innerHTML = `
         <h3>Descriptores geométricos</h3>
-        <p class="placeholder-text">Regiones visibles en viewport: ${escapeHtml(summary.visibleRegionsCount)}</p>
-        <p class="placeholder-text">PRC visibles en viewport: ${escapeHtml(summary.prcVisibleCount)}</p>
-        <p class="placeholder-text">PRC candidatos cargados: ${escapeHtml(summary.candidatesCount)}</p>
-        <p class="placeholder-text">Método de selección: ${escapeHtml(summary.selectionMethod || "Sin selección")}</p>
-        <p class="placeholder-text">Fuente: ${escapeHtml(summary.sources.join(" · "))}</p>
+        <p class="placeholder-text">Geometría de la zona PRC relacionada.</p>
+
+        <div class="geometry-descriptor-grid">
+          <div class="geometry-descriptor-item">
+            <span>Superficie</span>
+            <strong>${formatArea(descriptors.area_m2)}</strong>
+          </div>
+
+          <div class="geometry-descriptor-item">
+            <span>Perímetro</span>
+            <strong>${formatLength(descriptors.perimeter_m)}</strong>
+          </div>
+
+          <div class="geometry-descriptor-item">
+            <span>Diámetro equivalente</span>
+            <strong>${formatLength(descriptors.equivalent_diameter_m)}</strong>
+          </div>
+
+          <div class="geometry-descriptor-item">
+            <span>Perímetro equivalente</span>
+            <strong>${formatLength(descriptors.equivalent_perimeter_m)}</strong>
+          </div>
+        </div>
       `;
     }
 
@@ -986,13 +1086,14 @@
 
       console.log("[GeoQuery GeoIPT] features evaluadas:", featuresEvaluated);
       if (result) logSelectedFeature(result);
-      renderGeometryPanel({
-        visibleRegionsCount: viewportCandidates.visibleRegions.length,
-        prcVisibleCount: viewportCandidates.prcVisible.length,
-        candidatesCount: loadedCandidates.length || viewportCandidates.candidates.length,
-        selectionMethod: result ? result.relation_type : "Sin selección",
-        sources: ["regiones.json", "listado.json regional", "GeoJSON PRC"]
+      console.log("[GeoQuery GeoIPT] resumen selección viewport:", {
+        regiones_visibles_viewport: viewportCandidates.visibleRegions.length,
+        prc_visibles_viewport: viewportCandidates.prcVisible.length,
+        prc_candidatos_cargados: loadedCandidates.length || viewportCandidates.candidates.length,
+        metodo_seleccion: result ? result.relation_type : "Sin selección",
+        fuente: ["regiones.json", "listado.json regional", "GeoJSON PRC"]
       });
+      renderGeometryPanel(result);
       return result;
     }
 
@@ -1202,6 +1303,7 @@
         .catch(error => {
           console.warn("[GeoQuery GeoIPT] error buscando feature relacionada", error);
           renderRelatedFeaturePanel(null);
+          renderGeometryPanel(null);
         });
 
       L.circleMarker([lat, lon], {
