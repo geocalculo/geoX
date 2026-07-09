@@ -835,29 +835,71 @@
         return [];
       }
       const instrumentos = Array.isArray(data.instrumentos) ? data.instrumentos : [];
-      const instrumentosPrc = instrumentos.filter(inst => {
-        const archivoKml = inst.archivo || "";
-        return inst.tipo === "PRC" && /\.kml$/i.test(archivoKml) && archivoKml.includes("_PRC_");
-      });
+      const instrumentosPrc = instrumentos.filter(isValidGeoQueryPrcInstrument);
       console.log("[GeoQuery GeoIPT] instrumentos PRC leídos:", folder, instrumentosPrc.length);
-      return instrumentosPrc.map(inst => {
-        const archivoKml = inst.archivo || "";
-        const archivoGeojson = (inst.archivo_geojson || archivoKml).replace(/\.kml$/i, ".geojson");
-        const bboxNormalized = normalizeListadoStyleBbox(inst.bbox);
-        return {
-          carpeta: folder,
-          region: data.region || region.nombre || "",
-          codigo_region: data.codigo_region || region.codigo_ine || "",
-          archivo_kml: archivoKml,
-          archivo_geojson: archivoGeojson,
-          nombre: inst.nombre || "",
-          tipo: inst.tipo || "",
-          comuna: inst.comuna || "",
-          bbox: inst.bbox || null,
-          bbox_normalized: bboxNormalized,
-          listado_url: url
-        };
-      });
+      return instrumentosPrc.map(inst => buildPrcIndexItem(inst, folder, data, region, url)).filter(Boolean);
+    }
+
+    function isValidGeoQueryPrcInstrument(inst) {
+      const tipo = String(inst && inst.tipo || "").toUpperCase().trim();
+      const archivo = String(inst && inst.archivo || "").trim();
+      const archivoUpper = archivo.toUpperCase();
+
+      if (tipo !== "PRC") return false;
+      if (!archivoUpper.endsWith(".KML")) return false;
+      if (!archivoUpper.includes("_PRC_")) return false;
+
+      return true;
+    }
+
+    function buildPrcIndexItem(inst, folder, data = {}, region = {}, listadoUrl = null) {
+      const archivoKml = String(inst.archivo || "").trim();
+      const archivoGeojson = archivoKml.replace(/\.kml$/i, ".geojson");
+      const bboxNormalized = normalizeListadoStyleBbox(inst.bbox);
+
+      if (!bboxNormalized) return null;
+
+      return {
+        carpeta: folder,
+        region: data.region || region.nombre || "",
+        codigo_region: data.codigo_region || region.codigo_ine || "",
+        archivo_kml: archivoKml,
+        archivo_geojson: archivoGeojson,
+        nombre: inst.nombre || "",
+        tipo: inst.tipo || "",
+        comuna: inst.comuna || "",
+        bbox: inst.bbox || null,
+        bbox_normalized: bboxNormalized,
+        listado_url: listadoUrl
+      };
+    }
+
+    async function loadAllPrcIndex() {
+      const items = [];
+
+      for (const folder of QUERY_FOLDERS) {
+        const listadoUrl = `${GEOQUERY_DATA_BASE}/${folder}/listado.json`;
+        console.log("[GeoQuery GeoIPT] cargando listado:", listadoUrl);
+
+        const { data, url } = await fetchJsonFirst([listadoUrl], "[GeoQuery GeoIPT] error leyendo listado");
+
+        if (!data) {
+          console.warn("[GeoQuery GeoIPT] listado no encontrado:", listadoUrl);
+          continue;
+        }
+
+        const instrumentos = Array.isArray(data.instrumentos) ? data.instrumentos : [];
+
+        for (const inst of instrumentos) {
+          if (!isValidGeoQueryPrcInstrument(inst)) continue;
+
+          const item = buildPrcIndexItem(inst, folder, data, {}, url);
+          if (item) items.push(item);
+        }
+      }
+
+      console.log("[GeoQuery GeoIPT] PRC indexados:", items.length);
+      return items;
     }
 
     async function loadViewportCandidates(viewportBbox) {
@@ -910,8 +952,14 @@
       const geojsonUrl = `${GEOQUERY_DATA_BASE}/${item.carpeta}/${item.archivo_geojson}`;
       console.log("[GeoQuery GeoIPT] cargando GeoJSON PRC:", geojsonUrl);
       const { data, url } = await fetchJsonFirst([geojsonUrl], "[GeoQuery GeoIPT] no se pudo cargar");
-      if (!data) return [];
-      return getGeojsonFeatures(data).map(feature => ({ feature, source: { ...item, geojson_url: url } }));
+      if (!data) {
+        console.warn("[GeoQuery GeoIPT] GeoJSON no disponible, se omite:", geojsonUrl);
+        return [];
+      }
+      return getGeojsonFeatures(data).map(feature => ({
+        feature,
+        source: { ...item, geojson_url: url }
+      }));
     }
 
     function distancePointToFeatureMeters(point, feature) {
@@ -1044,69 +1092,138 @@
       `;
     }
 
-    async function findRelatedFeature(lat, lon, viewportBbox) {
-      console.log("[GeoQuery GeoIPT] punto consultado:", lat, lon);
-      if (!window.turf) {
-        console.warn("[GeoQuery GeoIPT] Turf no disponible para análisis espacial.");
-        return null;
-      }
+    function getPointBboxCandidates(prcIndex, lat, lon) {
+      return prcIndex.filter(item => pointInNormalizedBbox(lat, lon, item.bbox_normalized));
+    }
 
-      const viewportCandidates = await loadViewportCandidates(viewportBbox);
+    function getNearestPrcCandidates(prcIndex, lat, lon, limit = 10) {
+      return prcIndex
+        .map(item => ({
+          ...item,
+          distance_bbox_m: distanceToNormalizedBboxMeters(lat, lon, item.bbox_normalized)
+        }))
+        .filter(item => Number.isFinite(item.distance_bbox_m))
+        .sort((a, b) => a.distance_bbox_m - b.distance_bbox_m)
+        .slice(0, limit);
+    }
+
+    async function findPertenencia(lat, lon, prcIndex) {
+      const pointCandidates = getPointBboxCandidates(prcIndex, lat, lon);
+      console.log("[GeoQuery GeoIPT] candidatos por bbox del punto:", pointCandidates.length, pointCandidates);
+
       const clickedPoint = turf.point([lon, lat]);
       let featuresEvaluated = 0;
-      let foundMembership = null;
       let membershipCount = 0;
-      const loadedCandidates = [];
 
-      for (const item of viewportCandidates.candidates) {
+      for (const item of pointCandidates) {
         const candidateFeatures = await loadCandidateGeojson(item);
-        if (candidateFeatures.length) loadedCandidates.push(item);
+
         for (const { feature, source } of candidateFeatures) {
           featuresEvaluated += 1;
           try {
-            if (feature.geometry && turf.booleanPointInPolygon(clickedPoint, feature)) {
+            const inside = turf.booleanPointInPolygon(clickedPoint, feature, { ignoreBoundary: false });
+            if (inside) {
               membershipCount += 1;
-              foundMembership = { feature, source, relation_type: "Pertenencia" };
-              break;
+              const selectedFeatureResult = {
+                relation_type: "Pertenencia",
+                relation_method: "point-in-polygon",
+                distance_meters: 0,
+                feature,
+                source
+              };
+              console.log("[GeoQuery GeoIPT] features evaluadas pertenencia:", featuresEvaluated);
+              console.log("[GeoQuery GeoIPT] pertenencias encontradas:", membershipCount);
+              logSelectedFeature(selectedFeatureResult);
+              return selectedFeatureResult;
             }
           } catch (error) {
             console.warn("[GeoQuery GeoIPT] error evaluando pertenencia", error);
           }
         }
-        if (foundMembership) break;
       }
-      console.log("[GeoQuery GeoIPT] features evaluadas:", featuresEvaluated);
-      console.log("[GeoQuery GeoIPT] pertenencias encontradas:", membershipCount);
 
-      let result = foundMembership;
-      if (!result) {
-        console.log("[GeoQuery GeoIPT] sin pertenencia, buscando cercanía");
-        let nearestFeature = null;
-        for (const item of viewportCandidates.candidates) {
-          const candidateFeatures = await loadCandidateGeojson(item);
-          if (candidateFeatures.length && !loadedCandidates.includes(item)) loadedCandidates.push(item);
-          for (const { feature, source } of candidateFeatures) {
-            featuresEvaluated += 1;
-            const distanceMeters = distancePointToFeatureMeters(clickedPoint, feature);
-            if (Number.isFinite(distanceMeters) && (!nearestFeature || distanceMeters < nearestFeature.distance_meters)) {
-              nearestFeature = { feature, source, relation_type: "Cercanía", distance_meters: distanceMeters };
-            }
+      console.log("[GeoQuery GeoIPT] features evaluadas pertenencia:", featuresEvaluated);
+      console.log("[GeoQuery GeoIPT] pertenencias encontradas:", membershipCount);
+      return null;
+    }
+
+    async function findCercania(lat, lon, prcIndex) {
+      const nearestCandidates = getNearestPrcCandidates(prcIndex, lat, lon, 10);
+      console.log("[GeoQuery GeoIPT] candidatos por cercanía bbox:", nearestCandidates.length, nearestCandidates);
+
+      const clickedPoint = turf.point([lon, lat]);
+      let featuresEvaluated = 0;
+      let bestFeature = null;
+      let bestSource = null;
+      let bestDistance = Infinity;
+
+      for (const item of nearestCandidates) {
+        const candidateFeatures = await loadCandidateGeojson(item);
+
+        for (const { feature, source } of candidateFeatures) {
+          featuresEvaluated += 1;
+          const distanceMeters = distancePointToFeatureMeters(clickedPoint, feature);
+
+          if (Number.isFinite(distanceMeters) && distanceMeters < bestDistance) {
+            bestDistance = distanceMeters;
+            bestFeature = feature;
+            bestSource = source;
           }
         }
-        result = nearestFeature;
       }
 
-      console.log("[GeoQuery GeoIPT] features evaluadas:", featuresEvaluated);
-      if (result) logSelectedFeature(result);
-      console.log("[GeoQuery GeoIPT] resumen selección viewport:", {
-        regiones_visibles_viewport: viewportCandidates.visibleRegions.length,
-        prc_visibles_viewport: viewportCandidates.prcVisible.length,
-        prc_candidatos_cargados: loadedCandidates.length || viewportCandidates.candidates.length,
-        metodo_seleccion: result ? result.relation_type : "Sin selección",
-        fuente: ["regiones.json", "listado.json regional", "GeoJSON PRC"]
-      });
-      renderGeometryPanel(result);
-      return result;
+      console.log("[GeoQuery GeoIPT] features evaluadas cercanía:", featuresEvaluated);
+
+      if (!bestFeature) return null;
+
+      const selectedFeatureResult = {
+        relation_type: "Cercanía",
+        relation_method: "nearest-feature",
+        distance_meters: bestDistance,
+        feature: bestFeature,
+        source: bestSource
+      };
+      logSelectedFeature(selectedFeatureResult);
+      return selectedFeatureResult;
+    }
+
+    async function runGeoIptQueryAnalysis(lat, lon, geoQueryMap) {
+      console.log("[GeoQuery GeoIPT] iniciando análisis real:", { lat, lon });
+
+      if (!window.turf) {
+        console.warn("[GeoQuery GeoIPT] Turf no disponible para análisis espacial.");
+        renderRelatedFeaturePanel(null);
+        renderGeometryPanel(null);
+        return null;
+      }
+
+      const viewportBbox = getViewportBbox(geoQueryMap);
+      loadViewportCandidates(viewportBbox)
+        .then(viewportCandidates => {
+          console.log("[GeoQuery GeoIPT] resumen contexto viewport:", {
+            regiones_visibles_viewport: viewportCandidates.visibleRegions.length,
+            prc_visibles_viewport: viewportCandidates.prcVisible.length,
+            prc_candidatos_viewport: viewportCandidates.candidates.length,
+            fuente: ["regiones.json", "listado.json regional"]
+          });
+        })
+        .catch(error => console.warn("[GeoQuery GeoIPT] error calculando contexto viewport", error));
+
+      const prcIndex = await loadAllPrcIndex();
+      const selectedByPertenencia = await findPertenencia(lat, lon, prcIndex);
+      let selectedFeatureResult = selectedByPertenencia;
+
+      if (!selectedFeatureResult) {
+        console.log("[GeoQuery GeoIPT] sin pertenencia, buscando cercanía");
+        selectedFeatureResult = await findCercania(lat, lon, prcIndex);
+      }
+
+      renderRelatedFeaturePanel(selectedFeatureResult);
+      renderGeometryPanel(selectedFeatureResult);
+      drawSelectedFeatureOnMap(geoQueryMap, selectedFeatureResult);
+
+      console.log("[GeoQuery GeoIPT] resultado final:", selectedFeatureResult);
+      return selectedFeatureResult;
     }
 
     function drawSelectedFeatureOnMap(geoQueryMap, selectedFeatureResult) {
@@ -1117,7 +1234,7 @@
           color: isMembership ? "#1d4ed8" : "#dc2626",
           weight: 3,
           opacity: 0.95,
-          fillOpacity: 0.08,
+          fillOpacity: isMembership ? 0.18 : 0.04,
           dashArray: isMembership ? null : "6 6"
         },
         interactive: false
@@ -1304,13 +1421,9 @@
 
       setBasemap(currentBasemap);
       geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
-      const viewportBbox = getViewportBbox(geoQueryMap);
-
-      findRelatedFeature(lat, lon, viewportBbox)
+      runGeoIptQueryAnalysis(lat, lon, geoQueryMap)
         .then(selectedFeatureResult => {
           window.geoQuerySelectedFeatureResult = selectedFeatureResult;
-          renderRelatedFeaturePanel(selectedFeatureResult);
-          drawSelectedFeatureOnMap(geoQueryMap, selectedFeatureResult);
         })
         .catch(error => {
           console.warn("[GeoQuery GeoIPT] error buscando feature relacionada", error);
