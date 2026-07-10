@@ -319,6 +319,54 @@
       font-size: 14px;
     }
 
+    .analysis-summary {
+      display: grid;
+      gap: 10px;
+      margin: 0 0 16px;
+    }
+
+    .analysis-table-wrap {
+      overflow-x: auto;
+    }
+
+    .analysis-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .analysis-table th,
+    .analysis-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .analysis-table th {
+      color: #334155;
+      background: #f1f5f9;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .analysis-table a {
+      color: var(--accent-dark);
+      font-weight: 700;
+    }
+
+    .geoeva-project-sector-label {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #0f172a;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
     .actions {
       margin-top: 20px;
       display: flex;
@@ -498,7 +546,7 @@
         ===================================================== -->
         <section id="geoquery-map-panel" class="panel visual-panel geoquery-section" aria-label="Mapa de ubicación del punto consultado">
           <h2>Mapa de ubicación</h2>
-          <p class="placeholder-text">Mapa centrado en el punto consultado. Escala de referencia 1:20.000.</p>
+          <p class="placeholder-text">Mapa ajustado al círculo de análisis de proyectos aprobados cercanos.</p>
           <div id="geoquery-map" data-reference-scale="1:20000"></div>
           <p class="visual-caption" id="visual-caption">Marcador del punto consultado.</p>
         </section>
@@ -509,8 +557,8 @@
              05. FEATURES RELACIONADAS
         ===================================================== -->
         <section id="geoquery-related-features-panel" class="panel geoquery-section">
-          <h3>Features relacionadas</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
+          <h3>Proyectos relacionados</h3>
+          <p class="placeholder-text">Cargando proyectos aprobados cercanos...</p>
         </section>
 
         <!-- =====================================================
@@ -561,7 +609,19 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script>
+    const GEOEVA_PROJECTS_URL = "../capas_geoquery/geoeva_geoquery_proyectos.geojson";
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"]/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;"
+      }[char]));
+    }
+
     function decimalToDMS(value, type) {
       const absolute = Math.abs(value);
       let degrees = Math.floor(absolute);
@@ -621,10 +681,167 @@
         backParams.set("viewLon", viewLon);
       }
 
+      console.log("[GeoQuery GeoEVA] retorno viewport original", { viewLat, viewLon, zoom: zoom || "14", basemap: basemap || "osm" });
       return `../index.html?${backParams.toString()}`;
     }
 
-    (function initGeoQuery() {
+    async function loadGeoEvaProjects() {
+      if (Array.isArray(window.geoEvaProjectsCache)) {
+        return window.geoEvaProjectsCache;
+      }
+
+      const url = GEOEVA_PROJECTS_URL;
+      console.log("[GeoQuery GeoEVA] cargando GeoJSON proyectos", url);
+      console.log("[GeoQuery GeoEVA] cargando proyectos:", url);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`No se pudo cargar ${url}`);
+      }
+
+      const geojson = await response.json();
+      const features = Array.isArray(geojson.features) ? geojson.features : [];
+
+      window.geoEvaProjectsCache = features;
+      console.log("[GeoQuery GeoEVA] proyectos cargados:", features.length);
+      console.log("[GeoQuery GeoEVA] proyectos totales", features.length);
+
+      // Optimización futura:
+      // Separar geoeva_geoquery_proyectos.geojson por región en capas_geoquery/capas_XX/
+      // y cargar primero región visible o región del punto.
+      // Para esta primera implementación se usa el GeoJSON nacional.
+      return features;
+    }
+
+    function isApprovedProject(feature) {
+      const props = feature.properties || {};
+      const estado = String(props.estado || "").trim().toLowerCase();
+      return estado === "aprobado" || estado === "aprobada";
+    }
+
+    function getProjectLatLon(feature) {
+      if (feature.geometry && feature.geometry.type === "Point" && Array.isArray(feature.geometry.coordinates)) {
+        const lon = Number(feature.geometry.coordinates[0]);
+        const lat = Number(feature.geometry.coordinates[1]);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+      }
+
+      const props = feature.properties || {};
+      const lat = Number(props.lat);
+      const lon = Number(props.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+      return null;
+    }
+
+    function calculateProjectDistance(queryLat, queryLon, feature) {
+      const coords = getProjectLatLon(feature);
+      if (!coords || !window.turf) return null;
+      const queryPoint = turf.point([queryLon, queryLat]);
+      const projectPoint = turf.point([coords.lon, coords.lat]);
+      const distanceKm = turf.distance(queryPoint, projectPoint, { units: "kilometers" });
+      return { feature, lat: coords.lat, lon: coords.lon, distance_km: distanceKm, distance_m: distanceKm * 1000 };
+    }
+
+    function getNearestApprovedProjects(queryLat, queryLon, features, limit = 10) {
+      return features
+        .filter(isApprovedProject)
+        .map(feature => calculateProjectDistance(queryLat, queryLon, feature))
+        .filter(Boolean)
+        .sort((a, b) => a.distance_km - b.distance_km)
+        .slice(0, limit);
+    }
+
+    function getAnalysisRadiusMeters(nearestProjects) {
+      if (!nearestProjects.length) return 500;
+      const last = nearestProjects[nearestProjects.length - 1];
+      const radius = last.distance_m * 1.05;
+      return Math.max(radius, 500);
+    }
+
+    function formatDistance(km) {
+      if (!Number.isFinite(km)) return "Sin información";
+      if (km < 1) return `${(km * 1000).toFixed(0)} m`;
+      return `${km.toFixed(2)} km`;
+    }
+
+    function formatInvestment(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "Sin información";
+      return `US$ ${num.toLocaleString("es-CL", { maximumFractionDigits: 2 })} MM`;
+    }
+
+    function formatLength(meters) {
+      if (!Number.isFinite(meters)) return "Sin información";
+      if (meters < 1000) return `${meters.toFixed(0)} m`;
+      return `${(meters / 1000).toFixed(2)} km`;
+    }
+
+    function formatArea(squareMeters) {
+      if (!Number.isFinite(squareMeters)) return "Sin información";
+      if (squareMeters < 1000000) return `${squareMeters.toLocaleString("es-CL", { maximumFractionDigits: 0 })} m²`;
+      return `${(squareMeters / 1000000).toLocaleString("es-CL", { maximumFractionDigits: 2 })} km²`;
+    }
+
+    function getDominantSector(nearestProjects) {
+      const counts = new Map();
+      nearestProjects.forEach(item => {
+        const sector = item.feature.properties?.sector || "Sin información";
+        counts.set(sector, (counts.get(sector) || 0) + 1);
+      });
+      let bestSector = "Sin información";
+      let bestCount = 0;
+      counts.forEach((count, sector) => {
+        if (count > bestCount) {
+          bestSector = sector;
+          bestCount = count;
+        }
+      });
+      return bestSector;
+    }
+
+    function renderNearestProjectsOnMap(nearestProjects, geoQueryMap) {
+      nearestProjects.forEach((item) => {
+        const props = item.feature.properties || {};
+        const sector = props.sector || "Proyecto";
+        const marker = L.circleMarker([item.lat, item.lon], {
+          radius: 6,
+          weight: 2,
+          fillOpacity: 0.9
+        }).addTo(geoQueryMap);
+
+        marker.bindTooltip(sector, {
+          permanent: true,
+          direction: "top",
+          className: "geoeva-project-sector-label"
+        });
+      });
+    }
+
+    function renderGeoEvaPanels({ nearestProjects, radiusMeters, totalProjects, approvedProjects, currentBasemap }) {
+      const dominantSector = getDominantSector(nearestProjects);
+      const rows = nearestProjects.map((item, index) => {
+        const props = item.feature.properties || {};
+        return `<tr><td>${index + 1}</td><td>${escapeHtml(props.nombre_proyecto || props.nombre_busq || "Sin información")}</td><td>${escapeHtml(props.sector || "Sin información")}</td><td>${escapeHtml(props.estado || "Sin información")}</td><td>${formatDistance(item.distance_km)}</td><td>${formatInvestment(props.inversion_mmusd)}</td></tr>`;
+      }).join("");
+
+      document.getElementById("geoquery-related-features-panel").innerHTML = `<h3>Proyectos relacionados</h3><dl class="details analysis-summary"><div class="detail-row"><dt>Tipo de relación</dt><dd>Cercanía</dd></div><div class="detail-row"><dt>Criterio</dt><dd>10 proyectos aprobados más cercanos</dd></div><div class="detail-row"><dt>Proyectos encontrados</dt><dd>${nearestProjects.length}</dd></div><div class="detail-row"><dt>Radio de análisis</dt><dd>${formatLength(radiusMeters)}</dd></div><div class="detail-row"><dt>Sector dominante</dt><dd>${escapeHtml(dominantSector)}</dd></div></dl><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>#</th><th>Proyecto</th><th>Sector</th><th>Estado</th><th>Distancia</th><th>Inversión MMUS$</th></tr></thead><tbody>${rows || '<tr><td colspan="6">Sin proyectos aprobados cercanos.</td></tr>'}</tbody></table></div>`;
+
+      const first = nearestProjects[0];
+      const tenth = nearestProjects[Math.min(9, nearestProjects.length - 1)];
+      document.getElementById("geoquery-geometry-panel").innerHTML = `<h3>Descriptores geométricos</h3><dl class="details"><div class="detail-row"><dt>Radio del círculo</dt><dd>${formatLength(radiusMeters)}</dd></div><div class="detail-row"><dt>Diámetro del círculo</dt><dd>${formatLength(radiusMeters * 2)}</dd></div><div class="detail-row"><dt>Superficie del círculo</dt><dd>${formatArea(Math.PI * radiusMeters * radiusMeters)}</dd></div><div class="detail-row"><dt>Perímetro del círculo</dt><dd>${formatLength(2 * Math.PI * radiusMeters)}</dd></div><div class="detail-row"><dt>Proyectos aprobados contenidos</dt><dd>${nearestProjects.length}</dd></div><div class="detail-row"><dt>Distancia al proyecto más cercano</dt><dd>${first ? formatDistance(first.distance_km) : 'Sin información'}</dd></div><div class="detail-row"><dt>Distancia al décimo proyecto</dt><dd>${tenth ? formatDistance(tenth.distance_km) : 'Sin información'}</dd></div></dl>`;
+
+      const metadataRows = nearestProjects.map((item, index) => {
+        const p = item.feature.properties || {};
+        const web = p.web ? `<a href="${escapeHtml(p.web)}" target="_blank" rel="noopener noreferrer">Abrir</a>` : "Sin información";
+        return `<tr><td>${index + 1}</td><td>${escapeHtml(p.nombre_proyecto || p.nombre_busq || "Sin información")}</td><td>${escapeHtml(p.titular || "Sin información")}</td><td>${escapeHtml(p.region || "Sin información")}</td><td>${escapeHtml(p.comuna || "Sin información")}</td><td>${escapeHtml(p.sector || "Sin información")}</td><td>${escapeHtml(p.estado || "Sin información")}</td><td>${escapeHtml(p.tipo_presentacion || "Sin información")}</td><td>${formatInvestment(p.inversion_mmusd)}</td><td>${escapeHtml(p.anio || "Sin información")}</td><td>${web}</td></tr>`;
+      }).join("");
+      document.getElementById("geoquery-metadata-panel").innerHTML = `<h3>Metadata de proyectos</h3><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>#</th><th>Proyecto</th><th>Titular</th><th>Región</th><th>Comuna</th><th>Sector</th><th>Estado</th><th>Tipo presentación</th><th>Inversión MMUS$</th><th>Año</th><th>Web</th></tr></thead><tbody>${metadataRows || '<tr><td colspan="11">Sin metadata disponible.</td></tr>'}</tbody></table></div>`;
+
+      document.getElementById("geoquery-relation-indicators-panel").innerHTML = `<h3>Indicadores de relación espacial</h3><dl class="details"><div class="detail-row"><dt>Tipo de relación</dt><dd>Cercanía</dd></div><div class="detail-row"><dt>Método</dt><dd>nearest approved projects</dd></div><div class="detail-row"><dt>Universo</dt><dd>proyectos aprobados</dd></div><div class="detail-row"><dt>Total proyectos cargados</dt><dd>${totalProjects}</dd></div><div class="detail-row"><dt>Total proyectos aprobados</dt><dd>${approvedProjects.length}</dd></div><div class="detail-row"><dt>Proyectos seleccionados</dt><dd>${nearestProjects.length}</dd></div><div class="detail-row"><dt>Radio calculado</dt><dd>${formatLength(radiusMeters)}</dd></div><div class="detail-row"><dt>Basemap heredado</dt><dd>${escapeHtml(currentBasemap)}</dd></div><div class="detail-row"><dt>Fuente</dt><dd>geoeva_geoquery_proyectos.geojson</dd></div></dl>`;
+    }
+
+    (async function initGeoQuery() {
       const params = new URLSearchParams(window.location.search);
       const lat = Number.parseFloat(params.get("lat"));
       const lon = Number.parseFloat(params.get("lon"));
@@ -635,6 +852,8 @@
       const viewLat = getParam(params, "viewLat", null);
       const viewLon = getParam(params, "viewLon", null);
       const valid = isValidCoordinate(lat, lon);
+      console.log("[GeoQuery GeoEVA] punto consultado", { lat, lon });
+      console.log("[GeoQuery GeoEVA] basemap heredado", currentBasemap);
 
       const elements = {
         cardLat: document.getElementById("card-lat"),
@@ -719,10 +938,9 @@
       elements.detailStatus.textContent = "preparado para análisis territorial";
       elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
 
-      // Regla futura GeoQuery:
-      // En la versión analítica completa, el zoom y la posición del mapa
-      // dependerán del punto consultado y de la feature relacionada encontrada.
-      // Por ahora se usa una escala de referencia 1:20.000 centrada en el punto.
+      // GeoEVA:
+      // La vista analítica se ajusta al círculo que contiene
+      // los 10 proyectos aprobados más cercanos al punto consultado.
       const geoQueryMap = L.map("geoquery-map", {
         zoomControl: true,
         zoomSnap: 0.25,
@@ -794,9 +1012,11 @@
       geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
 
       L.circleMarker([lat, lon], {
-        radius: 7,
+        radius: 8,
+        color: "#1d4ed8",
+        fillColor: "#60a5fa",
         weight: 3,
-        fillOpacity: 0.9
+        fillOpacity: 0.95
       }).addTo(geoQueryMap);
 
       L.control.scale({
@@ -806,10 +1026,61 @@
         maxWidth: 120
       }).addTo(geoQueryMap);
 
+      try {
+        const allProjects = await loadGeoEvaProjects();
+        const approvedProjects = allProjects.filter(isApprovedProject);
+        console.log("[GeoQuery GeoEVA] proyectos aprobados:", approvedProjects.length);
+        console.log("[GeoQuery GeoEVA] proyectos aprobados", approvedProjects.length);
+
+        const projectsWithCoordinates = approvedProjects.filter(feature => Boolean(getProjectLatLon(feature)));
+        console.log("[GeoQuery GeoEVA] proyectos con coordenadas válidas", projectsWithCoordinates.length);
+
+        const nearestProjects = getNearestApprovedProjects(lat, lon, allProjects, 10);
+        console.log("[GeoQuery GeoEVA] 10 proyectos aprobados más cercanos:", nearestProjects);
+        console.log("[GeoQuery GeoEVA] proyectos seleccionados", nearestProjects.length);
+
+        renderNearestProjectsOnMap(nearestProjects, geoQueryMap);
+
+        const radiusMeters = getAnalysisRadiusMeters(nearestProjects);
+        console.log("[GeoQuery GeoEVA] radio círculo análisis", radiusMeters);
+
+        const analysisCircle = L.circle([lat, lon], {
+          radius: radiusMeters,
+          color: "#2563eb",
+          fillColor: "#2563eb",
+          weight: 2,
+          opacity: 0.85,
+          fillOpacity: 0.15
+        }).addTo(geoQueryMap);
+
+        renderGeoEvaPanels({
+          nearestProjects,
+          radiusMeters,
+          totalProjects: allProjects.length,
+          approvedProjects,
+          currentBasemap
+        });
+
+        window.geoQueryState.projects_total = allProjects.length;
+        window.geoQueryState.projects_approved = approvedProjects.length;
+        window.geoQueryState.projects_selected = nearestProjects.length;
+        window.geoQueryState.analysis_radius_m = radiusMeters;
+        window.geoQueryState.source_geojson = GEOEVA_PROJECTS_URL;
+
+        geoQueryMap.fitBounds(analysisCircle.getBounds(), {
+          padding: [30, 30],
+          maxZoom: 14
+        });
+        console.log("[GeoQuery GeoEVA] fitBounds círculo");
+        elements.visualCaption.textContent = `Punto consultado y ${nearestProjects.length} proyectos aprobados cercanos. Radio: ${formatLength(radiusMeters)}.`;
+      } catch (error) {
+        console.error("[GeoQuery GeoEVA] error al cargar proyectos", error);
+        document.getElementById("geoquery-related-features-panel").innerHTML = `<h3>Proyectos relacionados</h3><div class="message">No se pudo cargar el GeoJSON nacional de proyectos.</div>`;
+      }
+
       updateReturnLink();
       setTimeout(() => {
         geoQueryMap.invalidateSize();
-        geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
       }, 150);
     })();
   </script>
