@@ -631,7 +631,7 @@ function buildGeoEVASearchIndex(features) {
 async function loadGeoEVASearchIndex() {
   if (geoEvaSearchLoaded) return geoEvaSearchIndex;
 
-  console.log(`[GeoEVA Search] cargando ${GEOEVA_SEARCH_PATH}`);
+  console.log("[GeoEVA Index] usando capas_tosearch/geoeva_tosearch_proyectos.geojson");
   const response = await fetch(GEOEVA_SEARCH_PATH, { cache: "no-store" });
   if (!response.ok) throw new Error(`No se pudo cargar ${GEOEVA_SEARCH_PATH}`);
 
