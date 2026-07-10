@@ -356,6 +356,51 @@
       font-weight: 700;
     }
 
+    .metadata-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .metadata-projects-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .metadata-projects-table th,
+    .metadata-projects-table td {
+      padding: 10px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    .metadata-projects-table th {
+      background: #f8fafc;
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .metadata-projects-table a {
+      color: inherit;
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .project-name-cell {
+      font-weight: 700;
+    }
+
+    @media (max-width: 700px) {
+      .metadata-projects-table th,
+      .metadata-projects-table td {
+        font-size: 12px;
+        padding: 8px;
+      }
+    }
+
     .geoeva-project-sector-label {
       background: rgba(255, 255, 255, 0.9);
       border: 1px solid rgba(0, 0, 0, 0.15);
@@ -614,12 +659,21 @@
     const GEOEVA_GEOQUERY_PROJECTS_URL = "../capas_geoquery/geoeva_geoquery_proyectos.geojson";
 
     function escapeHtml(value) {
-      return String(value ?? "").replace(/[&<>"]/g, char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;"
-      }[char]));
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function isValidHttpUrl(value) {
+      try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch {
+        return false;
+      }
     }
 
     function decimalToDMS(value, type) {
@@ -834,6 +888,30 @@
       return `US$ ${num.toLocaleString("es-CL", { maximumFractionDigits: 2 })} MM`;
     }
 
+    function formatInvestmentMMUSD(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "Sin información";
+
+      return `US$ ${num.toLocaleString("es-CL", {
+        maximumFractionDigits: 2
+      })} MM`;
+    }
+
+    function formatDistanceKm(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "Sin información";
+
+      if (num < 1) {
+        return `${(num * 1000).toLocaleString("es-CL", {
+          maximumFractionDigits: 0
+        })} m`;
+      }
+
+      return `${num.toLocaleString("es-CL", {
+        maximumFractionDigits: 2
+      })} km`;
+    }
+
     function formatLength(meters) {
       if (!Number.isFinite(meters)) return "Sin información";
       if (meters < 1000) return `${meters.toFixed(0)} m`;
@@ -873,11 +951,19 @@
       document.getElementById("geoquery-geometry-panel").innerHTML = `<h3>Descriptores geométricos</h3><dl class="details"><div class="detail-row"><dt>Radio del círculo</dt><dd>${formatLength(radiusMeters)}</dd></div><div class="detail-row"><dt>Diámetro del círculo</dt><dd>${formatLength(radiusMeters * 2)}</dd></div><div class="detail-row"><dt>Superficie del círculo</dt><dd>${formatArea(Math.PI * radiusMeters * radiusMeters)}</dd></div><div class="detail-row"><dt>Perímetro del círculo</dt><dd>${formatLength(2 * Math.PI * radiusMeters)}</dd></div><div class="detail-row"><dt>Distancia media entre proyectos aprobados</dt><dd>${formatDistance(territorialGroup.averageApprovedDistanceKm)}</dd></div><div class="detail-row"><dt>Distancia media entre proyectos del sector dominante</dt><dd>${formatDistance(territorialGroup.averageDominantSectorDistanceKm)}</dd></div><div class="detail-row"><dt>Distancia al proyecto aprobado más cercano</dt><dd>${first ? formatDistance(first.distance_km) : 'Sin información'}</dd></div><div class="detail-row"><dt>Distancia al décimo proyecto</dt><dd>${tenth ? formatDistance(tenth.distance_km) : 'Sin información'}</dd></div></dl>`;
 
       const metadataRows = nearestProjects.map((item, index) => {
-        const p = item.feature.properties || {};
-        const web = p.web ? `<a href="${escapeHtml(p.web)}" target="_blank" rel="noopener noreferrer">Abrir</a>` : "Sin información";
-        return `<tr><td>${index + 1}</td><td>${escapeHtml(p.nombre_proyecto || p.nombre_busq || "Sin información")}</td><td>${escapeHtml(p.titular || "Sin información")}</td><td>${escapeHtml(p.region || "Sin información")}</td><td>${escapeHtml(p.comuna || "Sin información")}</td><td>${escapeHtml(p.sector || "Sin información")}</td><td>${escapeHtml(p.estado || "Sin información")}</td><td>${escapeHtml(p.tipo_presentacion || "Sin información")}</td><td>${formatInvestment(p.inversion_mmusd)}</td><td>${escapeHtml(p.anio || "Sin información")}</td><td>${web}</td></tr>`;
+        const props = item.feature.properties || {};
+        const nombreProyecto = props.nombre_proyecto || props.nombre_busq || "Proyecto sin nombre";
+        const titular = props.titular || "Sin información";
+        const sector = props.sector || "Sin información";
+        const estado = props.estado || "Sin información";
+        const web = props.web || "";
+        const projectCell = isValidHttpUrl(web)
+          ? `<a href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer">${escapeHtml(nombreProyecto)}</a>`
+          : escapeHtml(nombreProyecto);
+
+        return `<tr><td>${index + 1}</td><td class="project-name-cell">${projectCell}</td><td>${escapeHtml(titular)}</td><td>${escapeHtml(sector)}</td><td>${escapeHtml(estado)}</td><td>${formatInvestmentMMUSD(props.inversion_mmusd)}</td><td>${formatDistanceKm(item.distance_km)}</td></tr>`;
       }).join("");
-      document.getElementById("geoquery-metadata-panel").innerHTML = `<h3>Metadata de proyectos</h3><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>#</th><th>Proyecto</th><th>Titular</th><th>Región</th><th>Comuna</th><th>Sector</th><th>Estado</th><th>Tipo presentación</th><th>Inversión MMUS$</th><th>Año</th><th>Web</th></tr></thead><tbody>${metadataRows || '<tr><td colspan="11">Sin metadata disponible.</td></tr>'}</tbody></table></div>`;
+      document.getElementById("geoquery-metadata-panel").innerHTML = `<h3>Metadata de proyectos</h3><p>Proyectos aprobados más cercanos usados para construir el grupo territorial.</p><div class="metadata-table-wrapper"><table class="metadata-projects-table"><thead><tr><th>#</th><th>Proyecto</th><th>Titular</th><th>Sector</th><th>Estado</th><th>Inversión</th><th>Distancia</th></tr></thead><tbody>${metadataRows || '<tr><td colspan="7">Sin metadata disponible.</td></tr>'}</tbody></table></div>`;
 
       document.getElementById("geoquery-relation-indicators-panel").innerHTML = `<h3>Indicadores de relación espacial</h3><dl class="details"><div class="detail-row"><dt>Tipo de relación</dt><dd>Cercanía</dd></div><div class="detail-row"><dt>Método</dt><dd>nearest approved projects</dd></div><div class="detail-row"><dt>Universo</dt><dd>proyectos aprobados</dd></div><div class="detail-row"><dt>Total proyectos cargados</dt><dd>${totalProjects}</dd></div><div class="detail-row"><dt>Total proyectos aprobados</dt><dd>${approvedProjects.length}</dd></div><div class="detail-row"><dt>Proyectos seleccionados</dt><dd>${nearestProjects.length}</dd></div><div class="detail-row"><dt>Radio calculado</dt><dd>${formatLength(radiusMeters)}</dd></div><div class="detail-row"><dt>Basemap heredado</dt><dd>${escapeHtml(currentBasemap)}</dd></div><div class="detail-row"><dt>Fuente</dt><dd>geoeva_geoquery_proyectos.geojson</dd></div></dl>`;
     }
