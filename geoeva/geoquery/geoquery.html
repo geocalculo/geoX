@@ -382,15 +382,39 @@
       font-weight: 700;
     }
 
-    .metadata-projects-table a {
-      color: inherit;
+    .project-index-cell {
+      text-align: center;
       font-weight: 700;
-      text-decoration: underline;
-      text-underline-offset: 2px;
+      width: 42px;
+    }
+
+    .project-expediente-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      color: #1e3a8a;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .project-expediente-link:hover {
+      background: #dbeafe;
+      text-decoration: none;
     }
 
     .project-name-cell {
-      font-weight: 700;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .project-name-cell a {
+      text-decoration: none;
     }
 
     @media (max-width: 700px) {
@@ -957,11 +981,12 @@
         const sector = props.sector || "Sin información";
         const estado = props.estado || "Sin información";
         const web = props.web || "";
-        const projectCell = isValidHttpUrl(web)
-          ? `<a href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer">${escapeHtml(nombreProyecto)}</a>`
-          : escapeHtml(nombreProyecto);
+        const rowNumber = index + 1;
+        const numberCell = isValidHttpUrl(web)
+          ? `<a href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer" class="project-expediente-link">${rowNumber}</a>`
+          : `${rowNumber}`;
 
-        return `<tr><td>${index + 1}</td><td class="project-name-cell">${projectCell}</td><td>${escapeHtml(titular)}</td><td>${escapeHtml(sector)}</td><td>${escapeHtml(estado)}</td><td>${formatInvestmentMMUSD(props.inversion_mmusd)}</td><td>${formatDistanceKm(item.distance_km)}</td></tr>`;
+        return `<tr><td class="project-index-cell">${numberCell}</td><td class="project-name-cell">${escapeHtml(nombreProyecto)}</td><td>${escapeHtml(titular)}</td><td>${escapeHtml(sector)}</td><td>${escapeHtml(estado)}</td><td>${formatInvestmentMMUSD(props.inversion_mmusd)}</td><td>${formatDistanceKm(item.distance_km)}</td></tr>`;
       }).join("");
       document.getElementById("geoquery-metadata-panel").innerHTML = `<h3>Metadata de proyectos</h3><p>Proyectos aprobados más cercanos usados para construir el grupo territorial.</p><div class="metadata-table-wrapper"><table class="metadata-projects-table"><thead><tr><th>#</th><th>Proyecto</th><th>Titular</th><th>Sector</th><th>Estado</th><th>Inversión</th><th>Distancia</th></tr></thead><tbody>${metadataRows || '<tr><td colspan="7">Sin metadata disponible.</td></tr>'}</tbody></table></div>`;
 
