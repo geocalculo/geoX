@@ -3,26 +3,54 @@
   "nombre": "SNASPE",
   "nombre_largo": "Sistema Nacional de Áreas Silvestres Protegidas del Estado",
   "activo": true,
-  "archivos": [
-    { "id": "snaspe_sub10k", "archivo": "nemo_snaspe_sub10k.geojson", "subtipo": "general" },
-    { "id": "snaspe_xl_continental", "archivo": "snaspe_XL_from_raster_conti.geojson", "subtipo": "continental" },
-    { "id": "snaspe_xl_mar", "archivo": "snaspe_XL_from_raster_mar.geojson", "subtipo": "maritimo" }
+  "deduplicacion": [
+    "ID_CATASTR",
+    "CATEGORIA",
+    "NOMBRE_TOT",
+    "TERRITORIO",
+    "DECRETO"
   ],
-  "regla_relacion": "intersects_nearest",
-  "deduplicacion": ["ID_CATASTR", "CATEGORIA", "NOMBRE_TOT", "TERRITORIO", "DECRETO"],
   "campos": {
-    "id": ["ID_CATASTR", "fid"],
-    "nombre": ["NOMBRE_TOT", "NOMBRE_UNI"],
-    "nombre_alternativo": ["NOMBRE_UNI"],
-    "categoria": ["CATEGORIA"],
-    "region": ["REGION"],
-    "territorio": ["TERRITORIO"],
-    "superficie": ["SUPERFICIE"],
-    "decreto": ["DECRETO"],
-    "emisor": ["EMISOR_DEC"],
-    "condicion": ["CONDICION"],
-    "tipo_propiedad": ["TIPO_DE_PR"],
-    "plano": ["NUM_PLANO"],
-    "link": ["LINK"]
+    "id": [
+      "ID_CATASTR",
+      "fid"
+    ],
+    "nombre": [
+      "NOMBRE_TOT",
+      "NOMBRE_UNI"
+    ],
+    "nombre_alternativo": [
+      "NOMBRE_UNI"
+    ],
+    "categoria": [
+      "CATEGORIA"
+    ],
+    "region": [
+      "REGION"
+    ],
+    "territorio": [
+      "TERRITORIO"
+    ],
+    "superficie": [
+      "SUPERFICIE"
+    ],
+    "decreto": [
+      "DECRETO"
+    ],
+    "emisor": [
+      "EMISOR_DEC"
+    ],
+    "condicion": [
+      "CONDICION"
+    ],
+    "tipo_propiedad": [
+      "TIPO_DE_PR"
+    ],
+    "plano": [
+      "NUM_PLANO"
+    ],
+    "link": [
+      "LINK"
+    ]
   }
 }
