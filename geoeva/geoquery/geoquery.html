@@ -325,6 +325,38 @@
       margin: 0 0 16px;
     }
 
+    .analysis-category {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .analysis-category:first-of-type {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .analysis-category-title {
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      max-width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #c7d2fe;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #1e3a8a;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      overflow-wrap: anywhere;
+    }
+
     .analysis-table-wrap {
       overflow-x: auto;
     }
@@ -801,23 +833,39 @@
       return features;
     }
 
+    function normalizeStatus(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
     function isApprovedProject(feature) {
-      const props = feature.properties || {};
-      const estado = String(props.estado || "").trim().toLowerCase();
-      return estado === "aprobado" || estado === "aprobada";
+      const estado = normalizeStatus(feature.properties?.estado);
+      return estado === "aprobado" || estado === "aprobada" || estado === "proyecto aprobado";
+    }
+
+    function isRejectedProject(feature) {
+      return normalizeStatus(feature.properties?.estado) === "rechazado";
+    }
+
+    function isInQualificationProject(feature) {
+      return normalizeStatus(feature.properties?.estado) === "en calificación";
+    }
+
+    function normalizeSector(value) {
+      const sector = String(value || "").trim().replace(/\s+/g, " ");
+      return sector || "Sin sector informado";
     }
 
     function getProjectLatLon(feature) {
       if (feature.geometry && feature.geometry.type === "Point" && Array.isArray(feature.geometry.coordinates)) {
         const lon = Number(feature.geometry.coordinates[0]);
         const lat = Number(feature.geometry.coordinates[1]);
-        if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+        if (isValidCoordinate(lat, lon)) return { lat, lon };
       }
 
       const props = feature.properties || {};
       const lat = Number(props.lat);
       const lon = Number(props.lon);
-      if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+      if (isValidCoordinate(lat, lon)) return { lat, lon };
       return null;
     }
 
@@ -827,6 +875,7 @@
       const queryPoint = turf.point([queryLon, queryLat]);
       const projectPoint = turf.point([coords.lon, coords.lat]);
       const distanceKm = turf.distance(queryPoint, projectPoint, { units: "kilometers" });
+      if (!Number.isFinite(distanceKm)) return null;
       return { feature, lat: coords.lat, lon: coords.lon, distance_km: distanceKm, distance_m: distanceKm * 1000 };
     }
 
@@ -839,20 +888,20 @@
         .slice(0, limit);
     }
 
-    function getAnalysisRadiusMeters(nearestProjects) {
-      if (!nearestProjects.length) return 500;
-      const last = nearestProjects[nearestProjects.length - 1];
-      const radius = last.distance_m * 1.05;
-      return Math.max(radius, 500);
+    function getAnalysisRadiusMeters(baseApprovedCluster) {
+      if (!baseApprovedCluster.length) return null;
+      const last = baseApprovedCluster[baseApprovedCluster.length - 1];
+      return Number.isFinite(last.distance_m) ? last.distance_m : null;
     }
 
     function formatDistance(km) {
-      if (!Number.isFinite(km)) return "Sin información";
-      if (km < 1) return `${(km * 1000).toFixed(0)} m`;
-      return `${km.toFixed(2)} km`;
+      const num = Number(km);
+      if (!Number.isFinite(num)) return "N/D";
+      return `${num.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`;
     }
 
     function getProjectsWithinRadius(queryLat, queryLon, features, radiusMeters) {
+      if (!Number.isFinite(radiusMeters)) return [];
       return features
         .map(feature => calculateProjectDistance(queryLat, queryLon, feature))
         .filter(item => item && item.distance_m <= radiusMeters);
@@ -863,32 +912,46 @@
       return Number.isFinite(value) ? value : 0;
     }
 
-    function averageProjectDistance(projects) {
-      if (projects.length < 2 || !window.turf) return null;
+    function calculatePairDistanceStats(projects) {
+      const validProjects = projects.filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lon));
+      const result = { count: validProjects.length, pairCount: 0, minKm: null, meanKm: null, maxKm: null };
+      if (validProjects.length < 2 || !window.turf) return result;
+
       let totalKm = 0;
-      let count = 0;
-      for (let i = 0; i < projects.length; i += 1) {
-        for (let j = i + 1; j < projects.length; j += 1) {
-          totalKm += turf.distance(turf.point([projects[i].lon, projects[i].lat]), turf.point([projects[j].lon, projects[j].lat]), { units: "kilometers" });
-          count += 1;
+      let minKm = Infinity;
+      let maxKm = -Infinity;
+
+      for (let i = 0; i < validProjects.length - 1; i += 1) {
+        for (let j = i + 1; j < validProjects.length; j += 1) {
+          const distanceKm = turf.distance(
+            turf.point([validProjects[i].lon, validProjects[i].lat]),
+            turf.point([validProjects[j].lon, validProjects[j].lat]),
+            { units: "kilometers" }
+          );
+          if (!Number.isFinite(distanceKm)) continue;
+          totalKm += distanceKm;
+          minKm = Math.min(minKm, distanceKm);
+          maxKm = Math.max(maxKm, distanceKm);
+          result.pairCount += 1;
         }
       }
-      return count ? totalKm / count : null;
+
+      if (result.pairCount) {
+        result.minKm = minKm;
+        result.meanKm = totalKm / result.pairCount;
+        result.maxKm = maxKm;
+      }
+      return result;
     }
 
-    function calculateTerritorialGroup(projectsInRadius) {
-      const total = projectsInRadius.length;
-      const approved = projectsInRadius.filter(item => isApprovedProject(item.feature)).length;
-      const rejected = projectsInRadius.filter(item => String(item.feature.properties?.estado || "").trim().toLowerCase() === "rechazado").length;
-      const inQualification = projectsInRadius.filter(item => String(item.feature.properties?.estado || "").trim().toLowerCase() === "en calificación").length;
-      const totalInvestment = projectsInRadius.reduce((sum, item) => sum + getProjectInvestment(item.feature), 0);
-      const approvedInvestment = projectsInRadius.filter(item => isApprovedProject(item.feature)).reduce((sum, item) => sum + getProjectInvestment(item.feature), 0);
+    function calculateDominantSector(baseApprovedCluster) {
       const sectorCounts = new Map();
-      projectsInRadius.forEach(item => {
-        const sector = item.feature.properties?.sector || "Sin información";
+      baseApprovedCluster.forEach(item => {
+        const sector = normalizeSector(item.feature.properties?.sector);
         sectorCounts.set(sector, (sectorCounts.get(sector) || 0) + 1);
       });
-      let dominantSector = "Sin información";
+
+      let dominantSector = baseApprovedCluster.length ? "Sin sector informado" : "Sin proyectos aprobados disponibles";
       let dominantSectorCount = 0;
       sectorCounts.forEach((count, sector) => {
         if (count > dominantSectorCount) {
@@ -896,31 +959,46 @@
           dominantSectorCount = count;
         }
       });
-      const dominantSectorProjects = projectsInRadius.filter(item => (item.feature.properties?.sector || "Sin información") === dominantSector);
+
+      const dominantSectorProjects = baseApprovedCluster.filter(item => normalizeSector(item.feature.properties?.sector) === dominantSector);
+      return { dominantSector, dominantSectorCount, dominantSectorProjects };
+    }
+
+    function calculateTerritorialGroup(projectsInsideRadius, baseApprovedCluster) {
+      const total = projectsInsideRadius.length;
+      const approved = projectsInsideRadius.filter(item => isApprovedProject(item.feature)).length;
+      const rejected = projectsInsideRadius.filter(item => isRejectedProject(item.feature)).length;
+      const inQualification = projectsInsideRadius.filter(item => isInQualificationProject(item.feature)).length;
+      const totalInvestment = projectsInsideRadius.reduce((sum, item) => sum + getProjectInvestment(item.feature), 0);
+      const approvedInvestment = projectsInsideRadius.filter(item => isApprovedProject(item.feature)).reduce((sum, item) => sum + getProjectInvestment(item.feature), 0);
+      const { dominantSector, dominantSectorCount, dominantSectorProjects } = calculateDominantSector(baseApprovedCluster);
+      const dominantSectorShare = baseApprovedCluster.length ? (dominantSectorCount / baseApprovedCluster.length) * 100 : null;
+
       return {
         total,
         approved,
         rejected,
-        rejectedPercent: total ? (rejected / total) * 100 : 0,
         inQualification,
         totalInvestment,
         approvedInvestment,
         dominantSector,
-        dominantSectorShare: total ? (dominantSectorCount / total) * 100 : 0,
-        averageApprovedDistanceKm: averageProjectDistance(projectsInRadius.filter(item => isApprovedProject(item.feature))),
-        averageDominantSectorDistanceKm: averageProjectDistance(dominantSectorProjects)
+        dominantSectorCount,
+        dominantSectorShare,
+        dominantSectorProjects,
+        approvedPairStats: calculatePairDistanceStats(baseApprovedCluster),
+        dominantSectorPairStats: calculatePairDistanceStats(dominantSectorProjects)
       };
     }
 
     function formatPercent(value) {
-      if (!Number.isFinite(value)) return "Sin información";
-      return `${value.toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`;
+      if (!Number.isFinite(value)) return "N/D";
+      return `${value.toLocaleString("es-CL", { maximumFractionDigits: 1 })} %`;
     }
 
     function formatInvestment(value) {
       const num = Number(value);
       if (!Number.isFinite(num)) return "Sin información";
-      return `US$ ${num.toLocaleString("es-CL", { maximumFractionDigits: 2 })} MM`;
+      return `US$ ${num.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MM`;
     }
 
     function formatInvestmentMMUSD(value) {
@@ -928,37 +1006,20 @@
       if (!Number.isFinite(num)) return "Sin información";
 
       return `US$ ${num.toLocaleString("es-CL", {
+        minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })} MM`;
     }
 
     function formatDistanceKm(value) {
-      const num = Number(value);
-      if (!Number.isFinite(num)) return "Sin información";
-
-      if (num < 1) {
-        return `${(num * 1000).toLocaleString("es-CL", {
-          maximumFractionDigits: 0
-        })} m`;
-      }
-
-      return `${num.toLocaleString("es-CL", {
-        maximumFractionDigits: 2
-      })} km`;
+      return formatDistance(value);
     }
 
     function formatLength(meters) {
-      if (!Number.isFinite(meters)) return "Sin información";
-      if (meters < 1000) return `${meters.toFixed(0)} m`;
-      return `${(meters / 1000).toFixed(2)} km`;
+      const num = Number(meters);
+      if (!Number.isFinite(num)) return "N/D";
+      return formatDistance(num / 1000);
     }
-
-    function formatArea(squareMeters) {
-      if (!Number.isFinite(squareMeters)) return "Sin información";
-      if (squareMeters < 1000000) return `${squareMeters.toLocaleString("es-CL", { maximumFractionDigits: 0 })} m²`;
-      return `${(squareMeters / 1000000).toLocaleString("es-CL", { maximumFractionDigits: 2 })} km²`;
-    }
-
 
     function renderNearestProjectsOnMap(nearestProjects, geoQueryMap) {
       nearestProjects.forEach((item) => {
@@ -978,19 +1039,64 @@
       });
     }
 
-    function renderGeoEvaPanels({ nearestProjects, radiusMeters, totalProjects, approvedProjects, projectsInRadius, territorialGroup, currentBasemap }) {
-      document.getElementById("geoquery-related-features-panel").innerHTML = `<h3>Proyectos relacionados</h3><dl class="details analysis-summary"><div class="detail-row"><dt>Total proyectos en radio</dt><dd>${territorialGroup.total}</dd></div><div class="detail-row"><dt>Aprobados</dt><dd>${territorialGroup.approved}</dd></div><div class="detail-row"><dt>Rechazados</dt><dd>${territorialGroup.rejected}</dd></div><div class="detail-row"><dt>% rechazados</dt><dd>${formatPercent(territorialGroup.rejectedPercent)}</dd></div><div class="detail-row"><dt>En calificación</dt><dd>${territorialGroup.inQualification}</dd></div><div class="detail-row"><dt>Inversión total grupo</dt><dd>${formatInvestment(territorialGroup.totalInvestment)}</dd></div><div class="detail-row"><dt>Inversión aprobada</dt><dd>${formatInvestment(territorialGroup.approvedInvestment)}</dd></div><div class="detail-row"><dt>Sector dominante</dt><dd>${escapeHtml(territorialGroup.dominantSector)}</dd></div><div class="detail-row"><dt>Participación sector dominante</dt><dd>${formatPercent(territorialGroup.dominantSectorShare)}</dd></div></dl>`;
+    function renderDetailRow(label, value) {
+      return `<div class="detail-row"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`;
+    }
 
-      const first = nearestProjects[0];
-      const tenth = nearestProjects[Math.min(9, nearestProjects.length - 1)];
-      document.getElementById("geoquery-geometry-panel").innerHTML = `<h3>Descriptores geométricos</h3><dl class="details"><div class="detail-row"><dt>Radio del círculo</dt><dd>${formatLength(radiusMeters)}</dd></div><div class="detail-row"><dt>Diámetro del círculo</dt><dd>${formatLength(radiusMeters * 2)}</dd></div><div class="detail-row"><dt>Superficie del círculo</dt><dd>${formatArea(Math.PI * radiusMeters * radiusMeters)}</dd></div><div class="detail-row"><dt>Perímetro del círculo</dt><dd>${formatLength(2 * Math.PI * radiusMeters)}</dd></div><div class="detail-row"><dt>Distancia media entre proyectos aprobados</dt><dd>${formatDistance(territorialGroup.averageApprovedDistanceKm)}</dd></div><div class="detail-row"><dt>Distancia media entre proyectos del sector dominante</dt><dd>${formatDistance(territorialGroup.averageDominantSectorDistanceKm)}</dd></div><div class="detail-row"><dt>Distancia al proyecto aprobado más cercano</dt><dd>${first ? formatDistance(first.distance_km) : 'Sin información'}</dd></div><div class="detail-row"><dt>Distancia al décimo proyecto</dt><dd>${tenth ? formatDistance(tenth.distance_km) : 'Sin información'}</dd></div></dl>`;
+    function renderAnalysisCategory(title, rows) {
+      return `<div class="analysis-category"><h4 class="analysis-category-title">${escapeHtml(title)}</h4><dl class="details">${rows.join("")}</dl></div>`;
+    }
 
-      const metadataItems = nearestProjects.map((item, index) => {
+    function renderGeoEvaPanels({ baseApprovedCluster, radiusMeters, totalProjects, approvedCandidates, projectsInsideRadius, territorialGroup, currentBasemap }) {
+      const baseTitle = "Clúster base";
+      const insideTitle = "Proyectos dentro del radio";
+
+      document.getElementById("geoquery-related-features-panel").innerHTML = `
+        <h3>Proyectos relacionados</h3>
+        ${renderAnalysisCategory(baseTitle, [
+          renderDetailRow("Proyectos aprobados más cercanos", String(baseApprovedCluster.length)),
+          renderDetailRow("Radio del clúster", formatLength(radiusMeters)),
+          renderDetailRow("Sector dominante", escapeHtml(territorialGroup.dominantSector)),
+          renderDetailRow("Participación del sector dominante", formatPercent(territorialGroup.dominantSectorShare))
+        ])}
+        ${renderAnalysisCategory(insideTitle, [
+          renderDetailRow("Total de proyectos", String(territorialGroup.total)),
+          renderDetailRow("Aprobados", String(territorialGroup.approved)),
+          renderDetailRow("En calificación", String(territorialGroup.inQualification)),
+          renderDetailRow("Rechazados", String(territorialGroup.rejected)),
+          renderDetailRow("Inversión total del grupo", formatInvestment(territorialGroup.totalInvestment)),
+          renderDetailRow("Inversión aprobada", formatInvestment(territorialGroup.approvedInvestment))
+        ])}
+      `;
+
+      const approvedStats = territorialGroup.approvedPairStats;
+      const dominantStats = territorialGroup.dominantSectorPairStats;
+      const dominantTitle = territorialGroup.dominantSectorProjects.length
+        ? `Sector dominante · ${territorialGroup.dominantSector} · ${territorialGroup.dominantSectorProjects.length} proyectos`
+        : `Sector dominante · ${territorialGroup.dominantSector}`;
+
+      document.getElementById("geoquery-geometry-panel").innerHTML = `
+        <h3>Descriptores geométricos</h3>
+        <dl class="details analysis-summary">
+          ${renderDetailRow("Radio del clúster", formatLength(radiusMeters))}
+        </dl>
+        ${renderAnalysisCategory(`Proyectos aprobados · ${baseApprovedCluster.length}`, [
+          renderDetailRow("Distancia mínima entre proyectos", formatDistance(approvedStats.minKm)),
+          renderDetailRow("Distancia media entre proyectos", formatDistance(approvedStats.meanKm))
+        ])}
+        ${renderAnalysisCategory(dominantTitle, [
+          renderDetailRow("Proyectos del sector", String(territorialGroup.dominantSectorProjects.length)),
+          renderDetailRow("Distancia media entre proyectos", formatDistance(dominantStats.meanKm)),
+          renderDetailRow("Distancia máxima entre proyectos", formatDistance(dominantStats.maxKm))
+        ])}
+      `;
+
+      const metadataItems = baseApprovedCluster.map((item, index) => {
         const props = item.feature.properties || {};
         const rowNumber = index + 1;
         const nombreProyecto = props.nombre_proyecto || props.nombre_busq || "Proyecto sin nombre";
         const titular = props.titular || "Sin información";
-        const sector = props.sector || "Sin información";
+        const sector = normalizeSector(props.sector);
         const estado = props.estado || "Sin información";
         const web = props.web || "";
         const projectLinkBadge = isValidHttpUrl(web)
@@ -999,9 +1105,9 @@
 
         return `<article class="metadata-project-item"><div class="metadata-project-main">${projectLinkBadge}<strong class="metadata-project-title">${escapeHtml(nombreProyecto)}</strong></div><div class="metadata-project-details"><span><b>Titular:</b> ${escapeHtml(titular)}</span><span><b>Sector:</b> ${escapeHtml(sector)}</span><span><b>Estado:</b> ${escapeHtml(estado)}</span><span><b>Inversión:</b> ${formatInvestmentMMUSD(props.inversion_mmusd)}</span><span><b>Distancia:</b> ${formatDistanceKm(item.distance_km)}</span></div></article>`;
       }).join("");
-      document.getElementById("geoquery-metadata-panel").innerHTML = `<h3>Metadata de proyectos</h3><p>Proyectos aprobados más cercanos usados para construir el grupo territorial.</p><div class="metadata-project-list">${metadataItems || '<p>Sin metadata disponible.</p>'}</div>`;
+      document.getElementById("geoquery-metadata-panel").innerHTML = `<h3>Metadata de proyectos</h3><p>Proyectos aprobados más cercanos usados para construir el clúster base.</p><div class="metadata-project-list">${metadataItems || '<p>Sin proyectos aprobados disponibles.</p>'}</div>`;
 
-      document.getElementById("geoquery-relation-indicators-panel").innerHTML = `<h3>Indicadores de relación espacial</h3><dl class="details"><div class="detail-row"><dt>Tipo de relación</dt><dd>Cercanía</dd></div><div class="detail-row"><dt>Método</dt><dd>nearest approved projects</dd></div><div class="detail-row"><dt>Universo</dt><dd>proyectos aprobados</dd></div><div class="detail-row"><dt>Total proyectos cargados</dt><dd>${totalProjects}</dd></div><div class="detail-row"><dt>Total proyectos aprobados</dt><dd>${approvedProjects.length}</dd></div><div class="detail-row"><dt>Proyectos seleccionados</dt><dd>${nearestProjects.length}</dd></div><div class="detail-row"><dt>Radio calculado</dt><dd>${formatLength(radiusMeters)}</dd></div><div class="detail-row"><dt>Basemap heredado</dt><dd>${escapeHtml(currentBasemap)}</dd></div><div class="detail-row"><dt>Fuente</dt><dd>geoeva_geoquery_proyectos.geojson</dd></div></dl>`;
+      document.getElementById("geoquery-relation-indicators-panel").innerHTML = `<h3>Indicadores de relación espacial</h3><dl class="details"><div class="detail-row"><dt>Tipo de relación</dt><dd>Cercanía</dd></div><div class="detail-row"><dt>Método</dt><dd>10 approved nearest projects</dd></div><div class="detail-row"><dt>Universo base</dt><dd>proyectos aprobados</dd></div><div class="detail-row"><dt>Total proyectos cargados</dt><dd>${totalProjects}</dd></div><div class="detail-row"><dt>Total proyectos aprobados</dt><dd>${approvedCandidates.length}</dd></div><div class="detail-row"><dt>Proyectos seleccionados</dt><dd>${baseApprovedCluster.length}</dd></div><div class="detail-row"><dt>Proyectos dentro del radio</dt><dd>${projectsInsideRadius.length}</dd></div><div class="detail-row"><dt>Radio calculado</dt><dd>${formatLength(radiusMeters)}</dd></div><div class="detail-row"><dt>Basemap heredado</dt><dd>${escapeHtml(currentBasemap)}</dd></div><div class="detail-row"><dt>Fuente</dt><dd>geoeva_geoquery_proyectos.geojson</dd></div></dl>`;
     }
 
     (async function initGeoQuery() {
@@ -1191,58 +1297,66 @@
 
       try {
         const allProjects = await loadGeoEvaProjects();
-        const approvedProjects = allProjects.filter(isApprovedProject);
-        console.log("[GeoQuery GeoEVA] proyectos aprobados", approvedProjects.length);
+        const approvedCandidates = allProjects.filter(isApprovedProject);
+        console.log("[GeoQuery GeoEVA] proyectos aprobados", approvedCandidates.length);
 
-        const projectsWithCoordinates = approvedProjects.filter(feature => Boolean(getProjectLatLon(feature)));
-        console.log("[GeoQuery GeoEVA] proyectos con coordenadas válidas", projectsWithCoordinates.length);
+        const projectsWithCoordinates = approvedCandidates.filter(feature => Boolean(getProjectLatLon(feature)));
+        console.log("[GeoQuery GeoEVA] proyectos aprobados con coordenadas válidas", projectsWithCoordinates.length);
 
-        const nearestProjects = getNearestApprovedProjects(lat, lon, allProjects, 10);
-        console.log("[GeoQuery GeoEVA] 10 aprobados más cercanos", nearestProjects);
+        const baseApprovedCluster = getNearestApprovedProjects(lat, lon, allProjects, 10);
+        console.log("[GeoQuery GeoEVA] clúster base aprobado", baseApprovedCluster);
 
-        renderNearestProjectsOnMap(nearestProjects, geoQueryMap);
+        renderNearestProjectsOnMap(baseApprovedCluster, geoQueryMap);
 
-        const radiusMeters = getAnalysisRadiusMeters(nearestProjects);
-        console.log("[GeoQuery GeoEVA] radio círculo", radiusMeters);
+        const radiusMeters = getAnalysisRadiusMeters(baseApprovedCluster);
+        console.log("[GeoQuery GeoEVA] radio clúster", radiusMeters);
 
-        const analysisCircle = L.circle([lat, lon], {
+        const analysisCircle = Number.isFinite(radiusMeters) ? L.circle([lat, lon], {
           radius: radiusMeters,
           color: "#2563eb",
           fillColor: "#2563eb",
           weight: 2,
           opacity: 0.85,
           fillOpacity: 0.15
-        }).addTo(geoQueryMap);
+        }).addTo(geoQueryMap) : null;
 
-        const projectsInRadius = getProjectsWithinRadius(lat, lon, allProjects, radiusMeters);
-        console.log("[GeoQuery GeoEVA] proyectos totales dentro del radio", projectsInRadius.length);
-        const territorialGroup = calculateTerritorialGroup(projectsInRadius);
+        const projectsInsideRadius = getProjectsWithinRadius(lat, lon, allProjects, radiusMeters);
+        console.log("[GeoQuery GeoEVA] proyectos totales dentro del radio", projectsInsideRadius.length);
+        const territorialGroup = calculateTerritorialGroup(projectsInsideRadius, baseApprovedCluster);
         console.log("[GeoQuery GeoEVA] grupo territorial calculado", territorialGroup);
 
         renderGeoEvaPanels({
-          nearestProjects,
+          baseApprovedCluster,
           radiusMeters,
           totalProjects: allProjects.length,
-          approvedProjects,
-          projectsInRadius,
+          approvedCandidates,
+          projectsInsideRadius,
           territorialGroup,
           currentBasemap
         });
 
         window.geoQueryState.projects_total = allProjects.length;
-        window.geoQueryState.projects_approved = approvedProjects.length;
-        window.geoQueryState.projects_selected = nearestProjects.length;
-        window.geoQueryState.projects_in_radius = projectsInRadius.length;
+        window.geoQueryState.projects_approved = approvedCandidates.length;
+        window.geoQueryState.projects_selected = baseApprovedCluster.length;
+        window.geoQueryState.projects_in_radius = projectsInsideRadius.length;
+        window.geoQueryState.approved_candidates = approvedCandidates.length;
+        window.geoQueryState.base_approved_cluster = baseApprovedCluster;
+        window.geoQueryState.projects_inside_radius = projectsInsideRadius;
+        window.geoQueryState.dominant_sector_projects = territorialGroup.dominantSectorProjects;
         window.geoQueryState.territorial_group = territorialGroup;
         window.geoQueryState.analysis_radius_m = radiusMeters;
         window.geoQueryState.source_geojson = GEOEVA_GEOQUERY_PROJECTS_URL;
 
-        geoQueryMap.fitBounds(analysisCircle.getBounds(), {
-          padding: [30, 30],
-          maxZoom: 14
-        });
-        console.log("[GeoQuery GeoEVA] fitBounds círculo");
-        elements.visualCaption.textContent = `Punto consultado y ${nearestProjects.length} proyectos aprobados cercanos. Radio: ${formatLength(radiusMeters)}.`;
+        if (analysisCircle) {
+          geoQueryMap.fitBounds(analysisCircle.getBounds(), {
+            padding: [30, 30],
+            maxZoom: 14
+          });
+          console.log("[GeoQuery GeoEVA] fitBounds círculo");
+        }
+        elements.visualCaption.textContent = baseApprovedCluster.length
+          ? `Punto consultado y ${baseApprovedCluster.length} proyectos aprobados cercanos. Radio: ${formatLength(radiusMeters)}.`
+          : "Punto consultado. Sin proyectos aprobados disponibles.";
       } catch (error) {
         console.error("[GeoQuery GeoEVA] error al cargar proyectos", error);
         document.getElementById("geoquery-related-features-panel").innerHTML = `<h3>Proyectos relacionados</h3><div class="message">No se pudo cargar el GeoJSON nacional de proyectos.</div>`;
