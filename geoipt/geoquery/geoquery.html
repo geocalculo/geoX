@@ -1094,7 +1094,7 @@
     }
 
     const GEOQUERY_MAX_INTERSECT_ZOOM = 17;
-    const GEOQUERY_MAX_NEAREST_ZOOM = 16;
+    const GEOQUERY_MAX_NEAREST_ZOOM = 15;
 
     function isValidLngLatPair(coordinates) {
       return Array.isArray(coordinates)
@@ -1119,15 +1119,26 @@
 
         if (!boundary) return [];
 
-        if (boundary.type === "FeatureCollection") {
-          return boundary.features || [];
-        }
+        const boundaryFeatures = boundary.type === "FeatureCollection"
+          ? (boundary.features || [])
+          : boundary.type === "Feature"
+            ? [boundary]
+            : [];
 
-        if (boundary.type === "Feature") {
-          return [boundary];
-        }
+        return boundaryFeatures.flatMap((lineFeature) => {
+          const geometry = lineFeature && lineFeature.geometry;
+          if (!geometry) return [];
 
-        return [];
+          if (geometry.type === "LineString") return [lineFeature];
+
+          if (geometry.type === "MultiLineString") {
+            return (geometry.coordinates || [])
+              .filter((coordinates) => Array.isArray(coordinates) && coordinates.length >= 2)
+              .map((coordinates) => turf.lineString(coordinates, lineFeature.properties || {}));
+          }
+
+          return [];
+        });
       } catch (error) {
         console.warn("[GeoQuery GeoIPT] error generando borde", error);
         return [];
@@ -1574,9 +1585,11 @@
       if (!geoQueryMap.getPane("geoipt-zone-pane")) geoQueryMap.createPane("geoipt-zone-pane");
       if (!geoQueryMap.getPane("geoipt-relation-pane")) geoQueryMap.createPane("geoipt-relation-pane");
       if (!geoQueryMap.getPane("geoipt-point-pane")) geoQueryMap.createPane("geoipt-point-pane");
+      if (!geoQueryMap.getPane("geoipt-distance-label-pane")) geoQueryMap.createPane("geoipt-distance-label-pane");
       geoQueryMap.getPane("geoipt-zone-pane").style.zIndex = 410;
       geoQueryMap.getPane("geoipt-relation-pane").style.zIndex = 430;
       geoQueryMap.getPane("geoipt-point-pane").style.zIndex = 450;
+      geoQueryMap.getPane("geoipt-distance-label-pane").style.zIndex = 470;
 
       const isIntersects = selectedFeatureResult.relation_type === "intersects";
       const relatedZoneLayer = L.geoJSON(selectedFeatureResult.feature, {
@@ -1604,16 +1617,24 @@
       }
 
       const nearestPoint = selectedFeatureResult.nearestBoundaryPoint || (selectedFeatureResult.spatialRelation && selectedFeatureResult.spatialRelation.nearestBoundaryPoint);
-      const distanceKm = selectedFeatureResult.minimumDistanceKm ?? (selectedFeatureResult.spatialRelation && selectedFeatureResult.spatialRelation.minimumDistanceKm);
+      const minimumDistanceKm = selectedFeatureResult.minimumDistanceKm ?? (selectedFeatureResult.spatialRelation && selectedFeatureResult.spatialRelation.minimumDistanceKm);
       if (queryPointLatLng && nearestPoint && Number.isFinite(nearestPoint.lat) && Number.isFinite(nearestPoint.lon)) {
         const boundaryLatLng = L.latLng(nearestPoint.lat, nearestPoint.lon);
-        const midpointLatLng = L.latLng((queryPointLatLng.lat + boundaryLatLng.lat) / 2, (queryPointLatLng.lng + boundaryLatLng.lng) / 2);
-        L.polyline([queryPointLatLng, boundaryLatLng], {
+        const boundaryPoint = turf.point([nearestPoint.lon, nearestPoint.lat]);
+        const midpoint = turf.midpoint(turf.point([queryPoint.lon, queryPoint.lat]), boundaryPoint);
+        const midpointCoordinates = midpoint && midpoint.geometry && midpoint.geometry.coordinates;
+        const midpointLatLng = isValidLngLatPair(midpointCoordinates)
+          ? L.latLng(Number(midpointCoordinates[1]), Number(midpointCoordinates[0]))
+          : L.latLng((queryPointLatLng.lat + boundaryLatLng.lat) / 2, (queryPointLatLng.lng + boundaryLatLng.lng) / 2);
+        const distanceLineLayer = L.polyline([queryPointLatLng, boundaryLatLng], {
           pane: "geoipt-relation-pane",
           color: "#f97316",
-          weight: 4,
-          opacity: 0.95,
+          weight: 3,
+          opacity: 0.9,
           dashArray: "8 6",
+          lineCap: "round",
+          lineJoin: "round",
+          fill: false,
           interactive: false
         }).addTo(geoQueryMap.geoIptRelationLayer);
         L.circleMarker(boundaryLatLng, {
@@ -1625,9 +1646,16 @@
           fillOpacity: 0.95,
           interactive: false
         }).addTo(geoQueryMap.geoIptRelationLayer);
-        L.tooltip({ permanent: true, direction: "center", interactive: false, className: "geoipt-distance-label" })
+        L.tooltip({
+          permanent: true,
+          direction: "center",
+          interactive: false,
+          className: "geoipt-distance-label geoipt-minimum-distance-label",
+          pane: "geoipt-distance-label-pane",
+          opacity: 1
+        })
           .setLatLng(midpointLatLng)
-          .setContent(formatMinimumDistanceLabel(distanceKm))
+          .setContent(formatMinimumDistanceLabel(minimumDistanceKm))
           .addTo(geoQueryMap.geoIptRelationLayer);
 
         const combinedBounds = L.latLngBounds([]);
@@ -1635,6 +1663,7 @@
         if (zoneBounds && zoneBounds.isValid()) combinedBounds.extend(zoneBounds);
         extendBoundsIfValid(combinedBounds, queryPointLatLng);
         extendBoundsIfValid(combinedBounds, boundaryLatLng);
+        if (distanceLineLayer && distanceLineLayer.getBounds) combinedBounds.extend(distanceLineLayer.getBounds());
         if (combinedBounds.isValid()) {
           geoQueryMap.fitBounds(combinedBounds, { padding: fitPadding, maxZoom: GEOQUERY_MAX_NEAREST_ZOOM, animate: false });
         }
@@ -1821,6 +1850,16 @@
 
       setBasemap(currentBasemap);
       geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
+
+      if (!geoQueryMap.getPane("geoipt-point-pane")) geoQueryMap.createPane("geoipt-point-pane");
+      geoQueryMap.getPane("geoipt-point-pane").style.zIndex = 450;
+      geoQueryMap.geoIptQueryPointLayer = L.circleMarker([lat, lon], {
+        pane: "geoipt-point-pane",
+        radius: 7,
+        weight: 3,
+        fillOpacity: 0.9
+      }).addTo(geoQueryMap);
+
       runGeoIptQueryAnalysis(lat, lon, geoQueryMap)
         .then(selectedFeatureResult => {
           window.geoQuerySelectedFeatureResult = selectedFeatureResult;
@@ -1830,15 +1869,6 @@
           renderRelatedFeaturePanel(null);
           renderGeometryPanel(null);
         });
-
-      if (!geoQueryMap.getPane("geoipt-point-pane")) geoQueryMap.createPane("geoipt-point-pane");
-      geoQueryMap.getPane("geoipt-point-pane").style.zIndex = 450;
-      L.circleMarker([lat, lon], {
-        pane: "geoipt-point-pane",
-        radius: 7,
-        weight: 3,
-        fillOpacity: 0.9
-      }).addTo(geoQueryMap);
 
       L.control.scale({
         position: "bottomleft",
