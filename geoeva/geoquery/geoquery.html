@@ -276,6 +276,34 @@
       background: #e2e8f0;
     }
 
+    #geoquery-map.geoquery-touch-guard {
+      touch-action: pan-y;
+    }
+
+    .geoquery-touch-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      z-index: 1006;
+      max-width: min(88%, 320px);
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.84);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 8px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .geoquery-touch-hint.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
     .map-toggle {
       position: absolute;
       top: 14px;
@@ -912,6 +940,44 @@
       return Number.isFinite(value) ? value : 0;
     }
 
+    function calculatePointToProjectsStats(queryPoint, projects) {
+      const queryLat = Number(queryPoint?.lat);
+      const queryLon = Number(queryPoint?.lon);
+      const result = { count: 0, minKm: null, meanKm: null, maxKm: null };
+      if (!isValidCoordinate(queryLat, queryLon) || !Array.isArray(projects) || !window.turf) return result;
+
+      const referencePoint = turf.point([queryLon, queryLat]);
+      let totalKm = 0;
+      let minKm = Infinity;
+      let maxKm = -Infinity;
+
+      projects.forEach(item => {
+        const lat = Number(item?.lat);
+        const lon = Number(item?.lon);
+        if (!isValidCoordinate(lat, lon)) return;
+
+        const distanceKm = turf.distance(
+          referencePoint,
+          turf.point([lon, lat]),
+          { units: "kilometers" }
+        );
+
+        if (!Number.isFinite(distanceKm)) return;
+        totalKm += distanceKm;
+        minKm = Math.min(minKm, distanceKm);
+        maxKm = Math.max(maxKm, distanceKm);
+        result.count += 1;
+      });
+
+      if (result.count) {
+        result.minKm = minKm;
+        result.meanKm = totalKm / result.count;
+        result.maxKm = maxKm;
+      }
+
+      return result;
+    }
+
     function calculatePairDistanceStats(projects) {
       const validProjects = projects.filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lon));
       const result = { count: validProjects.length, pairCount: 0, minKm: null, meanKm: null };
@@ -961,7 +1027,7 @@
       return { dominantSector, dominantSectorCount, dominantSectorProjects };
     }
 
-    function calculateTerritorialGroup(projectsInsideRadius, baseApprovedCluster) {
+    function calculateTerritorialGroup(projectsInsideRadius, baseApprovedCluster, queryPoint) {
       const total = projectsInsideRadius.length;
       const approved = projectsInsideRadius.filter(item => isApprovedProject(item.feature)).length;
       const rejected = projectsInsideRadius.filter(item => isRejectedProject(item.feature)).length;
@@ -983,7 +1049,9 @@
         dominantSectorShare,
         dominantSectorProjects,
         approvedPairStats: calculatePairDistanceStats(baseApprovedCluster),
-        dominantSectorPairStats: calculatePairDistanceStats(dominantSectorProjects)
+        dominantSectorPairStats: calculatePairDistanceStats(dominantSectorProjects),
+        approvedPointRelationStats: calculatePointToProjectsStats(queryPoint, baseApprovedCluster),
+        dominantSectorPointRelationStats: calculatePointToProjectsStats(queryPoint, dominantSectorProjects)
       };
     }
 
@@ -1044,7 +1112,7 @@
       return `<div class="analysis-category"><h4 class="analysis-category-title">${escapeHtml(title)}</h4><dl class="details">${rows.join("")}</dl></div>`;
     }
 
-    function renderGeoEvaPanels({ baseApprovedCluster, radiusMeters, totalProjects, approvedCandidates, projectsInsideRadius, territorialGroup, currentBasemap }) {
+    function renderGeoEvaPanels({ baseApprovedCluster, radiusMeters, territorialGroup }) {
       const baseTitle = "Clúster base";
       const insideTitle = "Proyectos dentro del radio";
 
@@ -1103,7 +1171,25 @@
       }).join("");
       document.getElementById("geoquery-metadata-panel").innerHTML = `<h3>Metadata de proyectos</h3><p>Proyectos aprobados más cercanos usados para construir el clúster base.</p><div class="metadata-project-list">${metadataItems || '<p>Sin proyectos aprobados disponibles.</p>'}</div>`;
 
-      document.getElementById("geoquery-relation-indicators-panel").innerHTML = `<h3>Indicadores de relación espacial</h3><dl class="details"><div class="detail-row"><dt>Tipo de relación</dt><dd>Cercanía</dd></div><div class="detail-row"><dt>Método</dt><dd>10 approved nearest projects</dd></div><div class="detail-row"><dt>Universo base</dt><dd>proyectos aprobados</dd></div><div class="detail-row"><dt>Total proyectos cargados</dt><dd>${totalProjects}</dd></div><div class="detail-row"><dt>Total proyectos aprobados</dt><dd>${approvedCandidates.length}</dd></div><div class="detail-row"><dt>Proyectos seleccionados</dt><dd>${baseApprovedCluster.length}</dd></div><div class="detail-row"><dt>Proyectos dentro del radio</dt><dd>${projectsInsideRadius.length}</dd></div><div class="detail-row"><dt>Radio calculado</dt><dd>${formatLength(radiusMeters)}</dd></div><div class="detail-row"><dt>Basemap heredado</dt><dd>${escapeHtml(currentBasemap)}</dd></div><div class="detail-row"><dt>Fuente</dt><dd>geoeva_geoquery_proyectos.geojson</dd></div></dl>`;
+      const approvedPointRelationStats = territorialGroup.approvedPointRelationStats;
+      const dominantSectorPointRelationStats = territorialGroup.dominantSectorPointRelationStats;
+      const relationDominantTitle = territorialGroup.dominantSectorProjects.length
+        ? `Sector dominante · ${territorialGroup.dominantSector} · ${territorialGroup.dominantSectorProjects.length} proyectos`
+        : `Sector dominante · ${territorialGroup.dominantSector} · 0 proyectos`;
+
+      document.getElementById("geoquery-relation-indicators-panel").innerHTML = `
+        <h3>Indicadores de relación espacial</h3>
+        <dl class="details analysis-summary">
+          ${renderDetailRow("Tipo de relación", "Cercanía al punto consultado")}
+        </dl>
+        ${renderAnalysisCategory(`Proyectos aprobados · ${baseApprovedCluster.length}`, [
+          renderDetailRow("Distancia media desde el punto consultado", formatDistance(approvedPointRelationStats.meanKm)),
+          renderDetailRow("Distancia mínima al punto consultado", formatDistance(approvedPointRelationStats.minKm))
+        ])}
+        ${renderAnalysisCategory(relationDominantTitle, [
+          renderDetailRow("Distancia media desde el punto consultado", formatDistance(dominantSectorPointRelationStats.meanKm))
+        ])}
+      `;
     }
 
     (async function initGeoQuery() {
@@ -1206,11 +1292,60 @@
       // GeoEVA:
       // La vista analítica se ajusta al círculo que contiene
       // los 10 proyectos aprobados más cercanos al punto consultado.
+      const mapElement = document.getElementById("geoquery-map");
+      const isTouchDevice = (
+        window.matchMedia?.("(pointer: coarse)").matches ||
+        Number(navigator.maxTouchPoints) > 0
+      );
       const geoQueryMap = L.map("geoquery-map", {
         zoomControl: true,
         zoomSnap: 0.25,
         zoomDelta: 0.25
       });
+
+      function enableTwoFingerPanOnTouchDevices(map, container) {
+        if (!isTouchDevice || !container) return;
+
+        let hintTimeout = null;
+        const hint = L.DomUtil.create("div", "geoquery-touch-hint", container);
+        hint.textContent = "Usa dos dedos para mover el mapa";
+        container.classList.add("geoquery-touch-guard");
+        map.dragging.disable();
+
+        function showTouchHint() {
+          hint.classList.add("visible");
+          window.clearTimeout(hintTimeout);
+          hintTimeout = window.setTimeout(() => hint.classList.remove("visible"), 1400);
+        }
+
+        container.addEventListener("touchstart", event => {
+          if (event.touches.length >= 2) {
+            map.dragging.enable();
+            hint.classList.remove("visible");
+          } else {
+            map.dragging.disable();
+            showTouchHint();
+          }
+        }, { passive: true });
+
+        container.addEventListener("touchmove", event => {
+          if (event.touches.length >= 2) {
+            map.dragging.enable();
+          } else {
+            map.dragging.disable();
+          }
+        }, { passive: true });
+
+        container.addEventListener("touchend", event => {
+          if (event.touches.length < 2) map.dragging.disable();
+        }, { passive: true });
+
+        container.addEventListener("touchcancel", () => {
+          map.dragging.disable();
+        }, { passive: true });
+      }
+
+      enableTwoFingerPanOnTouchDevices(geoQueryMap, mapElement);
 
       const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 20,
@@ -1227,7 +1362,7 @@
         <button id="geoquery-osm-btn" class="map-toggle-btn" type="button" data-map="osm">OSM</button>
         <button id="geoquery-sat-btn" class="map-toggle-btn" type="button" data-map="sat">SAT</button>
       `;
-      document.getElementById("geoquery-map").appendChild(toggle);
+      mapElement.appendChild(toggle);
       L.DomEvent.disableClickPropagation(toggle);
       L.DomEvent.disableScrollPropagation(toggle);
 
@@ -1318,7 +1453,7 @@
 
         const projectsInsideRadius = getProjectsWithinRadius(lat, lon, allProjects, radiusMeters);
         console.log("[GeoQuery GeoEVA] proyectos totales dentro del radio", projectsInsideRadius.length);
-        const territorialGroup = calculateTerritorialGroup(projectsInsideRadius, baseApprovedCluster);
+        const territorialGroup = calculateTerritorialGroup(projectsInsideRadius, baseApprovedCluster, { lat, lon });
         console.log("[GeoQuery GeoEVA] grupo territorial calculado", territorialGroup);
 
         renderGeoEvaPanels({
