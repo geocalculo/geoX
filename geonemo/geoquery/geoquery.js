@@ -1,10 +1,19 @@
-const GEOQUERY_BASE = "../capas_geoquery/";
+const GEOQUERY_BASE_URL = new URL("../capas_geoquery/", window.location.href);
+const SNASPE_BASE_URL = new URL("../capas_geoquery/grupo_snaspe/", window.location.href);
+const RAMSAR_BASE_URL = new URL("../capas_geoquery/grupo_ramsar/", window.location.href);
+const GROUP_BASE_URLS = { snaspe: SNASPE_BASE_URL, ramsar: RAMSAR_BASE_URL };
 const GEOQUERY_DEBUG = false;
 const groupConfigCache = new Map();
 const groupQueryCache = new Map();
 const geojsonSourceCache = new Map();
 
 function ensureTrailingSlash(url) { return String(url || "").endsWith("/") ? String(url) : `${url}/`; }
+function parseFiniteUrlNumber(params, name) {
+  const raw = params.get(name);
+  if (raw === null || String(raw).trim() === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
 
 function decimalToDMS(value, type) {
   const absolute = Math.abs(value);
@@ -38,14 +47,20 @@ function buildReturnUrl(lat, lon, zoom, basemap, viewLat, viewLon) {
 }
 
 async function fetchJsonOnce(url, cache = geojsonSourceCache) {
-  if (!cache.has(url)) {
-    cache.set(url, fetch(url).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }));
+  const href = url instanceof URL ? url.toString() : String(url);
+  if (!cache.has(href)) {
+    cache.set(href, fetch(href, { cache: "no-store" }).then((r) => {
+      const contentType = r.headers.get("content-type") || "";
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}: ${r.url}`);
+      if (contentType && !contentType.toLowerCase().includes("json")) console.warn("[GeoNEMO] Respuesta JSON sin content-type JSON", r.url, contentType);
+      return r.json();
+    }));
   }
-  return cache.get(url);
+  return cache.get(href);
 }
 
 function resolveGroupLayerUrl(groupBaseUrl, fileName) {
-  return new URL(fileName, ensureTrailingSlash(groupBaseUrl)).toString();
+  return new URL(fileName, groupBaseUrl).toString();
 }
 
 function isUnsafeRelativeLayerPath(fileName) {
@@ -75,35 +90,38 @@ function validateGroupQueryRules(rules) {
     if (typeof layer?.activo !== "boolean") errors.push("activo debe ser booleano");
     if (typeof layer?.incluir_en_intersects !== "boolean") errors.push("incluir_en_intersects debe ser booleano");
     if (typeof layer?.incluir_en_nearest !== "boolean") errors.push("incluir_en_nearest debe ser booleano");
-    if (!layer?.territorio || typeof layer.territorio !== "string") errors.push("territorio debe ser una cadena no vacía");
+
     if (errors.length) {
       console.error(`[GeoNEMO][${context}] capa inválida en listado_query.json índice ${index}`, { layer, errors });
       return;
     }
     seenIds.add(layer.id);
     seenFiles.add(layer.archivo);
-    validLayers.push({ ...layer, archivo: layer.archivo.trim() });
+    validLayers.push({ ...layer, archivo: layer.archivo.trim(), territorio: typeof layer.territorio === "string" && layer.territorio.trim() ? layer.territorio.trim() : "general" });
   });
   return { ...rules, capas: validLayers };
 }
 
-async function loadGroupQueryRules(groupBaseUrl) {
-  const baseUrl = ensureTrailingSlash(groupBaseUrl);
-  const rulesUrl = resolveGroupLayerUrl(baseUrl, "listado_query.json");
-  if (!groupQueryCache.has(rulesUrl)) {
-    groupQueryCache.set(rulesUrl, fetch(rulesUrl).then(async (response) => {
-      if (!response.ok) throw new Error(`No fue posible cargar listado_query.json desde ${baseUrl}`);
-      return validateGroupQueryRules(await response.json());
+async function loadQueryRules(groupId, groupBaseUrl) {
+  const rulesUrl = new URL("listado_query.json", groupBaseUrl);
+  const href = rulesUrl.toString();
+  if (!groupQueryCache.has(href)) {
+    groupQueryCache.set(href, fetch(href, { cache: "no-store" }).then(async (response) => {
+      const contentType = response.headers.get("content-type") || "";
+      if (!response.ok) throw new Error(`[${groupId}] No fue posible cargar ${rulesUrl.pathname}: HTTP ${response.status}`);
+      if (contentType && !contentType.toLowerCase().includes("json")) console.warn(`[GeoNEMO][${groupId}] content-type inesperado para listado_query.json`, contentType, href);
+      const data = await response.json();
+      if (!data || !Array.isArray(data.capas)) throw new Error(`[${groupId}] listado_query.json no contiene un arreglo "capas" válido`);
+      return validateGroupQueryRules(data);
     }));
   }
-  return groupQueryCache.get(rulesUrl);
+  return groupQueryCache.get(href);
 }
 
 async function loadConfiguredQueryLayers(groupBaseUrl, queryRules) {
-  const baseUrl = ensureTrailingSlash(groupBaseUrl);
   const activeLayers = queryRules.capas.filter((layer) => layer.activo === true);
-  const loadedLayers = await Promise.all(activeLayers.map(async (layerConfig) => {
-    const url = resolveGroupLayerUrl(baseUrl, layerConfig.archivo);
+  const layerSettlements = await Promise.allSettled(activeLayers.map(async (layerConfig) => {
+    const url = resolveGroupLayerUrl(groupBaseUrl, layerConfig.archivo);
     try {
       const geojson = await fetchJsonOnce(url, geojsonSourceCache);
       if (!geojson || geojson.type !== "FeatureCollection" || !Array.isArray(geojson.features)) throw new Error(`GeoJSON inválido: ${layerConfig.archivo}`);
@@ -113,6 +131,7 @@ async function loadConfiguredQueryLayers(groupBaseUrl, queryRules) {
       return { status: "error", config: layerConfig, url, geojson: null, error };
     }
   }));
+  const loadedLayers = layerSettlements.map((settlement, index) => settlement.status === "fulfilled" ? settlement.value : { status: "error", config: activeLayers[index], url: resolveGroupLayerUrl(groupBaseUrl, activeLayers[index].archivo), geojson: null, error: settlement.reason });
   if (GEOQUERY_DEBUG) {
     console.table(loadedLayers.map((item) => ({ group: queryRules.grupo, id: item.config.id, file: item.config.archivo, active: item.config.activo, intersects: item.config.incluir_en_intersects, nearest: item.config.incluir_en_nearest, status: item.status, features: item.geojson?.features?.length || 0 })));
   }
@@ -120,13 +139,13 @@ async function loadConfiguredQueryLayers(groupBaseUrl, queryRules) {
 }
 
 async function loadGroupRegistry() {
-  const registry = await fetchJsonOnce(resolveGroupLayerUrl(GEOQUERY_BASE, "listado.json"), groupConfigCache);
+  const registry = await fetchJsonOnce(resolveGroupLayerUrl(GEOQUERY_BASE_URL, "listado.json"), groupConfigCache);
   return (registry.grupos || []).filter((g) => g.activo).sort((a, b) => (a.orden || 0) - (b.orden || 0));
 }
 
 async function loadGroupConfig(groupEntry) {
-  const groupBaseUrl = resolveGroupLayerUrl(GEOQUERY_BASE, `${groupEntry.carpeta}/`);
-  const configUrl = resolveGroupLayerUrl(GEOQUERY_BASE, groupEntry.config);
+  const groupBaseUrl = GROUP_BASE_URLS[groupEntry.id] || new URL(`${groupEntry.carpeta}/`, GEOQUERY_BASE_URL);
+  const configUrl = new URL(groupEntry.config, GEOQUERY_BASE_URL).toString();
   const config = await fetchJsonOnce(configUrl, groupConfigCache);
   config.__folder = groupEntry.carpeta;
   config.__baseUrl = groupBaseUrl;
@@ -183,16 +202,44 @@ function normalizeGroupFeature(groupId, feature, sourceConfig, groupConfig, inde
 
 
 function parseOriginalViewport(params) {
-  const west = Number.parseFloat(params.get("viewWest"));
-  const south = Number.parseFloat(params.get("viewSouth"));
-  const east = Number.parseFloat(params.get("viewEast"));
-  const north = Number.parseFloat(params.get("viewNorth"));
-  const complete = [west, south, east, north].every(Number.isFinite);
-  if (!complete || west >= east || south >= north || south < -90 || north > 90 || west < -180 || east > 180) {
-    console.warn("[GeoQuery GeoNEMO] viewport original incompleto o inválido; se evita búsqueda nacional para SNASPE/Ramsar.", { west, south, east, north });
-    return null;
+  const west = parseFiniteUrlNumber(params, "viewWest");
+  const south = parseFiniteUrlNumber(params, "viewSouth");
+  const east = parseFiniteUrlNumber(params, "viewEast");
+  const north = parseFiniteUrlNumber(params, "viewNorth");
+  const explicit = buildViewportFromBounds(west, south, east, north, "url_bbox");
+  if (explicit) return explicit;
+
+  const centerLat = parseFiniteUrlNumber(params, "viewLat") ?? parseFiniteUrlNumber(params, "mapCenterLat") ?? parseFiniteUrlNumber(params, "lat");
+  const centerLon = parseFiniteUrlNumber(params, "viewLon") ?? parseFiniteUrlNumber(params, "mapCenterLon") ?? parseFiniteUrlNumber(params, "lon");
+  const zoom = parseFiniteUrlNumber(params, "zoom") ?? parseFiniteUrlNumber(params, "mapZoom") ?? 14;
+  const fallback = buildApproxViewport(centerLat, centerLon, zoom);
+  if (fallback) {
+    console.warn("[GeoQuery GeoNEMO] viewport original incompleto; se reconstruye un BBOX aproximado desde centro/zoom para compatibilidad temporal.", fallback);
+    return fallback;
   }
-  return { west, south, east, north, bbox: [west, south, east, north], polygon: turf.bboxPolygon([west, south, east, north]) };
+  console.warn("[GeoQuery GeoNEMO] viewport original incompleto o inválido; se evita búsqueda nacional para SNASPE/Ramsar.", { west, south, east, north });
+  return null;
+}
+
+function buildViewportFromBounds(west, south, east, north, source) {
+  if ([west, south, east, north].every(Number.isFinite) && west < east && south < north && south >= -90 && north <= 90 && west >= -180 && east <= 180) {
+    return { west, south, east, north, bbox: [west, south, east, north], polygon: turf.bboxPolygon([west, south, east, north]), source };
+  }
+  return null;
+}
+
+function buildApproxViewport(centerLat, centerLon, zoom) {
+  if (!isValidCoordinate(centerLat, centerLon) || !Number.isFinite(zoom)) return null;
+  const width = 1280;
+  const height = 720;
+  const scale = 256 * 2 ** Math.max(0, Math.min(20, zoom));
+  const lonPerPixel = 360 / scale;
+  const latPerPixel = lonPerPixel / Math.max(0.15, Math.cos(centerLat * Math.PI / 180));
+  const west = Math.max(-180, centerLon - (width / 2) * lonPerPixel);
+  const east = Math.min(180, centerLon + (width / 2) * lonPerPixel);
+  const south = Math.max(-90, centerLat - (height / 2) * latPerPixel);
+  const north = Math.min(90, centerLat + (height / 2) * latPerPixel);
+  return buildViewportFromBounds(west, south, east, north, "fallback_center_zoom");
 }
 
 function bboxIntersects(a, b) {
@@ -352,6 +399,26 @@ function buildExecutiveSummary(results) {
   return `Resultado independiente por grupo: ${parts.join("; ")}.`;
 }
 
+function deriveOverallStatus(groupResults) {
+  const resolved = groupResults.filter((result) => result.status === "resolved").length;
+  const empty = groupResults.filter((result) => result.status === "empty").length;
+  const errors = groupResults.filter((result) => result.status === "error").length;
+  if (resolved > 0 && errors === 0) return "Resuelto";
+  if (resolved > 0 && errors > 0) return "Resuelto parcialmente";
+  if (resolved === 0 && empty > 0 && errors === 0) return "Sin resultados en viewport";
+  if (resolved === 0 && empty > 0 && errors > 0) return "Resuelto parcialmente";
+  return "Error";
+}
+
+function applyOverallStatus(elements, overallStatus) {
+  elements.cardStatus.classList.remove("status-ok", "status-error", "status-warning", "status-neutral");
+  elements.cardStatus.textContent = overallStatus;
+  if (overallStatus === "Resuelto") elements.cardStatus.classList.add("status-ok");
+  else if (overallStatus === "Error") elements.cardStatus.classList.add("status-error");
+  else if (overallStatus === "Sin resultados en viewport") elements.cardStatus.classList.add("status-neutral");
+  else elements.cardStatus.classList.add("status-warning");
+}
+
 function setupMobileMapGesture(map, mapEl) {
   const hint = document.createElement("div");
   hint.className = "map-touch-hint";
@@ -371,7 +438,7 @@ async function processGroup(entry, queryPoint, originalViewport) {
   let groupConfig = { id: entry.id, nombre: entry.nombre, nombre_largo: entry.nombre };
   try {
     groupConfig = await loadGroupConfig(entry);
-    const queryRules = await loadGroupQueryRules(groupConfig.__baseUrl);
+    const queryRules = await loadQueryRules(groupConfig.id, groupConfig.__baseUrl);
     const loadedLayers = await loadConfiguredQueryLayers(groupConfig.__baseUrl, queryRules);
     const normalizeLayer = (item) => (item.geojson?.features || []).flatMap((feature, index) => feature?.geometry ? [normalizeGroupFeature(groupConfig.id, feature, item.config, groupConfig, index)] : []);
     const intersectsLayers = loadedLayers.filter((item) => item.status === "loaded" && item.config.activo === true && item.config.incluir_en_intersects === true);
@@ -384,7 +451,7 @@ async function processGroup(entry, queryPoint, originalViewport) {
     return result;
   } catch (error) {
     console.error("Error controlado al cargar grupo GeoNEMO", entry.id, error);
-    const message = `No fue posible cargar la configuración de búsqueda del grupo ${entry.nombre}.`;
+    const message = entry.id === "snaspe" ? "No fue posible cargar temporalmente la configuración o las capas del grupo SNASPE." : entry.id === "ramsar" ? "No fue posible cargar temporalmente la configuración o las capas del grupo Ramsar." : `No fue posible cargar temporalmente la configuración o las capas del grupo ${entry.nombre}.`;
     return { groupConfig, status: "error", feature: null, errorMessage: message, metadata: { groupId: entry.id, relationType: "error" } };
   }
 }
@@ -429,16 +496,22 @@ async function processGroup(entry, queryPoint, originalViewport) {
   geoQueryMap.setView([lat, lon], targetZoom, { animate: false }); updateReturnLink();
 
   (async () => {
+    console.log("[GeoNEMO] URL actual:", window.location.href);
+    console.log("[GeoNEMO] parámetros:", Object.fromEntries(new URLSearchParams(window.location.search)));
     const queryPoint = turf.point([lon, lat]);
     const entries = await loadGroupRegistry();
-    const results = await Promise.all(entries.map((entry) => processGroup(entry, queryPoint, originalViewport)));
+    const groupSettlements = await Promise.allSettled(entries.map((entry) => processGroup(entry, queryPoint, originalViewport)));
+    const results = groupSettlements.map((settlement, index) => settlement.status === "fulfilled" ? settlement.value : { groupConfig: { id: entries[index].id, nombre: entries[index].nombre, nombre_largo: entries[index].nombre }, status: "error", feature: null, errorMessage: entries[index].id === "snaspe" ? "No fue posible cargar temporalmente la configuración o las capas del grupo SNASPE." : "No fue posible cargar temporalmente la configuración o las capas del grupo Ramsar.", metadata: { groupId: entries[index].id, relationType: "error" } });
     window.geoQueryState.groupResults = results;
     window.geoQueryState.groupMetadata = results.map((result) => result.metadata).filter(Boolean);
     console.log("[GeoQuery GeoNEMO] metadata viewport por grupo", window.geoQueryState.groupMetadata);
     elements.groups.innerHTML = results.map(renderGroupSection).join("");
     elements.summary.textContent = buildExecutiveSummary(results);
     elements.loadStatus.textContent = results.map((r) => `${r.groupConfig.nombre}: ${r.status} (${r.metadata?.totalInViewport ?? 0} en viewport)`).join(" | ");
-    elements.cardStatus.textContent = "Resuelto"; elements.detailStatus.textContent = "análisis territorial resuelto por grupos";
+    const overallStatus = deriveOverallStatus(results);
+    applyOverallStatus(elements, overallStatus);
+    elements.detailStatus.textContent = overallStatus === "Error" ? "error técnico en todos los grupos" : overallStatus === "Sin resultados en viewport" ? "sin resultados en el viewport original" : "análisis territorial resuelto por grupos";
+    window.geoQueryState.overallStatus = overallStatus;
     const boundsParts = [queryMarker];
     results.forEach((result) => addGroupResultToMap(result, layers, [lat, lon], boundsParts));
     setTimeout(() => { geoQueryMap.invalidateSize(); const bounds = L.featureGroup(boundsParts).getBounds(); if (bounds.isValid()) geoQueryMap.fitBounds(bounds.pad(0.12), { maxZoom: 14, padding: window.innerWidth <= 560 ? [22, 22] : [36, 36], animate: false }); else geoQueryMap.setView([lat, lon], targetZoom, { animate: false }); }, 150);
