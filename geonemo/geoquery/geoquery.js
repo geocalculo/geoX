@@ -1,5 +1,10 @@
-const GEOQUERY_BASE = "../capas_geoquery";
-const sourceCache = new Map();
+const GEOQUERY_BASE = "../capas_geoquery/";
+const GEOQUERY_DEBUG = false;
+const groupConfigCache = new Map();
+const groupQueryCache = new Map();
+const geojsonSourceCache = new Map();
+
+function ensureTrailingSlash(url) { return String(url || "").endsWith("/") ? String(url) : `${url}/`; }
 
 function decimalToDMS(value, type) {
   const absolute = Math.abs(value);
@@ -32,32 +37,100 @@ function buildReturnUrl(lat, lon, zoom, basemap, viewLat, viewLon) {
   return `../index.html?${backParams.toString()}`;
 }
 
-async function fetchJsonOnce(url) {
-  if (!sourceCache.has(url)) {
-    sourceCache.set(url, fetch(url).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }));
+async function fetchJsonOnce(url, cache = geojsonSourceCache) {
+  if (!cache.has(url)) {
+    cache.set(url, fetch(url).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }));
   }
-  return sourceCache.get(url);
+  return cache.get(url);
+}
+
+function resolveGroupLayerUrl(groupBaseUrl, fileName) {
+  return new URL(fileName, ensureTrailingSlash(groupBaseUrl)).toString();
+}
+
+function isUnsafeRelativeLayerPath(fileName) {
+  if (typeof fileName !== "string" || fileName.trim() === "") return true;
+  const trimmed = fileName.trim();
+  return trimmed.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(trimmed) || trimmed.split(/[\\/]+/).includes("..");
+}
+
+function validateGroupQueryRules(rules) {
+  const context = rules?.grupo || "grupo_desconocido";
+  const required = ["version", "sitio", "grupo", "regla_busqueda", "capas"];
+  required.forEach((field) => { if (!(field in (rules || {}))) console.error(`[GeoNEMO][${context}] listado_query.json sin campo obligatorio: ${field}`); });
+  if (!rules || !Array.isArray(rules.capas)) {
+    console.error(`[GeoNEMO][${context}] listado_query.json inválido: capas debe ser un arreglo.`);
+    return { ...(rules || {}), capas: [] };
+  }
+  const seenIds = new Set();
+  const seenFiles = new Set();
+  const validLayers = [];
+  rules.capas.forEach((layer, index) => {
+    const errors = [];
+    if (!layer || typeof layer !== "object") errors.push("la entrada no es un objeto");
+    if (!layer?.id || typeof layer.id !== "string") errors.push("id debe ser una cadena no vacía");
+    if (layer?.id && seenIds.has(layer.id)) errors.push(`id duplicado: ${layer.id}`);
+    if (isUnsafeRelativeLayerPath(layer?.archivo)) errors.push("archivo debe ser relativo, no vacío, sin rutas absolutas ni ../");
+    if (layer?.archivo && seenFiles.has(layer.archivo)) errors.push(`archivo duplicado: ${layer.archivo}`);
+    if (typeof layer?.activo !== "boolean") errors.push("activo debe ser booleano");
+    if (typeof layer?.incluir_en_intersects !== "boolean") errors.push("incluir_en_intersects debe ser booleano");
+    if (typeof layer?.incluir_en_nearest !== "boolean") errors.push("incluir_en_nearest debe ser booleano");
+    if (!layer?.territorio || typeof layer.territorio !== "string") errors.push("territorio debe ser una cadena no vacía");
+    if (errors.length) {
+      console.error(`[GeoNEMO][${context}] capa inválida en listado_query.json índice ${index}`, { layer, errors });
+      return;
+    }
+    seenIds.add(layer.id);
+    seenFiles.add(layer.archivo);
+    validLayers.push({ ...layer, archivo: layer.archivo.trim() });
+  });
+  return { ...rules, capas: validLayers };
+}
+
+async function loadGroupQueryRules(groupBaseUrl) {
+  const baseUrl = ensureTrailingSlash(groupBaseUrl);
+  const rulesUrl = resolveGroupLayerUrl(baseUrl, "listado_query.json");
+  if (!groupQueryCache.has(rulesUrl)) {
+    groupQueryCache.set(rulesUrl, fetch(rulesUrl).then(async (response) => {
+      if (!response.ok) throw new Error(`No fue posible cargar listado_query.json desde ${baseUrl}`);
+      return validateGroupQueryRules(await response.json());
+    }));
+  }
+  return groupQueryCache.get(rulesUrl);
+}
+
+async function loadConfiguredQueryLayers(groupBaseUrl, queryRules) {
+  const baseUrl = ensureTrailingSlash(groupBaseUrl);
+  const activeLayers = queryRules.capas.filter((layer) => layer.activo === true);
+  const loadedLayers = await Promise.all(activeLayers.map(async (layerConfig) => {
+    const url = resolveGroupLayerUrl(baseUrl, layerConfig.archivo);
+    try {
+      const geojson = await fetchJsonOnce(url, geojsonSourceCache);
+      if (!geojson || geojson.type !== "FeatureCollection" || !Array.isArray(geojson.features)) throw new Error(`GeoJSON inválido: ${layerConfig.archivo}`);
+      return { status: "loaded", config: layerConfig, url, geojson };
+    } catch (error) {
+      console.error(`[GeoNEMO][${queryRules.grupo}] Error cargando ${layerConfig.archivo}`, error);
+      return { status: "error", config: layerConfig, url, geojson: null, error };
+    }
+  }));
+  if (GEOQUERY_DEBUG) {
+    console.table(loadedLayers.map((item) => ({ group: queryRules.grupo, id: item.config.id, file: item.config.archivo, active: item.config.activo, intersects: item.config.incluir_en_intersects, nearest: item.config.incluir_en_nearest, status: item.status, features: item.geojson?.features?.length || 0 })));
+  }
+  return loadedLayers;
 }
 
 async function loadGroupRegistry() {
-  const registry = await fetchJsonOnce(`${GEOQUERY_BASE}/listado.json`);
+  const registry = await fetchJsonOnce(resolveGroupLayerUrl(GEOQUERY_BASE, "listado.json"), groupConfigCache);
   return (registry.grupos || []).filter((g) => g.activo).sort((a, b) => (a.orden || 0) - (b.orden || 0));
 }
 
 async function loadGroupConfig(groupEntry) {
-  const config = await fetchJsonOnce(`${GEOQUERY_BASE}/${groupEntry.config}`);
+  const groupBaseUrl = resolveGroupLayerUrl(GEOQUERY_BASE, `${groupEntry.carpeta}/`);
+  const configUrl = resolveGroupLayerUrl(GEOQUERY_BASE, groupEntry.config);
+  const config = await fetchJsonOnce(configUrl, groupConfigCache);
   config.__folder = groupEntry.carpeta;
+  config.__baseUrl = groupBaseUrl;
   return config;
-}
-
-async function loadGroupSources(groupConfig) {
-  const sources = await Promise.all((groupConfig.archivos || []).map(async (sourceConfig) => {
-    const url = `${GEOQUERY_BASE}/${groupConfig.__folder}/${sourceConfig.archivo}`;
-    const geojson = await fetchJsonOnce(url);
-    if (!geojson || geojson.type !== "FeatureCollection" || !Array.isArray(geojson.features)) throw new Error(`GeoJSON inválido: ${sourceConfig.archivo}`);
-    return { sourceConfig, geojson };
-  }));
-  return sources;
 }
 
 function firstValue(properties, names) {
@@ -94,12 +167,12 @@ function normalizeGroupFeature(groupId, feature, sourceConfig, groupConfig, inde
   const id = firstValue(props, fields.id) ?? `${sourceConfig.id}-${index}`;
   const areaHa = normalizeAreaToHectares(firstValue(props, fields.superficie));
   const common = {
-    groupId, sourceId: sourceConfig.id, sourceFile: sourceConfig.archivo, sourceSubtype: sourceConfig.subtipo,
+    groupId, layerId: sourceConfig.id, sourceId: sourceConfig.id, sourceFile: sourceConfig.archivo, territory: sourceConfig.territorio, sourceSubtype: sourceConfig.territorio,
     featureId: id, dedupKey: buildDedupKey(groupConfig, props), originalProperties: props, geometry: feature.geometry,
     feature: { type: "Feature", properties: props, geometry: feature.geometry }, areaHa
   };
   if (groupId === "snaspe") {
-    return { ...common, name: firstValue(props, fields.nombre), alternateName: firstValue(props, fields.nombre_alternativo), category: firstValue(props, fields.categoria), region: firstValue(props, fields.region), territory: firstValue(props, fields.territorio), decree: firstValue(props, fields.decreto), issuer: firstValue(props, fields.emisor), condition: firstValue(props, fields.condicion), propertyType: firstValue(props, fields.tipo_propiedad), plan: firstValue(props, fields.plano) };
+    return { ...common, name: firstValue(props, fields.nombre), alternateName: firstValue(props, fields.nombre_alternativo), category: firstValue(props, fields.categoria), region: firstValue(props, fields.region), territory: sourceConfig.territorio || firstValue(props, fields.territorio), decree: firstValue(props, fields.decreto), issuer: firstValue(props, fields.emisor), condition: firstValue(props, fields.condicion), propertyType: firstValue(props, fields.tipo_propiedad), plan: firstValue(props, fields.plano) };
   }
   if (groupId === "ramsar") {
     return { ...common, name: firstValue(props, fields.nombre), type: firstValue(props, fields.tipo), region: firstValue(props, fields.region), province: firstValue(props, fields.provincia), commune: firstValue(props, fields.comuna), decree: firstValue(props, fields.decreto) };
@@ -107,17 +180,6 @@ function normalizeGroupFeature(groupId, feature, sourceConfig, groupConfig, inde
   return { ...common, name: firstValue(props, fields.nombre) || `Feature ${id}` };
 }
 
-function deduplicateFeatures(groupConfig, features) {
-  if (groupConfig.id !== "snaspe") return features;
-  const best = new Map();
-  const rank = { snaspe_sub10k: 3, snaspe_xl_continental: 2, snaspe_xl_mar: 2 };
-  for (const f of features) {
-    const key = f.dedupKey || `${f.sourceId}:${f.featureId}`;
-    const previous = best.get(key);
-    if (!previous || (rank[f.sourceId] || 0) > (rank[previous.sourceId] || 0)) best.set(key, f);
-  }
-  return [...best.values()];
-}
 
 
 function parseOriginalViewport(params) {
@@ -151,15 +213,23 @@ function filterFeaturesByViewport(features, originalViewport, groupConfig) {
   });
 }
 
-function buildGroupMetadata(groupConfig, totals, result) {
+function buildGroupMetadata(groupConfig, queryRules, loadedLayers, totals, result) {
   return {
     groupId: groupConfig.id,
-    totalLoaded: totals.totalLoaded,
-    totalNormalized: totals.totalNormalized,
-    totalInViewport: totals.totalInViewport,
-    evaluatedCandidates: totals.totalInViewport,
-    relatedFeature: result.feature?.featureId ?? null,
-    relationType: result.relation || result.status
+    queryRulesFile: resolveGroupLayerUrl(groupConfig.__baseUrl, "listado_query.json"),
+    totalConfiguredLayers: queryRules.capas.length,
+    activeLayers: queryRules.capas.filter((layer) => layer.activo === true).length,
+    loadedLayers: loadedLayers.filter((item) => item.status === "loaded").length,
+    failedLayers: loadedLayers.filter((item) => item.status === "error").length,
+    intersectsLayers: loadedLayers.filter((item) => item.status === "loaded" && item.config.activo === true && item.config.incluir_en_intersects === true).length,
+    nearestLayers: loadedLayers.filter((item) => item.status === "loaded" && item.config.activo === true && item.config.incluir_en_nearest === true).length,
+    totalFeaturesLoaded: totals.totalLoaded,
+    totalFeaturesInViewport: totals.totalInViewport,
+    evaluatedCandidates: totals.evaluatedCandidates,
+    selectedLayerId: result.feature?.layerId ?? null,
+    selectedSourceFile: result.feature?.sourceFile ?? null,
+    relationType: result.relation || result.status,
+    layerFeatureCounts: loadedLayers.map((item) => ({ id: item.config.id, file: item.config.archivo, status: item.status, features: item.geojson?.features?.length || 0 }))
   };
 }
 
@@ -193,22 +263,30 @@ function perimeterLengthKm(feature) {
   return lineFeatures(feature).reduce((sum, line) => sum + turf.length(line, { units: "kilometers" }), 0);
 }
 
-function resolveGroupSpatialRelation(queryPoint, normalizedFeatures, groupConfig) {
-  if (!normalizedFeatures.length) return { groupConfig, status: "empty", feature: null };
-  for (const item of normalizedFeatures) {
-    try { if (turf.booleanPointInPolygon(queryPoint, item.feature)) return buildResolvedResult(groupConfig, item, "intersects", null); }
-    catch (error) { console.warn("No se pudo evaluar intersección", groupConfig.id, item.sourceFile, error); }
-  }
-  let nearest = null;
-  for (const item of normalizedFeatures) {
-    try {
-      const nearestOnPerimeter = nearestPointOnFeaturePerimeter(item.feature, queryPoint);
-      if (nearestOnPerimeter && (!nearest || nearestOnPerimeter.distanceKm < nearest.distanceKm)) {
-        nearest = { item, snap: nearestOnPerimeter.snap, distanceKm: nearestOnPerimeter.distanceKm };
+function resolveGroupSpatialRelation(queryPoint, candidatesByRelation, groupConfig, queryRules) {
+  const flow = Array.isArray(queryRules.regla_busqueda?.flujo) ? queryRules.regla_busqueda.flujo : ["intersects", "nearest"];
+  if (!candidatesByRelation.intersects.length && !candidatesByRelation.nearest.length) return { groupConfig, status: "empty", feature: null };
+  for (const relation of flow) {
+    if (relation === "intersects") {
+      const matches = [];
+      for (const item of candidatesByRelation.intersects) {
+        try { if (turf.booleanPointInPolygon(queryPoint, item.feature)) matches.push(item); }
+        catch (error) { console.warn("No se pudo evaluar intersección", groupConfig.id, item.sourceFile, error); }
       }
-    } catch (error) { console.warn("No se pudo evaluar nearest", groupConfig.id, item.sourceFile, error); }
+      if (matches.length) return buildResolvedResult(groupConfig, matches[0], "intersects", null);
+    }
+    if (relation === "nearest") {
+      let nearest = null;
+      for (const item of candidatesByRelation.nearest) {
+        try {
+          const nearestOnPerimeter = nearestPointOnFeaturePerimeter(item.feature, queryPoint);
+          if (nearestOnPerimeter && (!nearest || nearestOnPerimeter.distanceKm < nearest.distanceKm)) nearest = { item, snap: nearestOnPerimeter.snap, distanceKm: nearestOnPerimeter.distanceKm };
+        } catch (error) { console.warn("No se pudo evaluar nearest", groupConfig.id, item.sourceFile, error); }
+      }
+      if (nearest) return buildResolvedResult(groupConfig, nearest.item, "nearest", nearest);
+    }
   }
-  return nearest ? buildResolvedResult(groupConfig, nearest.item, "nearest", nearest) : { groupConfig, status: "empty", feature: null };
+  return { groupConfig, status: "empty", feature: null };
 }
 
 function buildResolvedResult(groupConfig, item, relation, nearest) {
@@ -217,7 +295,7 @@ function buildResolvedResult(groupConfig, item, relation, nearest) {
   const areaHaCalc = areaSqm / 10000;
   const equivalentDiameterKm = 2 * Math.sqrt((areaSqm / 1000000) / Math.PI);
   const equivalentPerimeterKm = Math.PI * equivalentDiameterKm;
-  return { groupConfig, status: "resolved", relation, feature: item, distanceKm: nearest?.distanceKm ?? null, nearestPoint: nearest?.snap ?? null, metrics: { areaHaCalc, perimeterKm, equivalentDiameterKm, equivalentPerimeterKm } };
+  return { groupConfig, status: "resolved", relation, relationType: relation, feature: item, relatedFeature: item.feature, sourceFile: item.sourceFile, layerId: item.layerId, territory: item.territory, distanceKm: nearest?.distanceKm ?? null, minimumDistanceKm: nearest?.distanceKm ?? null, nearestPoint: nearest?.snap ?? null, nearestBoundaryPoint: nearest?.snap ?? null, metrics: { areaHaCalc, perimeterKm, equivalentDiameterKm, equivalentPerimeterKm } };
 }
 
 function formatDistance(km) { return km === null ? "No aplica" : (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(2)} km`); }
@@ -239,7 +317,7 @@ function renderGroupSection(groupResult) {
       : cfg.id === "ramsar"
         ? "No existen sitios Ramsar presentes en el viewport consultado"
         : "No se encontraron geometrías válidas para este grupo.";
-    return `<section class="panel group-section"><div class="group-header"><div><h2>Grupo ${escapeHtml(cfg.nombre)}</h2><p class="placeholder-text">${groupResult.status === "error" ? `No fue posible cargar temporalmente el grupo ${escapeHtml(cfg.nombre)}.` : emptyMessage}</p></div><span class="status-pill">${escapeHtml(groupResult.status)}</span></div></section>`;
+    return `<section class="panel group-section"><div class="group-header"><div><h2>Grupo ${escapeHtml(cfg.nombre)}</h2><p class="placeholder-text">${groupResult.status === "error" ? escapeHtml(groupResult.errorMessage || `No fue posible cargar temporalmente el grupo ${cfg.nombre}.`) : emptyMessage}</p></div><span class="status-pill">${escapeHtml(groupResult.status)}</span></div></section>`;
   }
   const f = groupResult.feature;
   const isSnaspe = cfg.id === "snaspe";
@@ -290,20 +368,24 @@ function setupMobileMapGesture(map, mapEl) {
 }
 
 async function processGroup(entry, queryPoint, originalViewport) {
+  let groupConfig = { id: entry.id, nombre: entry.nombre, nombre_largo: entry.nombre };
   try {
-    const groupConfig = await loadGroupConfig(entry);
-    const sources = await loadGroupSources(groupConfig);
-    const totalLoaded = sources.reduce((sum, { geojson }) => sum + (geojson.features?.length || 0), 0);
-    const normalized = [];
-    sources.forEach(({ sourceConfig, geojson }) => geojson.features.forEach((feature, index) => { if (feature?.geometry) normalized.push(normalizeGroupFeature(groupConfig.id, feature, sourceConfig, groupConfig, index)); }));
-    const unique = deduplicateFeatures(groupConfig, normalized);
-    const inViewport = filterFeaturesByViewport(unique, originalViewport, groupConfig);
-    const result = resolveGroupSpatialRelation(queryPoint, inViewport, groupConfig);
-    result.metadata = buildGroupMetadata(groupConfig, { totalLoaded, totalNormalized: unique.length, totalInViewport: inViewport.length }, result);
+    groupConfig = await loadGroupConfig(entry);
+    const queryRules = await loadGroupQueryRules(groupConfig.__baseUrl);
+    const loadedLayers = await loadConfiguredQueryLayers(groupConfig.__baseUrl, queryRules);
+    const normalizeLayer = (item) => (item.geojson?.features || []).flatMap((feature, index) => feature?.geometry ? [normalizeGroupFeature(groupConfig.id, feature, item.config, groupConfig, index)] : []);
+    const intersectsLayers = loadedLayers.filter((item) => item.status === "loaded" && item.config.activo === true && item.config.incluir_en_intersects === true);
+    const nearestLayers = loadedLayers.filter((item) => item.status === "loaded" && item.config.activo === true && item.config.incluir_en_nearest === true);
+    const intersectsInViewport = filterFeaturesByViewport(intersectsLayers.flatMap(normalizeLayer), originalViewport, groupConfig);
+    const nearestInViewport = filterFeaturesByViewport(nearestLayers.flatMap(normalizeLayer), originalViewport, groupConfig);
+    const result = resolveGroupSpatialRelation(queryPoint, { intersects: intersectsInViewport, nearest: nearestInViewport }, groupConfig, queryRules);
+    result.metadata = buildGroupMetadata(groupConfig, queryRules, loadedLayers, { totalLoaded: loadedLayers.reduce((sum, item) => sum + (item.geojson?.features?.length || 0), 0), totalInViewport: new Set([...intersectsInViewport, ...nearestInViewport].map((item) => `${item.layerId}:${item.featureId}:${item.sourceFile}`)).size, evaluatedCandidates: result.relation === "intersects" ? intersectsInViewport.length : nearestInViewport.length }, result);
+    if (GEOQUERY_DEBUG) console.log("[GeoQuery GeoNEMO] capa seleccionada", { group: groupConfig.id, layerId: result.layerId, sourceFile: result.sourceFile, territory: result.territory, relation: result.relation });
     return result;
   } catch (error) {
     console.error("Error controlado al cargar grupo GeoNEMO", entry.id, error);
-    return { groupConfig: { id: entry.id, nombre: entry.nombre, nombre_largo: entry.nombre }, status: "error", feature: null, metadata: { groupId: entry.id, relationType: "error" } };
+    const message = `No fue posible cargar la configuración de búsqueda del grupo ${entry.nombre}.`;
+    return { groupConfig, status: "error", feature: null, errorMessage: message, metadata: { groupId: entry.id, relationType: "error" } };
   }
 }
 

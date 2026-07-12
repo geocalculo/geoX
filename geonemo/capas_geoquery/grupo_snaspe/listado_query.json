@@ -2,7 +2,8 @@
   "version": 1,
   "sitio": "geonemo",
   "grupo": "snaspe",
-  "descripcion": "Capas SNASPE incluidas en el análisis espacial del punto consultado.",
+
+
   "regla_busqueda": {
     "universo": "features_presentes_en_viewport_original",
     "flujo": [
@@ -33,7 +34,7 @@
       "incluir_en_nearest": true
     },
     {
-      "id": "snaspe_xl_maritimo",
+      "id": "snaspe_xl_mar",
       "archivo": "snaspe_XL_from_raster_mar.geojson",
       "activo": true,
       "territorio": "maritimo",

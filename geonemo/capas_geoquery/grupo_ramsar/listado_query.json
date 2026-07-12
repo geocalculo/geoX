@@ -2,7 +2,8 @@
   "version": 1,
   "sitio": "geonemo",
   "grupo": "ramsar",
-  "descripcion": "Capas Ramsar incluidas en el análisis espacial del punto consultado.",
+
+
   "regla_busqueda": {
     "universo": "features_presentes_en_viewport_original",
     "flujo": [
