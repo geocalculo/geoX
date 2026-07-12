@@ -156,6 +156,7 @@ function openGeoQueryFromLatLng(lat, lon) {
   if (!map || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
   const center = map.getCenter();
+  const bounds = map.getBounds();
   const zoom = map.getZoom();
   const basemap = currentBasemap || "osm";
   const url =
@@ -164,6 +165,10 @@ function openGeoQueryFromLatLng(lat, lon) {
     `&lon=${encodeURIComponent(lon)}` +
     `&viewLat=${encodeURIComponent(center.lat)}` +
     `&viewLon=${encodeURIComponent(center.lng)}` +
+    `&viewWest=${encodeURIComponent(bounds.getWest())}` +
+    `&viewSouth=${encodeURIComponent(bounds.getSouth())}` +
+    `&viewEast=${encodeURIComponent(bounds.getEast())}` +
+    `&viewNorth=${encodeURIComponent(bounds.getNorth())}` +
     `&zoom=${encodeURIComponent(zoom)}` +
     `&basemap=${encodeURIComponent(basemap)}` +
     `&from=index`;
