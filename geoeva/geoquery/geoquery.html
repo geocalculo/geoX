@@ -914,12 +914,11 @@
 
     function calculatePairDistanceStats(projects) {
       const validProjects = projects.filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lon));
-      const result = { count: validProjects.length, pairCount: 0, minKm: null, meanKm: null, maxKm: null };
+      const result = { count: validProjects.length, pairCount: 0, minKm: null, meanKm: null };
       if (validProjects.length < 2 || !window.turf) return result;
 
       let totalKm = 0;
       let minKm = Infinity;
-      let maxKm = -Infinity;
 
       for (let i = 0; i < validProjects.length - 1; i += 1) {
         for (let j = i + 1; j < validProjects.length; j += 1) {
@@ -931,7 +930,6 @@
           if (!Number.isFinite(distanceKm)) continue;
           totalKm += distanceKm;
           minKm = Math.min(minKm, distanceKm);
-          maxKm = Math.max(maxKm, distanceKm);
           result.pairCount += 1;
         }
       }
@@ -939,7 +937,6 @@
       if (result.pairCount) {
         result.minKm = minKm;
         result.meanKm = totalKm / result.pairCount;
-        result.maxKm = maxKm;
       }
       return result;
     }
@@ -1081,13 +1078,12 @@
           ${renderDetailRow("Radio del clúster", formatLength(radiusMeters))}
         </dl>
         ${renderAnalysisCategory(`Proyectos aprobados · ${baseApprovedCluster.length}`, [
-          renderDetailRow("Distancia mínima entre proyectos", formatDistance(approvedStats.minKm)),
-          renderDetailRow("Distancia media entre proyectos", formatDistance(approvedStats.meanKm))
+          renderDetailRow("Distancia media entre proyectos", formatDistance(approvedStats.meanKm)),
+          renderDetailRow("Distancia mínima entre proyectos", formatDistance(approvedStats.minKm))
         ])}
         ${renderAnalysisCategory(dominantTitle, [
-          renderDetailRow("Proyectos del sector", String(territorialGroup.dominantSectorProjects.length)),
           renderDetailRow("Distancia media entre proyectos", formatDistance(dominantStats.meanKm)),
-          renderDetailRow("Distancia máxima entre proyectos", formatDistance(dominantStats.maxKm))
+          renderDetailRow("Distancia mínima entre proyectos", formatDistance(dominantStats.minKm))
         ])}
       `;
 
