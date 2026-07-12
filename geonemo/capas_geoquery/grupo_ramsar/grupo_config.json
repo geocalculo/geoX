@@ -1,0 +1,23 @@
+{
+  "id": "ramsar",
+  "nombre": "Sitios Ramsar",
+  "nombre_largo": "Humedales de Importancia Internacional",
+  "activo": true,
+  "archivos": [
+    { "id": "ramsar", "archivo": "nemo_ramsar_query.geojson", "subtipo": "general" }
+  ],
+  "regla_relacion": "intersects_nearest",
+  "campos": {
+    "id": ["Id", "tid"],
+    "nombre": ["Nombre"],
+    "tipo": ["Tipo"],
+    "region": ["Nomreg"],
+    "provincia": ["Nomprov"],
+    "comuna": ["Nomcom"],
+    "superficie": ["superficie"],
+    "decreto": ["Decreto"],
+    "codigo_region": ["Codreg"],
+    "codigo_provincia": ["Codprov"],
+    "codigo_comuna": ["Codcom"]
+  }
+}
