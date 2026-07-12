@@ -319,6 +319,24 @@
       font-size: 14px;
     }
 
+    .geoipt-distance-label {
+      border: 0;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(15, 23, 42, 0.88);
+      color: #ffffff;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.24);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.15;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .geoipt-distance-label::before {
+      display: none;
+    }
+
     .panel-header p {
       margin: 0 0 16px;
       color: var(--muted);
@@ -734,12 +752,22 @@
 
       const props = selectedFeatureResult.feature.properties || {};
       const source = selectedFeatureResult.source || {};
-      const relationType = selectedFeatureResult.selectedRelation
+      const relationType = selectedFeatureResult.relationLabel
+        || selectedFeatureResult.selectedRelation
         || selectedFeatureResult.relation_type
         || "Sin información";
       const comuna = props.COM || source.comuna || "Sin información";
       const prc = props.Capa || source.nombre || source.archivo_geojson || "Sin información";
       const zona = props.ZONA || "Sin información";
+      const distanceKm = selectedFeatureResult.minimumDistanceKm
+        ?? (selectedFeatureResult.spatialRelation && selectedFeatureResult.spatialRelation.minimumDistanceKm);
+      const distanceItem = selectedFeatureResult.relation_type === "nearest" && Number.isFinite(distanceKm)
+        ? `
+            <div class="related-feature-item">
+              <span>Distancia mínima a la zona</span>
+              <strong>${escapeHtml(formatMinimumDistanceValue(distanceKm))}</strong>
+            </div>`
+        : "";
 
       panel.innerHTML = `
         <div class="panel-header">
@@ -767,7 +795,7 @@
             <div class="related-feature-item">
               <span>Zona</span>
               <strong>${escapeHtml(zona)}</strong>
-            </div>
+            </div>${distanceItem}
           </div>
         </div>
       `;
@@ -1065,6 +1093,16 @@
       }
     }
 
+    const GEOQUERY_MAX_INTERSECT_ZOOM = 17;
+    const GEOQUERY_MAX_NEAREST_ZOOM = 16;
+
+    function isValidLngLatPair(coordinates) {
+      return Array.isArray(coordinates)
+        && coordinates.length >= 2
+        && Number.isFinite(Number(coordinates[0]))
+        && Number.isFinite(Number(coordinates[1]));
+    }
+
     function distancePointToFeatureCentroidMeters(point, feature) {
       try {
         const centroid = turf.centroid(feature);
@@ -1096,41 +1134,52 @@
       }
     }
 
-    function distancePointToFeatureMeters(point, feature) {
+    function calculateMinimumBoundaryDistance(point, feature) {
+      const emptyResult = { nearestBoundaryPoint: null, minimumDistanceKm: null, distanceMeters: Infinity };
+
       try {
-        const geomType = feature.geometry && feature.geometry.type;
+        if (!point || !feature || !feature.geometry || !window.turf) return emptyResult;
 
-        if (geomType === "Polygon" || geomType === "MultiPolygon") {
-          const lineFeatures = getBoundaryLineFeatures(feature);
-          let bestDistance = Infinity;
+        const geomType = feature.geometry.type;
+        if (geomType !== "Polygon" && geomType !== "MultiPolygon") return emptyResult;
 
-          for (const lineFeature of lineFeatures) {
-            try {
-              const nearest = turf.nearestPointOnLine(lineFeature, point, {
-                units: "kilometers"
-              });
+        const lineFeatures = getBoundaryLineFeatures(feature);
+        let best = null;
 
-              const distanceMeters =
-                turf.distance(point, nearest, { units: "kilometers" }) * 1000;
+        for (const lineFeature of lineFeatures) {
+          try {
+            if (!lineFeature || !lineFeature.geometry) continue;
+            const nearest = turf.nearestPointOnLine(lineFeature, point, { units: "kilometers" });
+            const nearestCoords = nearest && nearest.geometry && nearest.geometry.coordinates;
+            if (!isValidLngLatPair(nearestCoords)) continue;
 
-              if (Number.isFinite(distanceMeters) && distanceMeters < bestDistance) {
-                bestDistance = distanceMeters;
-              }
-            } catch (error) {
-              console.warn("[GeoQuery GeoIPT] error evaluando línea", error);
+            const distanceKm = turf.distance(point, nearest, { units: "kilometers" });
+            if (!Number.isFinite(distanceKm)) continue;
+
+            if (!best || distanceKm < best.minimumDistanceKm) {
+              best = {
+                nearestBoundaryPoint: { lat: Number(nearestCoords[1]), lon: Number(nearestCoords[0]) },
+                minimumDistanceKm: distanceKm,
+                distanceMeters: distanceKm * 1000
+              };
             }
+          } catch (error) {
+            console.warn("[GeoQuery GeoIPT] error evaluando línea", error);
           }
-
-          if (Number.isFinite(bestDistance)) return bestDistance;
-
-          return distancePointToFeatureCentroidMeters(point, feature);
         }
 
-        return distancePointToFeatureCentroidMeters(point, feature);
+        return best || emptyResult;
       } catch (error) {
-        console.warn("[GeoQuery GeoIPT] error distancia feature", error);
-        return Infinity;
+        console.warn("[GeoQuery GeoIPT] error distancia borde feature", error);
+        return emptyResult;
       }
+    }
+
+    function distancePointToFeatureMeters(point, feature) {
+      const boundaryDistance = calculateMinimumBoundaryDistance(point, feature);
+      return Number.isFinite(boundaryDistance.distanceMeters)
+        ? boundaryDistance.distanceMeters
+        : Infinity;
     }
 
     function logSelectedFeature(selectedFeatureResult) {
@@ -1329,9 +1378,17 @@
             if (inside) {
               membershipCount += 1;
               const selectedFeatureResult = {
-                relation_type: "Pertenencia",
+                relation_type: "intersects",
+                relationLabel: "Dentro de la zona relacionada",
                 relation_method: "point-in-polygon",
                 distance_meters: 0,
+                spatialRelation: {
+                  relationType: "intersects",
+                  queryPoint: { lat, lon },
+                  relatedFeature: feature,
+                  nearestBoundaryPoint: null,
+                  minimumDistanceKm: null
+                },
                 feature,
                 source
               };
@@ -1373,6 +1430,7 @@
       let bestFeature = null;
       let bestSource = null;
       let bestDistance = Infinity;
+      let bestBoundaryDistance = null;
 
       for (const item of nearestCandidates) {
         const candidateFeatures = await loadCandidateGeojson(item);
@@ -1380,16 +1438,14 @@
         for (const { feature, source } of candidateFeatures) {
           featuresEvaluated += 1;
           getGeoQueryDebug().features_cercania_evaluadas += 1;
-          let distanceMeters = distancePointToFeatureMeters(clickedPoint, feature);
-
-          if (!Number.isFinite(distanceMeters)) {
-            distanceMeters = distancePointToFeatureCentroidMeters(clickedPoint, feature);
-          }
+          const boundaryDistance = calculateMinimumBoundaryDistance(clickedPoint, feature);
+          const distanceMeters = boundaryDistance.distanceMeters;
 
           if (Number.isFinite(distanceMeters) && distanceMeters < bestDistance) {
             bestDistance = distanceMeters;
             bestFeature = feature;
             bestSource = source;
+            bestBoundaryDistance = boundaryDistance;
           }
         }
       }
@@ -1399,9 +1455,19 @@
       if (!bestFeature) return null;
 
       const selectedFeatureResult = {
-        relation_type: "Cercanía",
-        relation_method: "nearest-feature",
+        relation_type: "nearest",
+        relationLabel: "Zona regulada más cercana",
+        relation_method: "nearest-boundary",
         distance_meters: bestDistance,
+        nearestBoundaryPoint: bestBoundaryDistance && bestBoundaryDistance.nearestBoundaryPoint,
+        minimumDistanceKm: bestBoundaryDistance && bestBoundaryDistance.minimumDistanceKm,
+        spatialRelation: {
+          relationType: "nearest",
+          queryPoint: { lat, lon },
+          relatedFeature: bestFeature,
+          nearestBoundaryPoint: bestBoundaryDistance && bestBoundaryDistance.nearestBoundaryPoint,
+          minimumDistanceKm: bestBoundaryDistance && bestBoundaryDistance.minimumDistanceKm
+        },
         feature: bestFeature,
         source: bestSource
       };
@@ -1478,19 +1544,101 @@
       return selectedFeatureResult;
     }
 
+    function getGeoQueryFitPadding() {
+      const isMobile = window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+      return isMobile ? [26, 34] : [44, 44];
+    }
+
+    function formatMinimumDistanceValue(distanceKm) {
+      if (!Number.isFinite(distanceKm)) return "Sin información";
+      const meters = distanceKm * 1000;
+      if (meters < 1000) {
+        return `${Math.max(1, Math.round(meters)).toLocaleString("es-CL", { maximumFractionDigits: 0 })} m`;
+      }
+      return `${distanceKm.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`;
+    }
+
+    function formatMinimumDistanceLabel(distanceKm) {
+      return `Distancia mínima: ${formatMinimumDistanceValue(distanceKm)}`;
+    }
+
+    function extendBoundsIfValid(bounds, latLng) {
+      if (latLng && Number.isFinite(latLng.lat) && Number.isFinite(latLng.lng)) bounds.extend(latLng);
+    }
+
     function drawSelectedFeatureOnMap(geoQueryMap, selectedFeatureResult) {
       if (!selectedFeatureResult || !selectedFeatureResult.feature) return;
-      const isMembership = selectedFeatureResult.relation_type === "Pertenencia";
-      L.geoJSON(selectedFeatureResult.feature, {
+      if (geoQueryMap.geoIptRelationLayer) geoQueryMap.removeLayer(geoQueryMap.geoIptRelationLayer);
+      geoQueryMap.geoIptRelationLayer = L.layerGroup().addTo(geoQueryMap);
+
+      if (!geoQueryMap.getPane("geoipt-zone-pane")) geoQueryMap.createPane("geoipt-zone-pane");
+      if (!geoQueryMap.getPane("geoipt-relation-pane")) geoQueryMap.createPane("geoipt-relation-pane");
+      if (!geoQueryMap.getPane("geoipt-point-pane")) geoQueryMap.createPane("geoipt-point-pane");
+      geoQueryMap.getPane("geoipt-zone-pane").style.zIndex = 410;
+      geoQueryMap.getPane("geoipt-relation-pane").style.zIndex = 430;
+      geoQueryMap.getPane("geoipt-point-pane").style.zIndex = 450;
+
+      const isIntersects = selectedFeatureResult.relation_type === "intersects";
+      const relatedZoneLayer = L.geoJSON(selectedFeatureResult.feature, {
+        pane: "geoipt-zone-pane",
         style: {
-          color: isMembership ? "#1d4ed8" : "#dc2626",
+          color: isIntersects ? "#1d4ed8" : "#dc2626",
           weight: 3,
           opacity: 0.95,
-          fillOpacity: isMembership ? 0.18 : 0.04,
-          dashArray: isMembership ? null : "6 6"
+          fillOpacity: isIntersects ? 0.18 : 0.04,
+          dashArray: isIntersects ? null : "6 6"
         },
         interactive: false
-      }).addTo(geoQueryMap);
+      }).addTo(geoQueryMap.geoIptRelationLayer);
+
+      const queryPoint = selectedFeatureResult.spatialRelation && selectedFeatureResult.spatialRelation.queryPoint;
+      const queryPointLatLng = queryPoint ? L.latLng(queryPoint.lat, queryPoint.lon) : null;
+      const fitPadding = getGeoQueryFitPadding();
+
+      if (isIntersects) {
+        const zoneBounds = relatedZoneLayer.getBounds();
+        if (zoneBounds && zoneBounds.isValid()) {
+          geoQueryMap.fitBounds(zoneBounds, { padding: fitPadding, maxZoom: GEOQUERY_MAX_INTERSECT_ZOOM, animate: false });
+        }
+        return;
+      }
+
+      const nearestPoint = selectedFeatureResult.nearestBoundaryPoint || (selectedFeatureResult.spatialRelation && selectedFeatureResult.spatialRelation.nearestBoundaryPoint);
+      const distanceKm = selectedFeatureResult.minimumDistanceKm ?? (selectedFeatureResult.spatialRelation && selectedFeatureResult.spatialRelation.minimumDistanceKm);
+      if (queryPointLatLng && nearestPoint && Number.isFinite(nearestPoint.lat) && Number.isFinite(nearestPoint.lon)) {
+        const boundaryLatLng = L.latLng(nearestPoint.lat, nearestPoint.lon);
+        const midpointLatLng = L.latLng((queryPointLatLng.lat + boundaryLatLng.lat) / 2, (queryPointLatLng.lng + boundaryLatLng.lng) / 2);
+        L.polyline([queryPointLatLng, boundaryLatLng], {
+          pane: "geoipt-relation-pane",
+          color: "#f97316",
+          weight: 4,
+          opacity: 0.95,
+          dashArray: "8 6",
+          interactive: false
+        }).addTo(geoQueryMap.geoIptRelationLayer);
+        L.circleMarker(boundaryLatLng, {
+          pane: "geoipt-relation-pane",
+          radius: 4,
+          color: "#7c2d12",
+          weight: 2,
+          fillColor: "#fed7aa",
+          fillOpacity: 0.95,
+          interactive: false
+        }).addTo(geoQueryMap.geoIptRelationLayer);
+        L.tooltip({ permanent: true, direction: "center", interactive: false, className: "geoipt-distance-label" })
+          .setLatLng(midpointLatLng)
+          .setContent(formatMinimumDistanceLabel(distanceKm))
+          .addTo(geoQueryMap.geoIptRelationLayer);
+
+        const combinedBounds = L.latLngBounds([]);
+        const zoneBounds = relatedZoneLayer.getBounds();
+        if (zoneBounds && zoneBounds.isValid()) combinedBounds.extend(zoneBounds);
+        extendBoundsIfValid(combinedBounds, queryPointLatLng);
+        extendBoundsIfValid(combinedBounds, boundaryLatLng);
+        if (combinedBounds.isValid()) {
+          geoQueryMap.fitBounds(combinedBounds, { padding: fitPadding, maxZoom: GEOQUERY_MAX_NEAREST_ZOOM, animate: false });
+        }
+      }
     }
 
     function buildReturnUrl(lat, lon, zoom, basemap) {
@@ -1683,7 +1831,10 @@
           renderGeometryPanel(null);
         });
 
+      if (!geoQueryMap.getPane("geoipt-point-pane")) geoQueryMap.createPane("geoipt-point-pane");
+      geoQueryMap.getPane("geoipt-point-pane").style.zIndex = 450;
       L.circleMarker([lat, lon], {
+        pane: "geoipt-point-pane",
         radius: 7,
         weight: 3,
         fillOpacity: 0.9
@@ -1699,7 +1850,6 @@
       updateReturnLink();
       setTimeout(() => {
         geoQueryMap.invalidateSize();
-        geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
       }, 150);
     })();
   </script>
