@@ -119,6 +119,50 @@ function deduplicateFeatures(groupConfig, features) {
   return [...best.values()];
 }
 
+
+function parseOriginalViewport(params) {
+  const west = Number.parseFloat(params.get("viewWest"));
+  const south = Number.parseFloat(params.get("viewSouth"));
+  const east = Number.parseFloat(params.get("viewEast"));
+  const north = Number.parseFloat(params.get("viewNorth"));
+  const complete = [west, south, east, north].every(Number.isFinite);
+  if (!complete || west >= east || south >= north || south < -90 || north > 90 || west < -180 || east > 180) {
+    console.warn("[GeoQuery GeoNEMO] viewport original incompleto o inválido; se evita búsqueda nacional para SNASPE/Ramsar.", { west, south, east, north });
+    return null;
+  }
+  return { west, south, east, north, bbox: [west, south, east, north], polygon: turf.bboxPolygon([west, south, east, north]) };
+}
+
+function bboxIntersects(a, b) {
+  return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+}
+
+function filterFeaturesByViewport(features, originalViewport, groupConfig) {
+  if (!originalViewport) return [];
+  return features.filter((item) => {
+    try {
+      const featureBbox = turf.bbox(item.feature);
+      if (!bboxIntersects(featureBbox, originalViewport.bbox)) return false;
+      return turf.booleanIntersects(item.feature, originalViewport.polygon);
+    } catch (error) {
+      console.warn("[GeoQuery GeoNEMO] no se pudo confirmar intersección con viewport", groupConfig.id, item.sourceFile, error);
+      return false;
+    }
+  });
+}
+
+function buildGroupMetadata(groupConfig, totals, result) {
+  return {
+    groupId: groupConfig.id,
+    totalLoaded: totals.totalLoaded,
+    totalNormalized: totals.totalNormalized,
+    totalInViewport: totals.totalInViewport,
+    evaluatedCandidates: totals.totalInViewport,
+    relatedFeature: result.feature?.featureId ?? null,
+    relationType: result.relation || result.status
+  };
+}
+
 function featureBboxDistanceKm(point, bbox) {
   const [lon, lat] = point.geometry.coordinates;
   if (lon >= bbox[0] && lon <= bbox[2] && lat >= bbox[1] && lat <= bbox[3]) return 0;
@@ -155,14 +199,8 @@ function resolveGroupSpatialRelation(queryPoint, normalizedFeatures, groupConfig
     try { if (turf.booleanPointInPolygon(queryPoint, item.feature)) return buildResolvedResult(groupConfig, item, "intersects", null); }
     catch (error) { console.warn("No se pudo evaluar intersección", groupConfig.id, item.sourceFile, error); }
   }
-  const enriched = normalizedFeatures.map((item) => ({ item, bbox: turf.bbox(item.feature) }));
-  let candidates = enriched;
-  for (const threshold of [25, 100, 500, 2000]) {
-    const filtered = enriched.filter((entry) => featureBboxDistanceKm(queryPoint, entry.bbox) <= threshold);
-    if (filtered.length) { candidates = filtered; break; }
-  }
   let nearest = null;
-  for (const { item } of candidates) {
+  for (const item of normalizedFeatures) {
     try {
       const nearestOnPerimeter = nearestPointOnFeaturePerimeter(item.feature, queryPoint);
       if (nearestOnPerimeter && (!nearest || nearestOnPerimeter.distanceKm < nearest.distanceKm)) {
@@ -188,15 +226,20 @@ function escapeHtml(v) { return String(v ?? "").replace(/[&<>'"]/g, (c) => ({ "&
 function rows(items) { return `<dl class="details">${items.filter(([,v]) => v !== null && v !== undefined && v !== "").map(([k,v]) => `<div class="detail-row"><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join("")}</dl>`; }
 
 function relationLabel(result) {
-  if (result.groupConfig.id === "snaspe") return result.relation === "intersects" ? "Dentro del área SNASPE" : "Área SNASPE más cercana";
-  if (result.groupConfig.id === "ramsar") return result.relation === "intersects" ? "Dentro de un sitio Ramsar" : "Sitio Ramsar más cercano";
+  if (result.groupConfig.id === "snaspe") return result.relation === "intersects" ? "Dentro del área SNASPE" : "Área SNASPE más cercana dentro del viewport";
+  if (result.groupConfig.id === "ramsar") return result.relation === "intersects" ? "Dentro de un sitio Ramsar" : "Sitio Ramsar más cercano dentro del viewport";
   return result.relation;
 }
 
 function renderGroupSection(groupResult) {
   const cfg = groupResult.groupConfig;
   if (groupResult.status !== "resolved") {
-    return `<section class="panel group-section"><div class="group-header"><div><h2>Grupo ${escapeHtml(cfg.nombre)}</h2><p class="placeholder-text">${groupResult.status === "error" ? `No fue posible cargar temporalmente el grupo ${escapeHtml(cfg.nombre)}.` : "No se encontraron geometrías válidas para este grupo."}</p></div><span class="status-pill">${escapeHtml(groupResult.status)}</span></div></section>`;
+    const emptyMessage = cfg.id === "snaspe"
+      ? "No existen áreas SNASPE presentes en el viewport consultado"
+      : cfg.id === "ramsar"
+        ? "No existen sitios Ramsar presentes en el viewport consultado"
+        : "No se encontraron geometrías válidas para este grupo.";
+    return `<section class="panel group-section"><div class="group-header"><div><h2>Grupo ${escapeHtml(cfg.nombre)}</h2><p class="placeholder-text">${groupResult.status === "error" ? `No fue posible cargar temporalmente el grupo ${escapeHtml(cfg.nombre)}.` : emptyMessage}</p></div><span class="status-pill">${escapeHtml(groupResult.status)}</span></div></section>`;
   }
   const f = groupResult.feature;
   const isSnaspe = cfg.id === "snaspe";
@@ -246,17 +289,21 @@ function setupMobileMapGesture(map, mapEl) {
   mapEl.addEventListener("touchend", () => map.dragging.disable(), { passive: true });
 }
 
-async function processGroup(entry, queryPoint) {
+async function processGroup(entry, queryPoint, originalViewport) {
   try {
     const groupConfig = await loadGroupConfig(entry);
     const sources = await loadGroupSources(groupConfig);
+    const totalLoaded = sources.reduce((sum, { geojson }) => sum + (geojson.features?.length || 0), 0);
     const normalized = [];
     sources.forEach(({ sourceConfig, geojson }) => geojson.features.forEach((feature, index) => { if (feature?.geometry) normalized.push(normalizeGroupFeature(groupConfig.id, feature, sourceConfig, groupConfig, index)); }));
     const unique = deduplicateFeatures(groupConfig, normalized);
-    return resolveGroupSpatialRelation(queryPoint, unique, groupConfig);
+    const inViewport = filterFeaturesByViewport(unique, originalViewport, groupConfig);
+    const result = resolveGroupSpatialRelation(queryPoint, inViewport, groupConfig);
+    result.metadata = buildGroupMetadata(groupConfig, { totalLoaded, totalNormalized: unique.length, totalInViewport: inViewport.length }, result);
+    return result;
   } catch (error) {
     console.error("Error controlado al cargar grupo GeoNEMO", entry.id, error);
-    return { groupConfig: { id: entry.id, nombre: entry.nombre, nombre_largo: entry.nombre }, status: "error", feature: null };
+    return { groupConfig: { id: entry.id, nombre: entry.nombre, nombre_largo: entry.nombre }, status: "error", feature: null, metadata: { groupId: entry.id, relationType: "error" } };
   }
 }
 
@@ -270,6 +317,7 @@ async function processGroup(entry, queryPoint) {
   const zoomFromIndex = getParam(params, "zoom", getParam(params, "mapZoom", "14"));
   const viewLat = getParam(params, "viewLat", getParam(params, "mapCenterLat", null));
   const viewLon = getParam(params, "viewLon", getParam(params, "mapCenterLon", null));
+  const originalViewport = parseOriginalViewport(params);
   const valid = isValidCoordinate(lat, lon);
   const elements = {
     cardLat: document.getElementById("card-lat"), cardLon: document.getElementById("card-lon"), cardSite: document.getElementById("card-site"), cardStatus: document.getElementById("card-status"), latDecimal: document.getElementById("lat-decimal"), lonDecimal: document.getElementById("lon-decimal"), latDms: document.getElementById("lat-dms"), lonDms: document.getElementById("lon-dms"), detailStatus: document.getElementById("detail-status"), invalidMessage: document.getElementById("invalid-message"), detailsPanel: document.getElementById("details-panel"), backLink: document.getElementById("back-link"), visualCaption: document.getElementById("visual-caption"), groups: document.getElementById("geoquery-groups"), summary: document.getElementById("executive-summary"), loadStatus: document.getElementById("groups-load-status")
@@ -277,7 +325,7 @@ async function processGroup(entry, queryPoint) {
   elements.cardSite.textContent = site;
   if (!valid) { elements.cardStatus.textContent = "Sin coordenada"; elements.cardStatus.classList.add("status-error"); elements.invalidMessage.hidden = false; elements.detailsPanel.hidden = true; elements.backLink.href = "../index.html"; return; }
   const latDecimal = lat.toFixed(6); const lonDecimal = lon.toFixed(6); const latDms = decimalToDMS(lat, "lat"); const lonDms = decimalToDMS(lon, "lon"); const targetZoom = getZoomForApproxScale(lat, 20000);
-  window.geoQueryState = { site, lat, lon, lat_decimal: latDecimal, lon_decimal: lonDecimal, lat_dms: latDms, lon_dms: lonDms, view_lat: viewLat, view_lon: viewLon, crs: "WGS84 / EPSG:4326", source: "url_params", basemap: currentBasemap, zoom_from_index: zoomFromIndex, map_reference_scale: "1:20.000", map_reference_zoom: targetZoom, timestamp: new Date().toISOString(), groupResults: [] };
+  window.geoQueryState = { site, lat, lon, lat_decimal: latDecimal, lon_decimal: lonDecimal, lat_dms: latDms, lon_dms: lonDms, view_lat: viewLat, view_lon: viewLon, original_viewport: originalViewport ? { west: originalViewport.west, south: originalViewport.south, east: originalViewport.east, north: originalViewport.north } : null, crs: "WGS84 / EPSG:4326", source: "url_params", basemap: currentBasemap, zoom_from_index: zoomFromIndex, map_reference_scale: "1:20.000", map_reference_zoom: targetZoom, timestamp: new Date().toISOString(), groupResults: [], groupMetadata: [] };
   elements.cardLat.textContent = latDecimal; elements.cardLon.textContent = lonDecimal; elements.cardStatus.textContent = "Analizando"; elements.cardStatus.classList.add("status-ok"); elements.latDecimal.textContent = latDecimal; elements.lonDecimal.textContent = lonDecimal; elements.latDms.textContent = latDms; elements.lonDms.textContent = lonDms; elements.detailStatus.textContent = "analizando grupos temáticos"; elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
 
   const geoQueryMap = L.map("geoquery-map", { zoomControl: true, zoomSnap: 0.25, zoomDelta: 0.25 });
@@ -301,11 +349,13 @@ async function processGroup(entry, queryPoint) {
   (async () => {
     const queryPoint = turf.point([lon, lat]);
     const entries = await loadGroupRegistry();
-    const results = await Promise.all(entries.map((entry) => processGroup(entry, queryPoint)));
+    const results = await Promise.all(entries.map((entry) => processGroup(entry, queryPoint, originalViewport)));
     window.geoQueryState.groupResults = results;
+    window.geoQueryState.groupMetadata = results.map((result) => result.metadata).filter(Boolean);
+    console.log("[GeoQuery GeoNEMO] metadata viewport por grupo", window.geoQueryState.groupMetadata);
     elements.groups.innerHTML = results.map(renderGroupSection).join("");
     elements.summary.textContent = buildExecutiveSummary(results);
-    elements.loadStatus.textContent = results.map((r) => `${r.groupConfig.nombre}: ${r.status}`).join(" | ");
+    elements.loadStatus.textContent = results.map((r) => `${r.groupConfig.nombre}: ${r.status} (${r.metadata?.totalInViewport ?? 0} en viewport)`).join(" | ");
     elements.cardStatus.textContent = "Resuelto"; elements.detailStatus.textContent = "análisis territorial resuelto por grupos";
     const boundsParts = [queryMarker];
     results.forEach((result) => addGroupResultToMap(result, layers, [lat, lon], boundsParts));
