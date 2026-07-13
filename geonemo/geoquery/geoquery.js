@@ -466,6 +466,7 @@ async function processGroup(entry, queryPoint, originalViewport) {
   const zoomFromIndex = getParam(params, "zoom", getParam(params, "mapZoom", "14"));
   const viewLat = getParam(params, "viewLat", getParam(params, "mapCenterLat", null));
   const viewLon = getParam(params, "viewLon", getParam(params, "mapCenterLon", null));
+  const from = getParam(params, "from", null);
   const originalViewport = parseOriginalViewport(params);
   const valid = isValidCoordinate(lat, lon);
   const elements = {
@@ -474,7 +475,7 @@ async function processGroup(entry, queryPoint, originalViewport) {
   elements.cardSite.textContent = site;
   if (!valid) { elements.cardStatus.textContent = "Sin coordenada"; elements.cardStatus.classList.add("status-error"); elements.invalidMessage.hidden = false; elements.detailsPanel.hidden = true; elements.backLink.href = "../index.html"; return; }
   const latDecimal = lat.toFixed(6); const lonDecimal = lon.toFixed(6); const latDms = decimalToDMS(lat, "lat"); const lonDms = decimalToDMS(lon, "lon"); const targetZoom = getZoomForApproxScale(lat, 20000);
-  window.geoQueryState = { site, lat, lon, lat_decimal: latDecimal, lon_decimal: lonDecimal, lat_dms: latDms, lon_dms: lonDms, view_lat: viewLat, view_lon: viewLon, original_viewport: originalViewport ? { west: originalViewport.west, south: originalViewport.south, east: originalViewport.east, north: originalViewport.north } : null, crs: "WGS84 / EPSG:4326", source: "url_params", basemap: currentBasemap, zoom_from_index: zoomFromIndex, map_reference_scale: "1:20.000", map_reference_zoom: targetZoom, timestamp: new Date().toISOString(), groupResults: [], groupMetadata: [] };
+  window.geoQueryState = { site, queryContext: { site, queryPoint: { lat, lon }, originalViewport: originalViewport ? { centerLat: Number(viewLat), centerLon: Number(viewLon), zoom: Number(zoomFromIndex), west: originalViewport.west, south: originalViewport.south, east: originalViewport.east, north: originalViewport.north, basemap: currentBasemap } : { centerLat: Number(viewLat), centerLon: Number(viewLon), zoom: Number(zoomFromIndex), basemap: currentBasemap }, from }, status: "loading", executiveSummary: "", groupResults: [], mapState: { basemap: currentBasemap, referenceScale: "1:20.000", referenceZoom: targetZoom }, exportState: { pdfEnabled: false, kmlEnabled: false }, lat, lon, lat_decimal: latDecimal, lon_decimal: lonDecimal, lat_dms: latDms, lon_dms: lonDms, view_lat: viewLat, view_lon: viewLon, original_viewport: originalViewport ? { west: originalViewport.west, south: originalViewport.south, east: originalViewport.east, north: originalViewport.north } : null, crs: "WGS84 / EPSG:4326", source: "url_params", basemap: currentBasemap, zoom_from_index: zoomFromIndex, map_reference_scale: "1:20.000", map_reference_zoom: targetZoom, timestamp: new Date().toISOString(), groupMetadata: [] };
   elements.cardLat.textContent = latDecimal; elements.cardLon.textContent = lonDecimal; elements.cardStatus.textContent = "Analizando"; elements.cardStatus.classList.add("status-ok"); elements.latDecimal.textContent = latDecimal; elements.lonDecimal.textContent = lonDecimal; elements.latDms.textContent = latDms; elements.lonDms.textContent = lonDms; elements.detailStatus.textContent = "analizando grupos temáticos"; elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
 
   const geoQueryMap = L.map("geoquery-map", { zoomControl: true, zoomSnap: 0.25, zoomDelta: 0.25 });
@@ -485,7 +486,7 @@ async function processGroup(entry, queryPoint, originalViewport) {
   document.getElementById("geoquery-map").appendChild(toggle); L.DomEvent.disableClickPropagation(toggle); L.DomEvent.disableScrollPropagation(toggle);
   function updateReturnLink() { elements.backLink.href = buildReturnUrl(lat, lon, zoomFromIndex || "14", currentBasemap, viewLat, viewLon); }
   function setBasemapButtonActive(type) { document.getElementById("geoquery-osm-btn")?.classList.toggle("active", type === "osm"); document.getElementById("geoquery-sat-btn")?.classList.toggle("active", type === "sat"); }
-  function setBasemap(type) { if (geoQueryMap.hasLayer(osmLayer)) geoQueryMap.removeLayer(osmLayer); if (geoQueryMap.hasLayer(satLayer)) geoQueryMap.removeLayer(satLayer); (type === "sat" ? satLayer : osmLayer).addTo(geoQueryMap); currentBasemap = type === "sat" ? "sat" : "osm"; setBasemapButtonActive(currentBasemap); window.geoQueryState.basemap = currentBasemap; updateReturnLink(); }
+  function setBasemap(type) { if (geoQueryMap.hasLayer(osmLayer)) geoQueryMap.removeLayer(osmLayer); if (geoQueryMap.hasLayer(satLayer)) geoQueryMap.removeLayer(satLayer); (type === "sat" ? satLayer : osmLayer).addTo(geoQueryMap); currentBasemap = type === "sat" ? "sat" : "osm"; setBasemapButtonActive(currentBasemap); window.geoQueryState.basemap = currentBasemap; window.geoQueryState.mapState.basemap = currentBasemap; window.geoQueryState.queryContext.originalViewport.basemap = currentBasemap; updateReturnLink(); }
   toggle.querySelector('[data-map="osm"]').addEventListener("click", () => setBasemap("osm")); toggle.querySelector('[data-map="sat"]').addEventListener("click", () => setBasemap("sat"));
   setBasemap(currentBasemap);
   const layers = { snaspeResultLayer: L.layerGroup().addTo(geoQueryMap), ramsarResultLayer: L.layerGroup().addTo(geoQueryMap), relationLinesLayer: L.layerGroup().addTo(geoQueryMap), queryPointLayer: L.layerGroup().addTo(geoQueryMap), relationLabelsLayer: L.layerGroup().addTo(geoQueryMap) };
@@ -496,22 +497,32 @@ async function processGroup(entry, queryPoint, originalViewport) {
   geoQueryMap.setView([lat, lon], targetZoom, { animate: false }); updateReturnLink();
 
   (async () => {
-    console.log("[GeoNEMO] URL actual:", window.location.href);
-    console.log("[GeoNEMO] parámetros:", Object.fromEntries(new URLSearchParams(window.location.search)));
+    if (GEOQUERY_DEBUG) {
+      console.log("[GeoNEMO] URL actual:", window.location.href);
+      console.log("[GeoNEMO] parámetros:", Object.fromEntries(new URLSearchParams(window.location.search)));
+    }
     const queryPoint = turf.point([lon, lat]);
     const entries = await loadGroupRegistry();
     const groupSettlements = await Promise.allSettled(entries.map((entry) => processGroup(entry, queryPoint, originalViewport)));
     const results = groupSettlements.map((settlement, index) => settlement.status === "fulfilled" ? settlement.value : { groupConfig: { id: entries[index].id, nombre: entries[index].nombre, nombre_largo: entries[index].nombre }, status: "error", feature: null, errorMessage: entries[index].id === "snaspe" ? "No fue posible cargar temporalmente la configuración o las capas del grupo SNASPE." : "No fue posible cargar temporalmente la configuración o las capas del grupo Ramsar.", metadata: { groupId: entries[index].id, relationType: "error" } });
     window.geoQueryState.groupResults = results;
     window.geoQueryState.groupMetadata = results.map((result) => result.metadata).filter(Boolean);
-    console.log("[GeoQuery GeoNEMO] metadata viewport por grupo", window.geoQueryState.groupMetadata);
+    if (GEOQUERY_DEBUG) console.log("[GeoQuery GeoNEMO] metadata viewport por grupo", window.geoQueryState.groupMetadata);
     elements.groups.innerHTML = results.map(renderGroupSection).join("");
-    elements.summary.textContent = buildExecutiveSummary(results);
-    elements.loadStatus.textContent = results.map((r) => `${r.groupConfig.nombre}: ${r.status} (${r.metadata?.totalInViewport ?? 0} en viewport)`).join(" | ");
+    const executiveSummary = buildExecutiveSummary(results);
+    elements.summary.textContent = executiveSummary;
+    if (elements.loadStatus) elements.loadStatus.textContent = GEOQUERY_DEBUG ? results.map((r) => `${r.groupConfig.nombre}: ${r.status} (${r.metadata?.totalInViewport ?? 0} en viewport)`).join(" | ") : "";
+    const technicalPanel = document.getElementById("geoquery-technical-metadata");
+    if (technicalPanel) technicalPanel.hidden = !GEOQUERY_DEBUG;
+    const downloadsPanel = document.getElementById("geoquery-downloads-panel");
+    if (downloadsPanel) downloadsPanel.hidden = !results.some((r) => r.status === "resolved");
     const overallStatus = deriveOverallStatus(results);
     applyOverallStatus(elements, overallStatus);
     elements.detailStatus.textContent = overallStatus === "Error" ? "error técnico en todos los grupos" : overallStatus === "Sin resultados en viewport" ? "sin resultados en el viewport original" : "análisis territorial resuelto por grupos";
     window.geoQueryState.overallStatus = overallStatus;
+    window.geoQueryState.status = overallStatus === "Resuelto" ? "resolved" : overallStatus === "Sin resultados en viewport" ? "empty" : overallStatus === "Error" ? "error" : "partial";
+    window.geoQueryState.executiveSummary = executiveSummary;
+    window.geoQueryState.exportState = { pdfEnabled: results.some((r) => r.status === "resolved"), kmlEnabled: results.some((r) => r.status === "resolved") };
     const boundsParts = [queryMarker];
     results.forEach((result) => addGroupResultToMap(result, layers, [lat, lon], boundsParts));
     setTimeout(() => { geoQueryMap.invalidateSize(); const bounds = L.featureGroup(boundsParts).getBounds(); if (bounds.isValid()) geoQueryMap.fitBounds(bounds.pad(0.12), { maxZoom: 14, padding: window.innerWidth <= 560 ? [22, 22] : [36, 36], animate: false }); else geoQueryMap.setView([lat, lon], targetZoom, { animate: false }); }, 150);

@@ -1199,12 +1199,11 @@
       const site = getParam(params, "site", "geoeva");
       const basemapParam = (getParam(params, "basemap", "osm") || "osm").toLowerCase();
       let currentBasemap = basemapParam === "sat" ? "sat" : "osm";
-      const zoomFromIndex = getParam(params, "zoom", "14");
-      const viewLat = getParam(params, "viewLat", null);
-      const viewLon = getParam(params, "viewLon", null);
+      const zoomFromIndex = getParam(params, "zoom", getParam(params, "mapZoom", "14"));
+      const viewLat = getParam(params, "viewLat", getParam(params, "mapCenterLat", null));
+      const viewLon = getParam(params, "viewLon", getParam(params, "mapCenterLon", null));
+      const from = getParam(params, "from", null);
       const valid = isValidCoordinate(lat, lon);
-      console.log("[GeoQuery GeoEVA] punto consultado", { lat, lon });
-      console.log("[GeoQuery GeoEVA] basemap heredado", currentBasemap);
 
       const elements = {
         cardLat: document.getElementById("card-lat"),
@@ -1227,6 +1226,12 @@
       if (!valid) {
         window.geoQueryState = {
           site,
+          queryContext: { site, queryPoint: null, originalViewport: { centerLat: Number(viewLat), centerLon: Number(viewLon), zoom: Number(zoomFromIndex), basemap: currentBasemap }, from },
+          status: "error",
+          executiveSummary: "Coordenada inválida.",
+          groupResults: [],
+          mapState: { basemap: currentBasemap },
+          exportState: { pdfEnabled: false, kmlEnabled: false },
           lat: null,
           lon: null,
           lat_decimal: null,
@@ -1261,6 +1266,12 @@
 
       window.geoQueryState = {
         site,
+        queryContext: { site, queryPoint: { lat, lon }, originalViewport: { centerLat: Number(viewLat), centerLon: Number(viewLon), zoom: Number(zoomFromIndex), basemap: currentBasemap }, from },
+        status: "loading",
+        executiveSummary: "",
+        groupResults: [],
+        mapState: { basemap: currentBasemap, referenceScale: "1:20.000", referenceZoom: targetZoom },
+        exportState: { pdfEnabled: false, kmlEnabled: false },
         lat,
         lon,
         lat_decimal: latDecimal,
@@ -1280,7 +1291,7 @@
 
       elements.cardLat.textContent = latDecimal;
       elements.cardLon.textContent = lonDecimal;
-      elements.cardStatus.textContent = "Válida";
+      elements.cardStatus.textContent = "Analizando";
       elements.cardStatus.classList.add("status-ok");
       elements.latDecimal.textContent = latDecimal;
       elements.lonDecimal.textContent = lonDecimal;
@@ -1402,6 +1413,8 @@
 
         setBasemapButtonActive(currentBasemap);
         window.geoQueryState.basemap = currentBasemap;
+        window.geoQueryState.mapState.basemap = currentBasemap;
+        window.geoQueryState.queryContext.originalViewport.basemap = currentBasemap;
         updateReturnLink();
       }
 
@@ -1477,6 +1490,11 @@
         window.geoQueryState.territorial_group = territorialGroup;
         window.geoQueryState.analysis_radius_m = radiusMeters;
         window.geoQueryState.source_geojson = GEOEVA_GEOQUERY_PROJECTS_URL;
+        window.geoQueryState.status = baseApprovedCluster.length ? "resolved" : "empty";
+        window.geoQueryState.groupResults = [{ groupId: "projects", status: window.geoQueryState.status, relationType: "nearest", selectedFeatures: baseApprovedCluster, normalizedProperties: territorialGroup, geometryStats: territorialGroup?.geometryStats || null, spatialRelationStats: territorialGroup?.spatialRelationStats || null }];
+        window.geoQueryState.executiveSummary = baseApprovedCluster.length ? `Clúster base de ${baseApprovedCluster.length} proyectos aprobados cercanos resuelto.` : "No se identificaron proyectos aprobados cercanos para construir el clúster.";
+        window.geoQueryState.exportState = { pdfEnabled: baseApprovedCluster.length > 0, kmlEnabled: baseApprovedCluster.length > 0 };
+        elements.cardStatus.textContent = baseApprovedCluster.length ? "Resuelto" : "Sin resultados";
 
         if (analysisCircle) {
           geoQueryMap.fitBounds(analysisCircle.getBounds(), {
@@ -1491,6 +1509,11 @@
       } catch (error) {
         console.error("[GeoQuery GeoEVA] error al cargar proyectos", error);
         document.getElementById("geoquery-related-features-panel").innerHTML = `<h3>Proyectos relacionados</h3><div class="message">No se pudo cargar el GeoJSON nacional de proyectos.</div>`;
+        window.geoQueryState.status = "error";
+        window.geoQueryState.executiveSummary = "No fue posible cargar el análisis de proyectos aprobados.";
+        elements.cardStatus.textContent = "Error de análisis";
+        elements.cardStatus.classList.remove("status-ok");
+        elements.cardStatus.classList.add("status-error");
       }
 
       updateReturnLink();
