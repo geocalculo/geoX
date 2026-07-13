@@ -1,0 +1,6 @@
+{
+  "id":"zonas","nombre":"Zonas saturadas o latentes","nombre_largo":"Zonas saturadas o latentes","activo":true,"campo_id":"objectid","campo_titulo":"nombre_zon","campo_condicion":"zona_dec",
+  "campos":{"id":["objectid"],"nombre":["nombre_zon"],"condicion":["zona_dec"],"saturado":["saturado"],"latente":["latentes"],"decreto":["decreto"],"link":["link"],"region":["cut_reg"],"superficie":["superficie"],"shape_area":["shape.STAr"],"shape_length":["shape.STLe"]},
+  "regla_contaminante":{"principal":"saturado","fallback":"latentes","ignorar":["","No aplica","NO APLICA",null]},
+  "estilo":{"color":"#7c2d12","fillColor":"#fb923c","weight":2,"fillOpacity":0.25},"textos":{"intersects":"El punto consultado intersecta una zona ambiental.","nearest":"Zona ambiental más cercana dentro del viewport original.","sin_resultados":"No hay zonas visibles en el viewport original."}
+}

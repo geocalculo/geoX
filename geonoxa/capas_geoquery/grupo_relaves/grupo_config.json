@@ -1,0 +1,5 @@
+{
+  "id":"relaves","nombre":"Relaves","nombre_largo":"Depósitos de relaves","activo":true,"campo_id":"id_relave","campo_titulo":"faena","campo_recurso":"recurso","campo_etiqueta":"recurso",
+  "campos":{"id":["id_relave"],"empresa":["empresa"],"faena":["faena"],"tipo_deposito":["tipo_deposito"],"recurso":["recurso"],"comuna":["comuna"],"area_m2":["shape_area_m2"],"metodo_constructivo":["metodo_constructivo"],"latitud":["latitud"],"longitud":["longitud"]},
+  "estilo":{"color":"#ea580c","fillColor":"#f97316","weight":2,"fillOpacity":0.75},"textos":{"sin_resultados":"No hay relaves visibles en el viewport original.","resultados":"Relaves más cercanos dentro del viewport original."}
+}
