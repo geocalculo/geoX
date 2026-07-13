@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "sitio": "geonoxa",
+  "grupos": [
+    {"id":"relaves","nombre":"Relaves","carpeta":"grupo_relaves","config":"grupo_relaves/grupo_config.json","listado_query":"grupo_relaves/listado_query.json","activo":true,"orden":1},
+    {"id":"zonas","nombre":"Zonas saturadas o latentes","carpeta":"grupo_zonas","config":"grupo_zonas/grupo_config.json","listado_query":"grupo_zonas/listado_query.json","activo":true,"orden":2}
+  ]
+}

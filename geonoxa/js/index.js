@@ -118,15 +118,22 @@ function openGeoQueryFromLatLng(lat, lon) {
   const center = map.getCenter();
   const zoom = map.getZoom();
   const basemap = currentBasemap || "osm";
-  const url =
-    `./geoquery/geoquery.html?site=${SITE_ID}` +
-    `&lat=${encodeURIComponent(lat)}` +
-    `&lon=${encodeURIComponent(lon)}` +
-    `&viewLat=${encodeURIComponent(center.lat)}` +
-    `&viewLon=${encodeURIComponent(center.lng)}` +
-    `&zoom=${encodeURIComponent(zoom)}` +
-    `&basemap=${encodeURIComponent(basemap)}` +
-    `&from=index`;
+  const bounds = map.getBounds();
+  const params = new URLSearchParams({
+    site: SITE_ID,
+    lat: String(lat),
+    lon: String(lon),
+    viewLat: String(center.lat),
+    viewLon: String(center.lng),
+    zoom: String(zoom),
+    basemap,
+    from: "index",
+    viewWest: String(bounds.getWest()),
+    viewSouth: String(bounds.getSouth()),
+    viewEast: String(bounds.getEast()),
+    viewNorth: String(bounds.getNorth())
+  });
+  const url = `./geoquery/geoquery.html?${params.toString()}`;
 
   window.location.href = url;
 }

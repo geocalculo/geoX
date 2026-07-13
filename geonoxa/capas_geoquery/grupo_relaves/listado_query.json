@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "sitio": "geonoxa",
+  "grupo": "relaves",
+  "descripcion": "Capas de relaves incluidas en el análisis espacial del punto consultado.",
+  "regla_busqueda": {"universo":"features_presentes_en_viewport_original","tipo_geometria":"Point","metodo":"nearest_n","cantidad_maxima":10,"orden":"distancia_geodesica_ascendente","radio_cluster":"distancia_al_relave_mas_lejano_seleccionado","representacion":"circulo_punteado","dibujar_linea_al_mas_cercano":false,"detener_en_primer_resultado":false},
+  "capas": [{"id":"relaves","archivo":"geonoxa_relaves_query.geojson","activo":true,"territorio":"general","incluir_en_busqueda":true}]
+}

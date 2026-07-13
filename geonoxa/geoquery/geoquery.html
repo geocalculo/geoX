@@ -7,16 +7,16 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root {
-      --header-bg: #3f1d1d;
-      --header-border: #f97316;
+      --header-bg: #064e3b;
+      --header-border: #34d399;
       --page-bg: #f4f6f8;
       --text: #1f2933;
       --muted: #64748b;
       --panel: #ffffff;
       --panel-soft: #f8fafc;
       --border: #d9e2ec;
-      --accent: #ea580c;
-      --accent-dark: #c2410c;
+      --accent: #059669;
+      --accent-dark: #047857;
       --success: #16a34a;
       --warning: #f59e0b;
       --shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
@@ -155,7 +155,15 @@
     }
 
     .card-value.status-error {
+      color: var(--danger);
+    }
+
+    .card-value.status-warning {
       color: var(--warning);
+    }
+
+    .card-value.status-neutral {
+      color: var(--muted);
     }
 
     .geoquery-section {
@@ -366,10 +374,95 @@
       pointer-events: none;
     }
 
+
+    .group-section {
+      margin-top: 18px;
+    }
+
+    .group-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill, .subsection-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      background: #ecfdf5;
+      color: var(--accent-dark);
+      border: 1px solid #a7f3d0;
+    }
+
+    .group-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .subpanel {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: var(--panel-soft);
+      padding: 14px;
+    }
+
+    .subpanel h4 {
+      margin: 0 0 12px;
+      color: #102a43;
+      font-size: 16px;
+    }
+
+    .map-touch-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      z-index: 1006;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.82);
+      color: white;
+      font-size: 13px;
+      font-weight: 800;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+
+    .map-touch-hint.visible { opacity: 1; }
+
+    .map-legend {
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      box-shadow: 0 8px 20px rgba(15,23,42,.14);
+      font-size: 12px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .legend-swatch {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      margin-right: 6px;
+      vertical-align: -2px;
+    }
+
     @media (max-width: 860px) {
       .main-header,
       .geoquery-primary-grid,
-      .geoquery-secondary-grid {
+      .geoquery-secondary-grid,
+      .group-grid {
         grid-template-columns: 1fr;
       }
 
@@ -418,7 +511,7 @@
         <p class="site-description">Relaves, zonas saturadas y restricciones ambientales</p>
       </div>
       <div class="header-note" aria-label="Estado de versión">
-        Punto, coordenadas y estado básico para preparar el análisis ambiental.
+        Punto, coordenadas y estado básico para preparar el análisis territorial.
       </div>
     </header>
 
@@ -504,314 +597,35 @@
         </section>
       </div>
 
-      <div class="geoquery-secondary-grid" aria-label="Paneles futuros de GeoQuery">
-        <!-- =====================================================
-             05. FEATURES RELACIONADAS
-        ===================================================== -->
-        <section id="geoquery-related-features-panel" class="panel geoquery-section">
-          <h3>Features relacionadas</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
-        </section>
+      <section id="geoquery-executive-summary" class="panel geoquery-section">
+        <h2>Resumen ejecutivo</h2>
+        <p id="executive-summary" class="placeholder-text">Cargando grupos temáticos de GeoNOXA…</p>
+      </section>
 
-        <!-- =====================================================
-             06. DESCRIPTORES GEOMÉTRICOS DE FEATURES RELACIONADAS
-        ===================================================== -->
-        <section id="geoquery-geometry-panel" class="panel geoquery-section">
-          <h3>Descriptores geométricos</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
-        </section>
+      <section id="geoquery-groups" class="geoquery-section" aria-label="Resultados por grupo temático"></section>
 
-        <!-- =====================================================
-             07. METADATA DE FEATURES RELACIONADAS
-        ===================================================== -->
-        <section id="geoquery-metadata-panel" class="panel geoquery-section">
-          <h3>Metadata de features</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
-        </section>
+      <section id="geoquery-technical-metadata" class="panel geoquery-section group-section">
+        <h2>Metadata técnica</h2>
+        <dl class="details" id="technical-metadata">
+          <div class="detail-row"><dt>Registro de grupos</dt><dd>capas_geoquery/listado.json</dd></div>
+          <div class="detail-row"><dt>Regla espacial</dt><dd>Relaves nearest_n + zonas intersects/nearest, limitado al viewport original</dd></div>
+          <div class="detail-row"><dt>Estado de carga</dt><dd id="groups-load-status">Cargando…</dd></div>
+        </dl>
+      </section>
 
-        <!-- =====================================================
-             08. INDICADORES DE RELACIÓN ENTRE PUNTO Y FEATURES
-        ===================================================== -->
-        <section id="geoquery-relation-indicators-panel" class="panel geoquery-section">
-          <h3>Indicadores de relación espacial</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
-        </section>
-
-        <!-- =====================================================
-             09. PANEL DE GRÁFICOS
-        ===================================================== -->
-        <section id="geoquery-charts-panel" class="panel geoquery-section">
-          <h3>Gráficos</h3>
-          <p class="placeholder-text">Estado: pendiente de lectura desde capas_query/features.geojson.</p>
-        </section>
-
-        <!-- =====================================================
-             10. DESCARGAS PDF Y KML
-        ===================================================== -->
-        <section id="geoquery-downloads-panel" class="panel geoquery-section">
-          <h3>Descargas PDF y KML</h3>
-          <p class="placeholder-text">Disponible cuando exista análisis territorial.</p>
-          <div class="actions">
-            <button class="download-button" type="button" disabled title="Disponible cuando exista análisis territorial.">Descargar PDF</button>
-            <button class="download-button" type="button" disabled title="Disponible cuando exista análisis territorial.">Descargar KML</button>
-          </div>
-        </section>
-      </div>
+      <section id="geoquery-downloads-panel" class="panel geoquery-section group-section">
+        <h2>Descargas PDF y KML</h2>
+        <p class="placeholder-text">La estructura de resultados por grupo queda disponible en <code>window.geoQueryState.groupResults</code> para exportaciones del ecosistema GeoX.</p>
+        <div class="actions">
+          <button class="download-button" type="button" disabled title="Disponible cuando exista el módulo de exportación GeoNOXA.">Descargar PDF</button>
+          <button class="download-button" type="button" disabled title="Disponible cuando exista el módulo de exportación GeoNOXA.">Descargar KML</button>
+        </div>
+      </section>
     </main>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    function decimalToDMS(value, type) {
-      const absolute = Math.abs(value);
-      let degrees = Math.floor(absolute);
-      const minutesFloat = (absolute - degrees) * 60;
-      let minutes = Math.floor(minutesFloat);
-      let seconds = Number(((minutesFloat - minutes) * 60).toFixed(2));
-
-      if (seconds >= 60) {
-        seconds = 0;
-        minutes += 1;
-      }
-
-      if (minutes >= 60) {
-        minutes = 0;
-        degrees += 1;
-      }
-
-      const direction = type === "lat"
-        ? (value >= 0 ? "N" : "S")
-        : (value >= 0 ? "E" : "W");
-
-      return `${degrees}° ${minutes}' ${seconds.toFixed(2)}" ${direction}`;
-    }
-
-    function isValidCoordinate(lat, lon) {
-      return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
-    }
-
-    function getZoomForApproxScale(lat, scaleDenominator = 20000) {
-      const dpi = 96;
-      const metersPerPixelTarget = scaleDenominator * 0.0254 / dpi;
-      const earthCircumference = 156543.03392;
-      const latRad = lat * Math.PI / 180;
-      const zoom = Math.log2((earthCircumference * Math.cos(latRad)) / metersPerPixelTarget);
-      return Math.max(0, Math.min(20, zoom));
-    }
-
-    function getParam(params, key, fallback) {
-      return params.get(key) || fallback;
-    }
-
-    function buildReturnUrl(lat, lon, zoom, basemap, viewLat, viewLon) {
-      if (lat === null || lon === null) {
-        return "../index.html";
-      }
-
-      const backParams = new URLSearchParams({
-        from: "geoquery",
-        lat: String(lat),
-        lon: String(lon),
-        zoom: zoom || "14",
-        basemap: basemap || "osm"
-      });
-
-      if (viewLat && viewLon) {
-        backParams.set("viewLat", viewLat);
-        backParams.set("viewLon", viewLon);
-      }
-
-      return `../index.html?${backParams.toString()}`;
-    }
-
-    (function initGeoQuery() {
-      const params = new URLSearchParams(window.location.search);
-      const lat = Number.parseFloat(params.get("lat"));
-      const lon = Number.parseFloat(params.get("lon"));
-      const site = getParam(params, "site", "geonoxa");
-      const basemapParam = (getParam(params, "basemap", "osm") || "osm").toLowerCase();
-      let currentBasemap = basemapParam === "sat" ? "sat" : "osm";
-      const zoomFromIndex = getParam(params, "zoom", "14");
-      const viewLat = getParam(params, "viewLat", null);
-      const viewLon = getParam(params, "viewLon", null);
-      const valid = isValidCoordinate(lat, lon);
-
-      const elements = {
-        cardLat: document.getElementById("card-lat"),
-        cardLon: document.getElementById("card-lon"),
-        cardSite: document.getElementById("card-site"),
-        cardStatus: document.getElementById("card-status"),
-        latDecimal: document.getElementById("lat-decimal"),
-        lonDecimal: document.getElementById("lon-decimal"),
-        latDms: document.getElementById("lat-dms"),
-        lonDms: document.getElementById("lon-dms"),
-        detailStatus: document.getElementById("detail-status"),
-        invalidMessage: document.getElementById("invalid-message"),
-        detailsPanel: document.getElementById("details-panel"),
-        backLink: document.getElementById("back-link"),
-        visualCaption: document.getElementById("visual-caption")
-      };
-
-      elements.cardSite.textContent = site;
-
-      if (!valid) {
-        window.geoQueryState = {
-          site,
-          lat: null,
-          lon: null,
-          lat_decimal: null,
-          lon_decimal: null,
-          lat_dms: null,
-          lon_dms: null,
-          view_lat: viewLat,
-          view_lon: viewLon,
-          crs: "WGS84 / EPSG:4326",
-          source: "url_params",
-          basemap: currentBasemap,
-          zoom_from_index: getParam(params, "zoom", null),
-          map_reference_scale: "1:20.000",
-          map_reference_zoom: null,
-          timestamp: new Date().toISOString()
-        };
-
-        elements.cardStatus.textContent = "Sin coordenada";
-        elements.cardStatus.classList.add("status-error");
-        elements.invalidMessage.hidden = false;
-        elements.detailsPanel.hidden = true;
-        elements.backLink.href = "../index.html";
-        elements.visualCaption.textContent = "No se recibió una coordenada válida.";
-        return;
-      }
-
-      const latDecimal = lat.toFixed(6);
-      const lonDecimal = lon.toFixed(6);
-      const latDms = decimalToDMS(lat, "lat");
-      const lonDms = decimalToDMS(lon, "lon");
-      const targetZoom = getZoomForApproxScale(lat, 20000);
-
-      window.geoQueryState = {
-        site,
-        lat,
-        lon,
-        lat_decimal: latDecimal,
-        lon_decimal: lonDecimal,
-        lat_dms: latDms,
-        lon_dms: lonDms,
-        view_lat: viewLat,
-        view_lon: viewLon,
-        crs: "WGS84 / EPSG:4326",
-        source: "url_params",
-        basemap: currentBasemap,
-        zoom_from_index: getParam(params, "zoom", null),
-        map_reference_scale: "1:20.000",
-        map_reference_zoom: targetZoom,
-        timestamp: new Date().toISOString()
-      };
-
-      elements.cardLat.textContent = latDecimal;
-      elements.cardLon.textContent = lonDecimal;
-      elements.cardStatus.textContent = "Válida";
-      elements.cardStatus.classList.add("status-ok");
-      elements.latDecimal.textContent = latDecimal;
-      elements.lonDecimal.textContent = lonDecimal;
-      elements.latDms.textContent = latDms;
-      elements.lonDms.textContent = lonDms;
-      elements.detailStatus.textContent = "preparado para análisis territorial";
-      elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
-
-      // Regla futura GeoQuery:
-      // En la versión analítica completa, el zoom y la posición del mapa
-      // dependerán del punto consultado y de la feature relacionada encontrada.
-      // Por ahora se usa una escala de referencia 1:20.000 centrada en el punto.
-      const geoQueryMap = L.map("geoquery-map", {
-        zoomControl: true,
-        zoomSnap: 0.25,
-        zoomDelta: 0.25
-      });
-
-      const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 20,
-        attribution: "&copy; OpenStreetMap"
-      });
-
-      const satLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 20,
-        attribution: "Tiles &copy; Esri"
-      });
-
-      const toggle = L.DomUtil.create("div", "map-toggle");
-      toggle.innerHTML = `
-        <button id="geoquery-osm-btn" class="map-toggle-btn" type="button" data-map="osm">OSM</button>
-        <button id="geoquery-sat-btn" class="map-toggle-btn" type="button" data-map="sat">SAT</button>
-      `;
-      document.getElementById("geoquery-map").appendChild(toggle);
-      L.DomEvent.disableClickPropagation(toggle);
-      L.DomEvent.disableScrollPropagation(toggle);
-
-      const osmButton = toggle.querySelector('[data-map="osm"]');
-      const satButton = toggle.querySelector('[data-map="sat"]');
-
-      function updateReturnLink() {
-        elements.backLink.href = buildReturnUrl(lat, lon, zoomFromIndex || "14", currentBasemap, viewLat, viewLon);
-      }
-
-      function setBasemapButtonActive(type) {
-        const osmBtn = document.getElementById("geoquery-osm-btn");
-        const satBtn = document.getElementById("geoquery-sat-btn");
-
-        if (!osmBtn || !satBtn) return;
-
-        osmBtn.classList.toggle("active", type === "osm");
-        satBtn.classList.toggle("active", type === "sat");
-      }
-
-      function setBasemap(type) {
-        if (type === currentBasemap && (geoQueryMap.hasLayer(osmLayer) || geoQueryMap.hasLayer(satLayer))) {
-          setBasemapButtonActive(currentBasemap);
-          return;
-        }
-
-        if (geoQueryMap.hasLayer(osmLayer)) geoQueryMap.removeLayer(osmLayer);
-        if (geoQueryMap.hasLayer(satLayer)) geoQueryMap.removeLayer(satLayer);
-
-        if (type === "sat") {
-          satLayer.addTo(geoQueryMap);
-          currentBasemap = "sat";
-        } else {
-          osmLayer.addTo(geoQueryMap);
-          currentBasemap = "osm";
-        }
-
-        setBasemapButtonActive(currentBasemap);
-        window.geoQueryState.basemap = currentBasemap;
-        updateReturnLink();
-      }
-
-      osmButton.addEventListener("click", () => setBasemap("osm"));
-      satButton.addEventListener("click", () => setBasemap("sat"));
-
-      setBasemap(currentBasemap);
-      geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
-
-      L.circleMarker([lat, lon], {
-        radius: 7,
-        weight: 3,
-        fillOpacity: 0.9
-      }).addTo(geoQueryMap);
-
-      L.control.scale({
-        position: "bottomleft",
-        metric: true,
-        imperial: false,
-        maxWidth: 120
-      }).addTo(geoQueryMap);
-
-      updateReturnLink();
-      setTimeout(() => {
-        geoQueryMap.invalidateSize();
-        geoQueryMap.setView([lat, lon], targetZoom, { animate: false });
-      }, 150);
-    })();
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="geoquery.js"></script>
 </body>
 </html>
