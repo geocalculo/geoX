@@ -1670,7 +1670,7 @@
       }
     }
 
-    function buildReturnUrl(lat, lon, zoom, basemap) {
+    function buildReturnUrl(lat, lon, zoom, basemap, viewLat = null, viewLon = null) {
       if (lat === null || lon === null) {
         return "../index.html";
       }
@@ -1682,6 +1682,10 @@
         zoom: zoom || "14",
         basemap: basemap || "osm"
       });
+      if (Number.isFinite(Number(viewLat)) && Number.isFinite(Number(viewLon))) {
+        backParams.set("viewLat", String(viewLat));
+        backParams.set("viewLon", String(viewLon));
+      }
 
       return `../index.html?${backParams.toString()}`;
     }
@@ -1693,7 +1697,10 @@
       const site = getParam(params, "site", "geoipt");
       const basemapParam = (getParam(params, "basemap", "osm") || "osm").toLowerCase();
       let currentBasemap = basemapParam === "sat" ? "sat" : "osm";
-      const zoomFromIndex = getParam(params, "zoom", "14");
+      const zoomFromIndex = getParam(params, "zoom", getParam(params, "mapZoom", "14"));
+      const viewLat = getParam(params, "viewLat", getParam(params, "mapCenterLat", null));
+      const viewLon = getParam(params, "viewLon", getParam(params, "mapCenterLon", null));
+      const from = getParam(params, "from", null);
       const valid = isValidCoordinate(lat, lon);
 
       renderRelatedFeaturePanel(window.geoQuerySelectedFeatureResult || null);
@@ -1719,6 +1726,12 @@
       if (!valid) {
         window.geoQueryState = {
           site,
+          queryContext: { site, queryPoint: null, originalViewport: { centerLat: Number(viewLat), centerLon: Number(viewLon), zoom: Number(zoomFromIndex), basemap: currentBasemap }, from },
+          status: "error",
+          executiveSummary: "Coordenada inválida.",
+          groupResults: [],
+          mapState: { basemap: currentBasemap },
+          exportState: { pdfEnabled: false, kmlEnabled: false },
           lat: null,
           lon: null,
           lat_decimal: null,
@@ -1751,6 +1764,12 @@
 
       window.geoQueryState = {
         site,
+        queryContext: { site, queryPoint: { lat, lon }, originalViewport: { centerLat: Number(viewLat), centerLon: Number(viewLon), zoom: Number(zoomFromIndex), basemap: currentBasemap }, from },
+        status: "loading",
+        executiveSummary: "",
+        groupResults: [],
+        mapState: { basemap: currentBasemap, referenceScale: "1:20.000", referenceZoom: targetZoom },
+        exportState: { pdfEnabled: false, kmlEnabled: false },
         lat,
         lon,
         lat_decimal: latDecimal,
@@ -1768,7 +1787,7 @@
 
       elements.cardLat.textContent = latDecimal;
       elements.cardLon.textContent = lonDecimal;
-      elements.cardStatus.textContent = "Válida";
+      elements.cardStatus.textContent = "Analizando";
       elements.cardStatus.classList.add("status-ok");
       elements.latDecimal.textContent = latDecimal;
       elements.lonDecimal.textContent = lonDecimal;
@@ -1810,7 +1829,7 @@
       const satButton = toggle.querySelector('[data-map="sat"]');
 
       function updateReturnLink() {
-        elements.backLink.href = buildReturnUrl(lat, lon, zoomFromIndex || "14", currentBasemap);
+        elements.backLink.href = buildReturnUrl(lat, lon, zoomFromIndex || "14", currentBasemap, viewLat, viewLon);
       }
 
       function setBasemapButtonActive(type) {
@@ -1842,6 +1861,8 @@
 
         setBasemapButtonActive(currentBasemap);
         window.geoQueryState.basemap = currentBasemap;
+        window.geoQueryState.mapState.basemap = currentBasemap;
+        window.geoQueryState.queryContext.originalViewport.basemap = currentBasemap;
         updateReturnLink();
       }
 
@@ -1863,11 +1884,21 @@
       runGeoIptQueryAnalysis(lat, lon, geoQueryMap)
         .then(selectedFeatureResult => {
           window.geoQuerySelectedFeatureResult = selectedFeatureResult;
+          window.geoQueryState.groupResults = [selectedFeatureResult].filter(Boolean);
+          window.geoQueryState.status = selectedFeatureResult ? "resolved" : "empty";
+          window.geoQueryState.executiveSummary = selectedFeatureResult ? "Análisis territorial PRC resuelto." : "No se identificó una zona PRC relacionada para la coordenada consultada.";
+          window.geoQueryState.exportState = { pdfEnabled: Boolean(selectedFeatureResult), kmlEnabled: Boolean(selectedFeatureResult) };
+          elements.cardStatus.textContent = selectedFeatureResult ? "Resuelto" : "Sin resultados";
         })
         .catch(error => {
           console.warn("[GeoQuery GeoIPT] error buscando feature relacionada", error);
           renderRelatedFeaturePanel(null);
           renderGeometryPanel(null);
+          window.geoQueryState.status = "error";
+          window.geoQueryState.executiveSummary = "No fue posible resolver el análisis territorial PRC.";
+          elements.cardStatus.textContent = "Error de análisis";
+          elements.cardStatus.classList.remove("status-ok");
+          elements.cardStatus.classList.add("status-error");
         });
 
       L.control.scale({
