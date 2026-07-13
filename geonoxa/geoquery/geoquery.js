@@ -12,7 +12,7 @@ function dms(value, type) { const a=Math.abs(value); let d=Math.floor(a), mf=(a-
 function field(props, names) { for (const n of names || []) { const v = props?.[n]; if (v !== null && v !== undefined && String(v).trim() !== "") return v; } return null; }
 function normText(v) { return String(v ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
 function formatDistance(km) { return !Number.isFinite(km) ? "—" : km < 1 ? `${fmt.format(km * 1000)} m` : `${fmt.format(km)} km`; }
-function formatDistanceKm(km) { return Number.isFinite(km) ? `${fmtKm.format(km)} km` : null; }
+function formatDistanceKm(km) { return Number.isFinite(km) ? `${fmtKm.format(km)} km` : "N/D"; }
 function formatAreaM2(value) { const n = Number(value); return Number.isFinite(n) ? `${fmt.format(n)} m²` : null; }
 function cleanText(v) { const text = String(v ?? "").replace(/\s+/g, " ").trim(); return text && !["undefined", "null", "nan"].includes(text.toLowerCase()) ? text : null; }
 function displayRelaveTitle(r) { return cleanText(r.siteName) || cleanText(r.company) || cleanText(r.idRelave) || "Relave sin nombre informado"; }
@@ -27,7 +27,37 @@ function normalizeRelave(feature, layer, cfg, i) { const p=feature.properties||{
 function pollutant(p,cfg){ const rule=cfg.regla_contaminante||{}, ignore=(rule.ignorar||[]).map(v=>v===null?null:normText(v)); for(const key of [rule.principal,rule.fallback]) { const v=p?.[key]; if(v!==null&&v!==undefined&&!ignore.includes(normText(v))) return v; } return null; }
 function normalizeZona(feature, layer, cfg, i) { const p=feature.properties||{}; return {groupId:"zonas",sourceFile:layer.archivo,layerId:layer.id,featureId:field(p,cfg.campos.id)??`${layer.id}-${i}`,name:field(p,cfg.campos.nombre),condition:field(p,cfg.campos.condicion),pollutant:pollutant(p,cfg),saturatedValue:field(p,cfg.campos.saturado),latentValue:field(p,cfg.campos.latente),decree:field(p,cfg.campos.decreto),link:field(p,cfg.campos.link),regionCode:field(p,cfg.campos.region),officialArea:field(p,cfg.campos.superficie),originalProperties:p,feature:{type:"Feature",properties:p,geometry:feature.geometry}}; }
 function nearestOnBoundary(feature, queryPoint) { const line = turf.polygonToLine(feature); const snap = turf.nearestPointOnLine(line, queryPoint, {units:"kilometers"}); return { snap, distanceKm: snap.properties.dist }; }
-function analyzeRelaves(items, queryPoint, rules) { const max=rules.regla_busqueda?.cantidad_maxima || 10; const ranked=items.filter(x=>x.coordinates).map(x=>({...x,distanceKm:turf.distance(queryPoint,turf.point(x.coordinates),{units:"kilometers"})})).sort((a,b)=>a.distanceKm-b.distanceKm).slice(0,max); return {groupId:"relaves", status: ranked.length?"resolved":"empty", relation:"nearest_n", items:ranked, distanceKm:ranked[0]?.distanceKm??null, radiusKm:ranked.at(-1)?.distanceKm??null}; }
+function buildRelavesResult(selectedRelaves, rules) {
+  const clusterRadiusKm = selectedRelaves.at(-1)?.distanceKm ?? null;
+  const dominant = dominantResource(selectedRelaves);
+  const dominantResourceRelavesList = dominantResourceRelaves(selectedRelaves, dominant);
+  const pointRelationStats = pointDistanceStats(selectedRelaves);
+  const pairwiseStats = pairDistanceStats(selectedRelaves);
+  const dominantPointRelationStats = pointDistanceStats(dominantResourceRelavesList);
+  const dominantPairwiseStats = pairDistanceStats(dominantResourceRelavesList);
+  return {
+    groupId: "relaves",
+    status: selectedRelaves.length > 0 ? "resolved" : "empty",
+    relation: selectedRelaves.length > 0 ? "nearest_n" : "none",
+    selectedRelaves,
+    selectedCount: selectedRelaves.length,
+    clusterRadiusKm,
+    dominantResource: dominant?.resource || null,
+    dominantResourceCount: dominant?.count || 0,
+    dominantResourcePercentage: dominant && selectedRelaves.length ? (dominant.count / selectedRelaves.length) * 100 : null,
+    dominantResourceRelaves: dominantResourceRelavesList,
+    pointRelationStats,
+    pairwiseStats,
+    dominantPointRelationStats,
+    dominantPairwiseStats,
+    sourceFile: selectedRelaves[0]?.sourceFile || rules?.capas?.find(layer => layer?.activo)?.archivo || null,
+    items: selectedRelaves,
+    distanceKm: pointRelationStats.minKm,
+    radiusKm: clusterRadiusKm,
+    error: null
+  };
+}
+function analyzeRelaves(items, queryPoint, rules) { const max=rules.regla_busqueda?.cantidad_maxima || 10; const ranked=items.filter(x=>x.coordinates).map(x=>({...x,distanceKm:turf.distance(queryPoint,turf.point(x.coordinates),{units:"kilometers"})})).sort((a,b)=>a.distanceKm-b.distanceKm).slice(0,max); return buildRelavesResult(ranked, rules); }
 function analyzeZonas(items, queryPoint) { const containing=[]; for(const item of items){ try{ if(turf.booleanPointInPolygon(queryPoint,item.feature)) containing.push(item); }catch{} } if(containing.length) return {groupId:"zonas",status:"resolved",relation:"intersects",items:containing,distanceKm:0}; let nearest=null; for(const item of items){ try{ const n=nearestOnBoundary(item.feature,queryPoint); if(!nearest||n.distanceKm<nearest.distanceKm) nearest={...item,...n}; }catch{} } return nearest ? {groupId:"zonas",status:"resolved",relation:"nearest",items:[nearest],distanceKm:nearest.distanceKm,nearestPoint:nearest.snap} : {groupId:"zonas",status:"empty",relation:"none",items:[]}; }
 function renderRelaveMetadataItem(r, idx) {
   const details = [
@@ -80,16 +110,23 @@ function renderAnalysisCategory(title, detailRows) {
   return `<div class="subpanel analysis-category"><h4>${escapeHtml(title)}</h4>${rows(detailRows.filter(([,v])=>v!==null&&v!==undefined&&v!==""))}</div>`;
 }
 function relaveContext(result) {
-  const selectedRelaves = result.items || [];
-  const dominant = dominantResource(selectedRelaves);
-  const dominantRelaves = dominantResourceRelaves(selectedRelaves, dominant);
+  const selectedRelaves = Array.isArray(result?.selectedRelaves) ? result.selectedRelaves : (Array.isArray(result?.items) ? result.items : []);
+  const dominant = result?.dominantResource ? { resource: result.dominantResource, count: result.dominantResourceCount || dominantResource(selectedRelaves)?.count || 0 } : dominantResource(selectedRelaves);
+  const dominantRelaves = Array.isArray(result?.dominantResourceRelaves) ? result.dominantResourceRelaves : dominantResourceRelaves(selectedRelaves, dominant);
   return { selectedRelaves, dominant, dominantRelaves };
+}
+function shouldRenderRelaves(result) {
+  return Boolean(result && result.status === "resolved" && Array.isArray(result.selectedRelaves) && result.selectedRelaves.length > 0);
+}
+function safeRenderPanel(factory, label, result) {
+  try { return factory(); }
+  catch (error) { console.error(`[GeoNOXA][relaves][panel:${label}]`, error); if (result) result.renderError = error; return ""; }
 }
 function renderRelatedRelaves(result) {
   const { selectedRelaves, dominant, dominantRelaves } = relaveContext(result);
   const resourceCount = new Set(selectedRelaves.map(item => cleanText(item.resourceOriginal)).filter(Boolean).map(normText)).size;
   const missingResourceCount = selectedRelaves.filter(item => !cleanText(item.resourceOriginal)).length;
-  const share = dominant && selectedRelaves.length ? `${fmt.format((dominant.count / selectedRelaves.length) * 100)}%` : null;
+  const share = Number.isFinite(result.dominantResourcePercentage) ? `${fmt.format(result.dominantResourcePercentage)}%` : (dominant && selectedRelaves.length ? `${fmt.format((dominant.count / selectedRelaves.length) * 100)}%` : "N/D");
   const compositionRows = [["Total de relaves seleccionados", selectedRelaves.length], ["Recursos diferentes", resourceCount]];
   if (dominant) compositionRows.push(["Relaves del recurso dominante", dominantRelaves.length]);
   if (missingResourceCount) compositionRows.push(["Relaves sin recurso informado", missingResourceCount]);
@@ -110,13 +147,14 @@ function renderSpatialIndicators(result) {
   return `<section class="panel group-section"><h2>Indicadores de relación espacial</h2><dl class="details analysis-summary">${rows([["Tipo de relación","Cercanía al punto consultado"]]).replace(/^<dl class="details">|<\/dl>$/g, "")}</dl>${renderAnalysisCategory(`Relaves seleccionados · ${selectedRelaves.length}`, [["Distancia media desde el punto consultado", formatDistanceKm(selectedStats.meanKm)], ["Distancia mínima al punto consultado", formatDistanceKm(selectedStats.minKm)]])}${dominantPanel}</section>`;
 }
 function renderRelaveMetadata(result) {
+  const selectedRelaves = Array.isArray(result?.selectedRelaves) ? result.selectedRelaves : (result.items || []);
   const intro = "Relaves más cercanos usados para construir el clúster base.";
-  const metadataItems = (result.items || []).map((r,idx)=>renderRelaveMetadataItem(r,idx)).join("");
-  return `<section class="panel group-section"><div class="group-header"><div><h2>Metadata de relaves</h2><p class="placeholder-text">${intro}</p></div><span class="status-pill">${(result.items || []).length} relaves más cercanos</span></div><div class="metadata-project-list metadata-relave-list">${metadataItems || '<p>Sin relaves seleccionados disponibles.</p>'}</div></section>`;
+  const metadataItems = selectedRelaves.map((r,idx)=>renderRelaveMetadataItem(r,idx)).join("");
+  return `<section class="panel group-section"><div class="group-header"><div><h2>Metadata de relaves</h2><p class="placeholder-text">${intro}</p></div><span class="status-pill">${selectedRelaves.length} relaves más cercanos</span></div><div class="metadata-project-list metadata-relave-list">${metadataItems || '<p>Sin relaves seleccionados disponibles.</p>'}</div></section>`;
 }
 function renderRelaves(result,cfg,meta){
-  if(result.status!=="resolved") return "";
-  return `<div class="relaves-report-grid">${renderRelatedRelaves(result)}${renderGeometryDescriptors(result)}${renderSpatialIndicators(result)}${renderRelaveMetadata(result)}${GEOQUERY_DEBUG ? renderMetaPanel(meta) : ""}</div>`;
+  if(!shouldRenderRelaves(result)) return "";
+  return `<div class="relaves-report-grid">${safeRenderPanel(()=>renderRelatedRelaves(result), "relacionados", result)}${safeRenderPanel(()=>renderGeometryDescriptors(result), "geometria", result)}${safeRenderPanel(()=>renderSpatialIndicators(result), "indicadores", result)}${safeRenderPanel(()=>renderRelaveMetadata(result), "metadata", result)}${GEOQUERY_DEBUG ? renderMetaPanel(meta) : ""}</div>`;
 }
 function renderZonas(result,cfg,meta){
   if(result.status!=="resolved") return "";
@@ -127,10 +165,11 @@ function renderZonas(result,cfg,meta){
 }
 function renderMetaPanel(meta){ return `<section class="panel group-section"><h2>Metadata técnica</h2>${rows([["Features cargadas",meta.loaded],["Features en viewport original",meta.inViewport],["Universo",meta.universe],["Fuente viewport",meta.viewportSource]])}</section>`; }
 function buildRelavesSummary(result){
-  const { selectedRelaves, dominant } = relaveContext(result);
+  if (!shouldRenderRelaves(result)) return "";
+  const { selectedRelaves } = relaveContext(result);
   const fragments = [`Se analizaron ${selectedRelaves.length} relaves presentes en el viewport.`];
-  if (dominant && selectedRelaves.length) fragments.push(`El recurso dominante es ${dominant.resource}, con una participación del ${fmt.format((dominant.count / selectedRelaves.length) * 100)} %.`);
-  if (Number.isFinite(result.distanceKm)) fragments.push(`El relave más cercano se encuentra a ${formatDistanceKm(result.distanceKm)} del punto consultado.`);
+  if (result.dominantResource) fragments.push(`El recurso dominante es ${result.dominantResource}${Number.isFinite(result.dominantResourcePercentage) ? `, con una participación del ${fmt.format(result.dominantResourcePercentage)} %.` : "."}`);
+  if (Number.isFinite(result.pointRelationStats?.minKm)) fragments.push(`El relave más cercano se encuentra a ${formatDistanceKm(result.pointRelationStats.minKm)} del punto consultado.`);
   return fragments.join(" ");
 }
 function buildZonasSummary(result){
@@ -143,8 +182,8 @@ function buildZonasSummary(result){
 }
 function buildExecutiveSummary({ relavesResult, zonasResult }){
   const fragments=[];
-  if(relavesResult?.status==="resolved") fragments.push(buildRelavesSummary(relavesResult));
-  if(zonasResult?.status==="resolved") fragments.push(buildZonasSummary(zonasResult));
+  if(relavesResult?.status==="resolved") { try { fragments.push(buildRelavesSummary(relavesResult)); } catch(error) { console.error("[GeoNOXA][relaves][summary]", error); relavesResult.summaryError = error; } }
+  if(zonasResult?.status==="resolved") { try { fragments.push(buildZonasSummary(zonasResult)); } catch(error) { console.error("[GeoNOXA][zonas][summary]", error); zonasResult.summaryError = error; } }
   if(fragments.length===0 && relavesResult?.status==="empty" && zonasResult?.status==="empty") return "No se identificaron relaves ni zonas saturadas o latentes dentro del viewport consultado.";
   if(fragments.length===0) return "No se identificaron elementos territoriales dentro del viewport consultado.";
   return fragments.filter(Boolean).join(" ");
@@ -154,17 +193,17 @@ function deriveOverallStatus(relaves, zonas){
   const resolvedCount=results.filter(item=>item?.status==="resolved").length;
   const emptyCount=results.filter(item=>item?.status==="empty").length;
   const errorCount=results.filter(item=>item?.status==="error").length;
-  if(resolvedCount>0 && errorCount===0) return "Resuelto";
-  if(resolvedCount>0 && errorCount>0) return "Resuelto parcialmente";
-  if(resolvedCount===0 && emptyCount===2) return "Sin resultados en el viewport";
-  return "Error";
+  if(resolvedCount>0 && errorCount===0) return { code:"resolved", label:"Resuelto" };
+  if(resolvedCount>0 && errorCount>0) return { code:"partial", label:"Resuelto parcialmente" };
+  if(resolvedCount===0 && emptyCount===2) return { code:"empty", label:"Sin resultados en el viewport" };
+  return { code:"error", label:"Error de análisis" };
 }
 function buildReturnUrl(lat,lon,zoom,basemap,viewLat,viewLon){ const p=new URLSearchParams({from:"geoquery",lat:String(lat),lon:String(lon),zoom:String(zoom||14),basemap:basemap||"osm"}); if(Number.isFinite(viewLat)&&Number.isFinite(viewLon)){p.set("viewLat",viewLat);p.set("viewLon",viewLon)} return `../index.html?${p}`; }
 async function analyzeGroup(entry, queryPoint, viewport){ const base=getGroupBase(entry); const cfg=await fetchJson(new URL(entry.config,GEOQUERY_BASE_URL)); const rules=await fetchJson(new URL(entry.listado_query || `${entry.carpeta}/listado_query.json`, GEOQUERY_BASE_URL)); let loaded=0, normalized=[]; for(const layer of (rules.capas||[]).filter(l=>l.activo && safeLayerFile(l.archivo))){ const gj=await fetchJson(new URL(layer.archivo,base)); const feats=Array.isArray(gj.features)?gj.features:[]; loaded += feats.length; const visible=feats.filter(f=>featureIntersectsViewport(f,viewport)); normalized.push(...visible.map((f,i)=> cfg.id==="relaves"?normalizeRelave(f,layer,cfg,i):normalizeZona(f,layer,cfg,i))); }
  const meta={loaded,inViewport:normalized.length,universe:rules.regla_busqueda?.universo,viewportSource:viewport?.source||"no_disponible"}; const result=cfg.id==="relaves"?analyzeRelaves(normalized,queryPoint,rules):analyzeZonas(normalized,queryPoint,rules); return {entry,cfg,rules,result,meta}; }
 async function analyzeGroupSafe(entry, queryPoint, viewport){ try { return await analyzeGroup(entry, queryPoint, viewport); } catch(error) { const id = String(entry.id || entry.carpeta || "grupo").includes("zona") ? "zonas" : "relaves"; console.error(`[GeoNOXA][${id}] No fue posible resolver el grupo`, error); return {entry,cfg:{id,nombre:entry.nombre || id},rules:null,result:{groupId:id,status:"error",relation:"error",items:[],error},meta:{loaded:0,inViewport:0,universe:null,viewportSource:viewport?.source||"no_disponible"}}; } }
-function drawResult(map,layers,group){ const cfg=group.cfg, res=group.result; if(res.status!=="resolved") return; const style=cfg.estilo||{}; if(cfg.id==="relaves"){ res.items.forEach(r=>{ L.circleMarker([r.coordinates[1],r.coordinates[0]],{radius:6,color:style.color||"#ea580c",fillColor:style.fillColor||"#f97316",fillOpacity:.85,weight:2}).bindPopup(`${r.siteName||"Relave"}<br>${formatDistance(r.distanceKm)}`).addTo(layers.results); }); if(Number.isFinite(res.radiusKm)&&res.items[0]) L.circle([queryLat,queryLon],{radius:res.radiusKm*1000,color:style.color||"#ea580c",dashArray:"4 8",fill:false,weight:2}).addTo(layers.results); } else if(res.items[0]) { L.geoJSON(res.items[0].feature,{style:{color:style.color||"#7c2d12",fillColor:style.fillColor||"#fb923c",fillOpacity:style.fillOpacity??.25,weight:style.weight||2}}).addTo(layers.results); if(res.nearestPoint){ const c=res.nearestPoint.geometry.coordinates; L.polyline([[queryLat,queryLon],[c[1],c[0]]],{color:"#7c2d12",dashArray:"4 6"}).addTo(layers.results); } } }
+function drawResult(map,layers,group){ const cfg=group.cfg, res=group.result; if(res.status!=="resolved") return; const style=cfg.estilo||{}; if(cfg.id==="relaves"){ (res.selectedRelaves || res.items || []).forEach(r=>{ L.circleMarker([r.coordinates[1],r.coordinates[0]],{radius:6,color:style.color||"#ea580c",fillColor:style.fillColor||"#f97316",fillOpacity:.85,weight:2}).bindPopup(`${r.siteName||"Relave"}<br>${formatDistance(r.distanceKm)}`).addTo(layers.results); }); if(Number.isFinite(res.clusterRadiusKm ?? res.radiusKm)&&(res.selectedRelaves || res.items || [])[0]) L.circle([queryLat,queryLon],{radius:(res.clusterRadiusKm ?? res.radiusKm)*1000,color:style.color||"#ea580c",dashArray:"4 8",fill:false,weight:2}).addTo(layers.results); } else if(res.items[0]) { L.geoJSON(res.items[0].feature,{style:{color:style.color||"#7c2d12",fillColor:style.fillColor||"#fb923c",fillOpacity:style.fillOpacity??.25,weight:style.weight||2}}).addTo(layers.results); if(res.nearestPoint){ const c=res.nearestPoint.geometry.coordinates; L.polyline([[queryLat,queryLon],[c[1],c[0]]],{color:"#7c2d12",dashArray:"4 6"}).addTo(layers.results); } } }
 let queryLat, queryLon;
 (async function init(){ const params=new URLSearchParams(location.search); const lat=num(params,"lat"), lon=num(params,"lon"); queryLat=lat; queryLon=lon; const viewLat=num(params,"viewLat")??num(params,"mapCenterLat"), viewLon=num(params,"viewLon")??num(params,"mapCenterLon"), zoom=num(params,"zoom")??14, basemap=(params.get("basemap")||"osm").toLowerCase()==="sat"?"sat":"osm"; const els={back:$("back-link"),status:$("card-status"),groups:$("geoquery-groups"),summary:$("executive-summary"),load:$("groups-load-status")}; if(els.back) els.back.href=validLatLon(lat,lon)?buildReturnUrl(lat,lon,zoom,basemap,viewLat,viewLon):"../index.html"; [[$("card-lat"),lat?.toFixed(6)],[$("card-lon"),lon?.toFixed(6)],[$("card-site"),(params.get("site")||"geonoxa").toUpperCase()],[$("lat-decimal"),lat?.toFixed(6)],[$("lon-decimal"),lon?.toFixed(6)],[$("lat-dms"),Number.isFinite(lat)?dms(lat,"lat"):"—"],[$("lon-dms"),Number.isFinite(lon)?dms(lon,"lon"):"—"]].forEach(([e,v])=>{if(e)e.textContent=v||"—"}); if(!validLatLon(lat,lon)){ if(els.status) els.status.textContent="Coordenada inválida"; return; }
  const map=L.map("geoquery-map",{tap:true,scrollWheelZoom:true}); const osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}); const sat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:20,attribution:"Tiles &copy; Esri"}); (basemap==="sat"?sat:osm).addTo(map); map.setView([lat,lon],zoom); const layers={results:L.layerGroup().addTo(map)}; L.circleMarker([lat,lon],{radius:7,weight:3,color:"#111827",fillColor:"#facc15",fillOpacity:.95}).bindPopup("Punto consultado").addTo(map); L.control.scale({metric:true,imperial:false}).addTo(map);
- const viewport=parseViewport(params); const registry=await fetchJson(new URL("listado.json",GEOQUERY_BASE_URL)); const entries=(registry.grupos||[]).filter(g=>g.activo).sort((a,b)=>(a.orden||0)-(b.orden||0)); const queryPoint=turf.point([lon,lat]); const groups=await Promise.all(entries.map(e=>analyzeGroupSafe(e,queryPoint,viewport))); window.geoQueryState={site:"geonoxa",lat,lon,basemap,originalViewport:viewport,groupResults:groups}; groups.forEach(g=>drawResult(map,layers,g)); if(layers.results.getLayers().length){ const b=layers.results.getBounds(); if(b.isValid()) map.fitBounds(b.pad(0.2),{maxZoom:14}); } const relavesGroup=groups.find(g=>g.cfg.id==="relaves"); const zonasGroup=groups.find(g=>g.cfg.id==="zonas"); if(els.groups) els.groups.innerHTML=groups.map(g=>g.cfg.id==="relaves"?renderRelaves(g.result,g.cfg,g.meta):renderZonas(g.result,g.cfg,g.meta)).join(""); if(els.summary) els.summary.textContent=buildExecutiveSummary({relavesResult:relavesGroup?.result,zonasResult:zonasGroup?.result}); const overallStatus=deriveOverallStatus(relavesGroup?.result,zonasGroup?.result); if(els.status){ els.status.textContent=overallStatus; els.status.classList.toggle("status-ok", overallStatus==="Resuelto"); els.status.classList.toggle("status-warning", overallStatus==="Resuelto parcialmente" || overallStatus==="Sin resultados en el viewport"); els.status.classList.toggle("status-error", overallStatus==="Error"); } if($("detail-status")) $("detail-status").textContent=overallStatus; if(els.load) els.load.textContent=GEOQUERY_DEBUG?`${groups.length} grupos cargados desde listado.json; análisis limitado al viewport original (${viewport?.source || "sin viewport"}).`:""; const tech=$("geoquery-technical-metadata"); if(tech) tech.hidden=!GEOQUERY_DEBUG; const downloads=$("geoquery-downloads-panel"); if(downloads) downloads.hidden=!groups.some(g=>g.result.status==="resolved"); setTimeout(()=>map.invalidateSize(),150); })().catch(err=>{ console.error(err); const s=$("card-status"); if(s){s.textContent="Error de análisis";s.classList.add("status-error");} const g=$("geoquery-groups"); if(g) g.innerHTML=`<section class="panel"><p class="placeholder-text">${escapeHtml(err.message)}</p></section>`; });
+ const viewport=parseViewport(params); const registry=await fetchJson(new URL("listado.json",GEOQUERY_BASE_URL)); const entries=(registry.grupos||[]).filter(g=>g.activo).sort((a,b)=>(a.orden||0)-(b.orden||0)); const queryPoint=turf.point([lon,lat]); console.log("[GeoNOXA] Inicio análisis"); const groups=await Promise.all(entries.map(e=>analyzeGroupSafe(e,queryPoint,viewport))); const relavesGroup=groups.find(g=>g.cfg.id==="relaves"); const zonasGroup=groups.find(g=>g.cfg.id==="zonas"); const relavesResult=relavesGroup?.result; const zonasResult=zonasGroup?.result; console.log("[GeoNOXA] Resultado relaves calculado", relavesResult); console.log("[GeoNOXA] Resultado zonas calculado", zonasResult); window.geoQueryState={site:"geonoxa",lat,lon,basemap,originalViewport:viewport,groups,groupResults:{relaves:relavesResult,zonas:zonasResult}}; groups.forEach(g=>drawResult(map,layers,g)); if(els.groups) { els.groups.replaceChildren(); const html=[]; console.log("[GeoNOXA] Antes de renderizar relaves"); if(relavesGroup) { try { html.push(renderRelaves(relavesResult,relavesGroup.cfg,relavesGroup.meta)); } catch(error) { console.error("[GeoNOXA][relaves][render]", error); if(relavesResult) relavesResult.renderError = error; } } console.log("[GeoNOXA] Antes de renderizar zonas"); if(zonasGroup) { try { html.push(renderZonas(zonasResult,zonasGroup.cfg,zonasGroup.meta)); } catch(error) { console.error("[GeoNOXA][zonas][render]", error); if(zonasResult) zonasResult.renderError = error; } } els.groups.innerHTML=html.filter(Boolean).join(""); } console.log("[GeoNOXA] Antes de resumen ejecutivo"); if(els.summary) els.summary.textContent=buildExecutiveSummary({relavesResult,zonasResult}); console.log("[GeoNOXA] Antes de derivar estado general"); const overallStatus=deriveOverallStatus(relavesResult,zonasResult); console.table({relavesStatus:relavesResult?.status,selectedCount:relavesResult?.selectedRelaves?.length,clusterRadiusKm:relavesResult?.clusterRadiusKm,dominantResource:relavesResult?.dominantResource,zonasStatus:zonasResult?.status,overallStatus:overallStatus?.label}); if(els.status){ els.status.textContent=overallStatus.label; els.status.classList.toggle("status-ok", overallStatus.code==="resolved"); els.status.classList.toggle("status-warning", overallStatus.code==="partial" || overallStatus.code==="empty"); els.status.classList.toggle("status-error", overallStatus.code==="error"); } if($("detail-status")) $("detail-status").textContent=overallStatus.label; if(layers.results.getLayers().length){ const b=layers.results.getBounds(); if(b.isValid()) map.fitBounds(b.pad(0.2),{maxZoom:14}); } if(els.load) els.load.textContent=GEOQUERY_DEBUG?`${groups.length} grupos cargados desde listado.json; análisis limitado al viewport original (${viewport?.source || "sin viewport"}).`:""; const tech=$("geoquery-technical-metadata"); if(tech) tech.hidden=!GEOQUERY_DEBUG; const downloads=$("geoquery-downloads-panel"); if(downloads) downloads.hidden=!groups.some(g=>g.result.status==="resolved"); setTimeout(()=>map.invalidateSize(),150); })().catch(err=>{ console.error("[GeoNOXA][init]", err); const s=$("card-status"); if(s){s.textContent="Error de análisis";s.classList.add("status-error");} const g=$("geoquery-groups"); if(g) g.innerHTML=`<section class="panel"><p class="placeholder-text">${escapeHtml(err.message)}</p></section>`; });
