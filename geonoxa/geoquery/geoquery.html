@@ -420,7 +420,8 @@
     }
 
 
-    .relaves-report-grid {
+    .relaves-report-grid,
+    .zonas-report-grid {
       display: grid;
       grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
       gap: 18px;
@@ -535,7 +536,8 @@
       .geoquery-primary-grid,
       .geoquery-secondary-grid,
       .group-grid,
-      .relaves-report-grid {
+      .relaves-report-grid,
+      .zonas-report-grid {
         grid-template-columns: 1fr;
       }
 
@@ -682,7 +684,7 @@
 
       <section id="geoquery-groups" class="geoquery-section" aria-label="Resultados por grupo temático"></section>
 
-      <section id="geoquery-technical-metadata" class="panel geoquery-section group-section">
+      <section id="geoquery-technical-metadata" class="panel geoquery-section group-section" hidden>
         <h2>Metadata técnica</h2>
         <dl class="details" id="technical-metadata">
           <div class="detail-row"><dt>Registro de grupos</dt><dd>capas_geoquery/listado.json</dd></div>
@@ -691,9 +693,9 @@
         </dl>
       </section>
 
-      <section id="geoquery-downloads-panel" class="panel geoquery-section group-section">
+      <section id="geoquery-downloads-panel" class="panel geoquery-section group-section" hidden>
         <h2>Descargas PDF y KML</h2>
-        <p class="placeholder-text">La estructura de resultados por grupo queda disponible en <code>window.geoQueryState.groupResults</code> para exportaciones del ecosistema GeoX.</p>
+        <p class="placeholder-text">Exportaciones disponibles cuando exista información territorial asociada al punto consultado.</p>
         <div class="actions">
           <button class="download-button" type="button" disabled title="Disponible cuando exista el módulo de exportación GeoNOXA.">Descargar PDF</button>
           <button class="download-button" type="button" disabled title="Disponible cuando exista el módulo de exportación GeoNOXA.">Descargar KML</button>
