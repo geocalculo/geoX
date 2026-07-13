@@ -44,21 +44,77 @@ function renderRelaveMetadataItem(r, idx) {
 }
 function dominantResource(items) {
   const counts = new Map();
-  for (const item of items) { const key = cleanText(item.resourceOriginal); if (key) counts.set(key, (counts.get(key) || 0) + 1); }
-  let best = null; for (const [resource, count] of counts) if (!best || count > best.count) best = { resource, count };
+  for (const item of items) {
+    const resource = cleanText(item.resourceOriginal);
+    if (!resource) continue;
+    const key = normText(resource);
+    const current = counts.get(key) || { resource, count: 0 };
+    current.count += 1;
+    counts.set(key, current);
+  }
+  let best = null;
+  for (const value of counts.values()) if (!best || value.count > best.count) best = value;
   return best;
 }
+function dominantResourceRelaves(items, dominant) {
+  if (!dominant) return [];
+  const key = normText(dominant.resource);
+  return items.filter(item => normText(cleanText(item.resourceOriginal)) === key);
+}
+function mean(values) { return values.length ? values.reduce((a,b)=>a+b,0) / values.length : null; }
+function pairDistanceStats(items) {
+  const distances = [];
+  for (let i = 0; i < items.length - 1; i += 1) {
+    for (let j = i + 1; j < items.length; j += 1) {
+      if (items[i].coordinates && items[j].coordinates) distances.push(turf.distance(turf.point(items[i].coordinates), turf.point(items[j].coordinates), {units:"kilometers"}));
+    }
+  }
+  return { meanKm: mean(distances), minKm: distances.length ? Math.min(...distances) : null };
+}
+function pointDistanceStats(items) {
+  const distances = items.map(item => item.distanceKm).filter(Number.isFinite);
+  return { meanKm: mean(distances), minKm: distances.length ? Math.min(...distances) : null };
+}
+function renderAnalysisCategory(title, detailRows) {
+  return `<div class="subpanel analysis-category"><h4>${escapeHtml(title)}</h4>${rows(detailRows.filter(([,v])=>v!==null&&v!==undefined&&v!==""))}</div>`;
+}
+function relaveContext(result) {
+  const selectedRelaves = result.items || [];
+  const dominant = dominantResource(selectedRelaves);
+  const dominantRelaves = dominantResourceRelaves(selectedRelaves, dominant);
+  return { selectedRelaves, dominant, dominantRelaves };
+}
+function renderRelatedRelaves(result) {
+  const { selectedRelaves, dominant, dominantRelaves } = relaveContext(result);
+  const resourceCount = new Set(selectedRelaves.map(item => cleanText(item.resourceOriginal)).filter(Boolean).map(normText)).size;
+  const missingResourceCount = selectedRelaves.filter(item => !cleanText(item.resourceOriginal)).length;
+  const share = dominant && selectedRelaves.length ? `${fmt.format((dominant.count / selectedRelaves.length) * 100)}%` : null;
+  const compositionRows = [["Total de relaves seleccionados", selectedRelaves.length], ["Recursos diferentes", resourceCount], ["Relaves del recurso dominante", dominantRelaves.length]];
+  if (missingResourceCount) compositionRows.push(["Relaves sin recurso informado", missingResourceCount]);
+  return `<section class="panel group-section"><h2>Relaves relacionados</h2>${renderAnalysisCategory("Clúster base", [["Relaves más cercanos", selectedRelaves.length], ["Radio del clúster", formatDistanceKm(result.radiusKm)], ["Recurso dominante", dominant?.resource || "N/D"], ["Participación del recurso dominante", share || "N/D"]])}${renderAnalysisCategory("Composición del clúster", compositionRows)}</section>`;
+}
+function renderGeometryDescriptors(result) {
+  const { selectedRelaves, dominant, dominantRelaves } = relaveContext(result);
+  const selectedStats = pairDistanceStats(selectedRelaves);
+  const dominantStats = pairDistanceStats(dominantRelaves);
+  const dominantTitle = dominant ? `Recurso dominante · ${dominant.resource} · ${dominantRelaves.length} relaves` : "Recurso dominante · N/D · 0 relaves";
+  return `<section class="panel group-section"><h2>Descriptores geométricos</h2><dl class="details analysis-summary">${rows([["Radio del clúster", formatDistanceKm(result.radiusKm) || "N/D"]]).replace(/^<dl class="details">|<\/dl>$/g, "")}</dl>${renderAnalysisCategory(`Relaves seleccionados · ${selectedRelaves.length}`, [["Distancia media entre relaves", formatDistanceKm(selectedStats.meanKm) || "N/D"], ["Distancia mínima entre relaves", formatDistanceKm(selectedStats.minKm) || "N/D"]])}${renderAnalysisCategory(dominantTitle, [["Distancia media entre relaves", formatDistanceKm(dominantStats.meanKm) || "N/D"], ["Distancia mínima entre relaves", formatDistanceKm(dominantStats.minKm) || "N/D"]])}</section>`;
+}
 function renderSpatialIndicators(result) {
-  const items = result.items || [], distances = items.map(i => i.distanceKm).filter(Number.isFinite);
-  const avg = distances.length ? distances.reduce((a,b)=>a+b,0) / distances.length : null;
-  const dominant = dominantResource(items), share = dominant && items.length ? `${fmt.format((dominant.count / items.length) * 100)}%` : null;
-  return `<section class="panel group-section"><h2>Indicadores de relación espacial</h2>${rows([["Tipo de relación","Cercanía al punto consultado"],["Relaves seleccionados",items.length || null],["Distancia media desde el punto consultado",formatDistanceKm(avg)],["Distancia mínima al punto consultado",formatDistanceKm(result.distanceKm)],["Distancia máxima o radio del clúster",formatDistanceKm(result.radiusKm)],["Recurso dominante",dominant?.resource],["Participación del recurso dominante",share]].filter(([,v])=>v!==null&&v!==undefined&&v!==""))}</section>`;
+  const { selectedRelaves, dominant, dominantRelaves } = relaveContext(result);
+  const selectedStats = pointDistanceStats(selectedRelaves);
+  const dominantStats = pointDistanceStats(dominantRelaves);
+  const dominantTitle = dominant ? `Recurso dominante · ${dominant.resource} · ${dominantRelaves.length} relaves` : "Recurso dominante · N/D · 0 relaves";
+  return `<section class="panel group-section"><h2>Indicadores de relación espacial</h2><dl class="details analysis-summary">${rows([["Tipo de relación","Cercanía al punto consultado"]]).replace(/^<dl class="details">|<\/dl>$/g, "")}</dl>${renderAnalysisCategory(`Relaves seleccionados · ${selectedRelaves.length}`, [["Distancia media desde el punto consultado", formatDistanceKm(selectedStats.meanKm) || "N/D"], ["Distancia mínima al punto consultado", formatDistanceKm(selectedStats.minKm) || "N/D"]])}${renderAnalysisCategory(dominantTitle, [["Distancia media desde el punto consultado", formatDistanceKm(dominantStats.meanKm) || "N/D"]])}</section>`;
+}
+function renderRelaveMetadata(result) {
+  const intro = "Relaves más cercanos usados para construir el clúster base.";
+  const metadataItems = (result.items || []).map((r,idx)=>renderRelaveMetadataItem(r,idx)).join("");
+  return `<section class="panel group-section"><div class="group-header"><div><h2>Metadata de relaves</h2><p class="placeholder-text">${intro}</p></div><span class="status-pill">${(result.items || []).length} relaves más cercanos</span></div><div class="metadata-project-list metadata-relave-list">${metadataItems || '<p>Sin relaves seleccionados disponibles.</p>'}</div></section>`;
 }
 function renderRelaves(result,cfg,meta){
-  const intro = "Relaves más cercanos utilizados para construir el clúster de análisis.";
-  if(result.status==="empty") return `<div class="relaves-report-grid"><section class="panel group-section"><h2>Metadata de relaves</h2><p class="placeholder-text">No existen relaves presentes en el viewport consultado.</p></section>${renderSpatialIndicators({items:[],distanceKm:null,radiusKm:null})}</div>`;
-  const metadataItems = result.items.map((r,idx)=>renderRelaveMetadataItem(r,idx)).join("");
-  return `<div class="relaves-report-grid"><section class="panel group-section"><div class="group-header"><div><h2>Metadata de relaves</h2><p class="placeholder-text">${intro}</p></div><span class="status-pill">${result.items.length} relaves más cercanos</span></div><div class="metadata-project-list metadata-relave-list">${metadataItems}</div></section>${renderSpatialIndicators(result)}</div>`;
+  if(result.status==="empty") return `<div class="relaves-report-grid"><section class="panel group-section"><h2>Relaves relacionados</h2><p class="placeholder-text">No existen relaves presentes en el viewport consultado.</p></section>${renderGeometryDescriptors({items:[],distanceKm:null,radiusKm:null})}${renderSpatialIndicators({items:[],distanceKm:null,radiusKm:null})}${renderRelaveMetadata({items:[]})}</div>`;
+  return `<div class="relaves-report-grid">${renderRelatedRelaves(result)}${renderGeometryDescriptors(result)}${renderSpatialIndicators(result)}${renderRelaveMetadata(result)}</div>`;
 }
 function renderZonas(result,cfg,meta){ if(result.status==="empty") return `<section class="panel group-section"><h2>Grupo ${escapeHtml(cfg.nombre)}</h2><p class="placeholder-text">${escapeHtml(cfg.textos?.sin_resultados || "Sin resultados en el viewport original.")}</p>${renderMeta(meta)}</section>`; const z=result.items[0]; const label=result.relation==="intersects"?"Dentro de zona":"Zona más cercana"; return `<section class="panel group-section"><div class="group-header"><div><h2>Grupo ${escapeHtml(cfg.nombre)}</h2><p class="placeholder-text">${escapeHtml(cfg.nombre_largo)}</p></div><span class="status-pill">${label}</span></div><div class="group-grid"><div class="subpanel"><h4>Zona relacionada</h4>${rows([["Nombre",z.name],["Condición",z.condition],["Contaminante",z.pollutant],["Saturado",z.saturatedValue],["Latente",z.latentValue],["Decreto",z.decree],["Región CUT",z.regionCode],["Superficie",z.officialArea],["Distancia",formatDistance(result.distanceKm)]])}${z.link?`<p><a href="${escapeHtml(z.link)}" target="_blank" rel="noopener">Ver enlace normativo</a></p>`:""}</div></div>${renderMeta(meta)}</section>`; }
 function renderMeta(meta){ return `<div class="subpanel"><h4>Metadata técnica</h4>${rows([["Features cargadas",meta.loaded],["Features en viewport original",meta.inViewport],["Universo",meta.universe],["Fuente viewport",meta.viewportSource]])}</div>`; }
