@@ -591,6 +591,252 @@
         min-height: auto;
       }
     }
+
+
+    /* Compact analytical body aligned with GeoIPT GeoQuery. */
+    .geoquery-analysis {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .geoquery-analysis.content {
+      margin-top: 14px;
+      margin-bottom: 24px;
+    }
+
+    .geoquery-analysis .cards {
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .geoquery-analysis .card,
+    .geoquery-analysis .panel {
+      border-color: #dfe6ee;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07);
+    }
+
+    .geoquery-analysis .card {
+      min-height: 76px;
+      padding: 10px 12px;
+    }
+
+    .geoquery-analysis .card-label {
+      font-size: 11px;
+      letter-spacing: 0.055em;
+      line-height: 1.2;
+    }
+
+    .geoquery-analysis .card-value {
+      margin-top: 4px;
+      font-size: clamp(16px, 1.8vw, 20px);
+      line-height: 1.22;
+      font-weight: 750;
+    }
+
+    .geoquery-analysis .geoquery-primary-grid,
+    .geoquery-analysis .geoquery-secondary-grid,
+    .geoquery-analysis .group-grid,
+    .geoquery-analysis .relaves-report-grid,
+    .geoquery-analysis .zonas-report-grid {
+      gap: 12px;
+      align-items: start;
+    }
+
+    .geoquery-analysis .geoquery-primary-grid {
+      margin-bottom: 12px;
+    }
+
+    .geoquery-analysis .group-section {
+      margin-top: 12px;
+    }
+
+    .geoquery-analysis .panel {
+      padding: clamp(12px, 2vw, 18px);
+    }
+
+    .geoquery-analysis .panel h2,
+    .geoquery-analysis .panel h3,
+    .geoquery-analysis .section-title {
+      margin-bottom: 10px;
+      line-height: 1.18;
+      letter-spacing: -0.01em;
+    }
+
+    .geoquery-analysis .panel h2 {
+      font-size: 20px;
+    }
+
+    .geoquery-analysis .panel h3,
+    .geoquery-analysis .section-title {
+      font-size: 17px;
+    }
+
+    .geoquery-analysis .placeholder-text,
+    .geoquery-analysis .panel-header p,
+    .geoquery-analysis .visual-caption,
+    .geoquery-analysis .panel > p {
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .geoquery-analysis .panel-header p,
+    .geoquery-analysis .panel > p {
+      margin-bottom: 10px;
+    }
+
+    .geoquery-analysis .details,
+    .geoquery-analysis .analysis-summary {
+      gap: 7px;
+    }
+
+    .geoquery-analysis .detail-row {
+      grid-template-columns: minmax(132px, 190px) 1fr;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 9px;
+    }
+
+    .geoquery-analysis .detail-row dt,
+    .geoquery-analysis .detail-row dd {
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .geoquery-analysis #geoquery-map {
+      height: 360px;
+      margin-top: 10px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+    }
+
+    .geoquery-analysis .visual-caption {
+      margin-top: 8px;
+    }
+
+    .geoquery-analysis .analysis-category {
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+    }
+
+    .geoquery-analysis .analysis-category-title,
+    .geoquery-analysis .status-pill,
+    .geoquery-analysis .subsection-pill {
+      padding: 5px 9px;
+      font-size: 11px;
+      line-height: 1.2;
+      letter-spacing: 0.055em;
+    }
+
+    .geoquery-analysis .analysis-table {
+      font-size: 12px;
+    }
+
+    .geoquery-analysis .analysis-table th,
+    .geoquery-analysis .analysis-table td {
+      padding: 7px 8px;
+      line-height: 1.3;
+    }
+
+    .geoquery-analysis .group-header {
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .geoquery-analysis .subpanel {
+      border-radius: 9px;
+      padding: 10px;
+    }
+
+    .geoquery-analysis .subpanel h4 {
+      margin-bottom: 8px;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .geoquery-analysis .metadata-project-list {
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .geoquery-analysis .metadata-project-item {
+      border-radius: 9px;
+      padding: 9px 10px;
+      box-shadow: none;
+    }
+
+    .geoquery-analysis .metadata-project-main {
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .geoquery-analysis .metadata-project-title {
+      font-size: 13px;
+      line-height: 1.32;
+    }
+
+    .geoquery-analysis .metadata-project-details {
+      gap: 5px 10px;
+      padding-left: 32px;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .geoquery-analysis .metadata-project-details span {
+      line-height: 1.3;
+    }
+
+    .geoquery-analysis .project-expediente-badge {
+      min-width: 24px;
+      height: 24px;
+      font-size: 12px;
+    }
+
+    .geoquery-analysis .actions {
+      margin-top: 12px;
+      gap: 8px;
+    }
+
+    @media (max-width: 860px) {
+      .geoquery-analysis .geoquery-primary-grid,
+      .geoquery-analysis .geoquery-secondary-grid,
+      .geoquery-analysis .group-grid,
+      .geoquery-analysis .relaves-report-grid,
+      .geoquery-analysis .zonas-report-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .geoquery-analysis .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .geoquery-analysis.content {
+        width: min(100% - 20px, 1120px);
+        margin-top: 16px;
+      }
+
+      .geoquery-analysis #geoquery-map {
+        height: 320px;
+      }
+
+      .geoquery-analysis .cards,
+      .geoquery-analysis .detail-row,
+      .geoquery-analysis .metadata-project-details {
+        grid-template-columns: 1fr;
+      }
+
+      .geoquery-analysis .card {
+        min-height: auto;
+      }
+
+      .geoquery-analysis .panel {
+        padding: 14px 16px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -616,7 +862,7 @@
       <button class="download-button" type="button" disabled title="Disponible cuando exista análisis territorial.">Descargar KML</button>
     </nav>
 
-    <main class="content">
+    <main class="content geoquery-analysis">
       <!-- =====================================================
            02. CARDS RESUMEN DE GEOQUERY
       ===================================================== -->
