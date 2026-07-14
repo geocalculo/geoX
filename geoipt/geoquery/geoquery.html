@@ -347,9 +347,64 @@
     }
 
     .related-feature-grid,
-    .geometry-descriptor-grid {
+    .geometry-descriptor-grid,
+    .metadata-compact-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 12px;
+    }
+
+    .metadata-section {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .metadata-section:first-of-type {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .metadata-section h4 {
+      margin: 0 0 12px;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .metadata-compact-item,
+    .metadata-long-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      min-width: 0;
+    }
+
+    .metadata-compact-item span,
+    .metadata-long-item span {
+      display: block;
+      margin-bottom: 5px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metadata-compact-item strong,
+    .metadata-long-item div {
+      display: block;
+      color: #0f172a;
+      font-size: 15px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .metadata-long-stack {
+      display: grid;
       gap: 12px;
     }
 
@@ -430,7 +485,8 @@
 
     @media (max-width: 800px) {
       .related-feature-grid,
-      .geometry-descriptor-grid {
+      .geometry-descriptor-grid,
+      .metadata-compact-grid {
         grid-template-columns: 1fr 1fr;
       }
     }
@@ -454,7 +510,8 @@
 
     @media (max-width: 480px) {
       .related-feature-grid,
-      .geometry-descriptor-grid {
+      .geometry-descriptor-grid,
+      .metadata-compact-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -603,7 +660,7 @@
              07. METADATA DE FEATURES RELACIONADAS
         ===================================================== -->
         <section id="geoquery-metadata-panel" class="panel geoquery-section">
-          <h3>Metadata de features</h3>
+          <h3>Metadata de feature</h3>
           <p class="placeholder-text">Estado: fuente actual capas_geoquery/capas_XX/listado.json y GeoJSON regionales.</p>
         </section>
 
@@ -691,6 +748,119 @@
         .replace(/'/g, "&#039;");
     }
 
+    const GEOIPT_FIELD_ALIASES = {
+      region: ["REG", "REGION"],
+      commune: ["COM", "COMUNA"],
+      locality: ["LOC", "LOCALIDAD", "SECTOR"],
+      zoneCode: ["ZONA", "Zona"],
+      zoneName: ["NOM", "NOMBRE"],
+      permittedUses: ["UPERM", "UPE"],
+      prohibitedUses: ["UPROH", "UPO"],
+      documentDate: ["P_DO", "DO"],
+      documentNumber: ["N_DOC", "N_DO"],
+      documentType: ["T_DO"],
+      observations: ["OBS"]
+    };
+
+    function cleanText(value) {
+      if (value === null || value === undefined) return "";
+      return String(value)
+        .replace(/\r\n/g, "\n")
+        .replace(/[ \t]+/g, " ")
+        .trim();
+    }
+
+    function cleanLongText(value) {
+      return cleanText(value).replace(/\n{3,}/g, "\n\n");
+    }
+
+    function getAliasedProperty(properties, aliases) {
+      for (const alias of aliases) {
+        if (Object.prototype.hasOwnProperty.call(properties, alias)) {
+          const value = cleanText(properties[alias]);
+          if (value) return properties[alias];
+        }
+      }
+      return "";
+    }
+
+    function normalizeGeoIptFeatureMetadata(feature) {
+      const properties = feature?.properties || {};
+      return {
+        region: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.region)),
+        commune: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.commune)),
+        locality: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.locality)),
+        zoneCode: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.zoneCode)),
+        zoneName: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.zoneName)),
+        permittedUses: cleanLongText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.permittedUses)),
+        prohibitedUses: cleanLongText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.prohibitedUses)),
+        documentDate: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.documentDate)),
+        documentNumber: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.documentNumber)),
+        documentType: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.documentType)),
+        observations: cleanLongText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.observations)),
+        originalProperties: properties
+      };
+    }
+
+    function metadataCompactItem(label, value) {
+      if (!cleanText(value)) return "";
+      return `<div class="metadata-compact-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+    }
+
+    function metadataLongItem(label, value) {
+      if (!cleanLongText(value)) return "";
+      return `<div class="metadata-long-item"><span>${escapeHtml(label)}</span><div>${escapeHtml(value)}</div></div>`;
+    }
+
+    function renderMetadataPanel(geoIptResult) {
+      const panel = document.getElementById("geoquery-metadata-panel");
+      if (!panel) return;
+
+      if (!geoIptResult || !geoIptResult.relatedFeature || !geoIptResult.metadata) {
+        console.warn("[GeoQuery GeoIPT] Metadata no renderizada: no existe relatedFeature seleccionada.");
+        panel.innerHTML = "";
+        panel.hidden = true;
+        return;
+      }
+
+      const metadata = geoIptResult.metadata;
+      const territorialRows = [
+        metadataCompactItem("Región", metadata.region),
+        metadataCompactItem("Comuna", metadata.commune),
+        metadataCompactItem("Localidad", metadata.locality),
+        metadataCompactItem("Código de zona", metadata.zoneCode),
+        metadataCompactItem("Nombre de zona", metadata.zoneName)
+      ].join("");
+      const normativeRows = [
+        metadataLongItem("Usos permitidos", metadata.permittedUses),
+        metadataLongItem("Usos prohibidos", metadata.prohibitedUses),
+        metadataLongItem("Observaciones", metadata.observations)
+      ].join("");
+      const documentRows = [
+        metadataCompactItem("Tipo de documento", metadata.documentType),
+        metadataCompactItem("Número de documento", metadata.documentNumber),
+        metadataCompactItem("Fecha", metadata.documentDate)
+      ].join("");
+
+      const sections = [
+        territorialRows ? `<section class="metadata-section"><h4>Identificación territorial</h4><div class="metadata-compact-grid">${territorialRows}</div></section>` : "",
+        normativeRows ? `<section class="metadata-section"><h4>Normativa de la zona</h4><div class="metadata-long-stack">${normativeRows}</div></section>` : "",
+        documentRows ? `<section class="metadata-section"><h4>Documento normativo</h4><div class="metadata-compact-grid">${documentRows}</div></section>` : ""
+      ].join("");
+
+      if (!sections) {
+        panel.hidden = true;
+        panel.innerHTML = "";
+        return;
+      }
+
+      panel.hidden = false;
+      panel.innerHTML = `<h3>Metadata de feature</h3>${sections}`;
+    }
+
+    window.normalizeGeoIptFeatureMetadata = normalizeGeoIptFeatureMetadata;
+    window.renderMetadataPanel = renderMetadataPanel;
+
 
     function createGeoQueryDebugState() {
       return {
@@ -750,7 +920,8 @@
         return;
       }
 
-      const props = selectedFeatureResult.feature.properties || {};
+      const selectedFeature = selectedFeatureResult.relatedFeature || selectedFeatureResult.feature;
+      const props = selectedFeature.properties || {};
       const source = selectedFeatureResult.source || {};
       const relationType = selectedFeatureResult.relationLabel
         || selectedFeatureResult.selectedRelation
@@ -1530,6 +1701,7 @@
           panel.innerHTML = buildRelatedFeatureDiagnosticsHtml("No se indexaron PRC desde capas_geoquery. Revisar rutas y listado.json.");
         }
         renderGeometryPanel(null);
+        renderMetadataPanel(null);
         console.log("[GeoQuery GeoIPT] resultado final:", selectedFeatureResult);
         console.table(window.geoQueryDebug);
         console.log("[GeoQuery GeoIPT] DEBUG COMPLETO:", window.geoQueryDebug);
@@ -1547,6 +1719,17 @@
       if (selectedFeatureResult) updateResultDebug(selectedFeatureResult);
       renderRelatedFeaturePanel(selectedFeatureResult);
       renderGeometryPanel(selectedFeatureResult);
+      const selectedFeature = selectedFeatureResult?.spatialRelation?.relatedFeature || selectedFeatureResult?.relatedFeature || selectedFeatureResult?.feature || null;
+      if (selectedFeatureResult && selectedFeature) {
+        selectedFeatureResult.relatedFeature = selectedFeature;
+        selectedFeatureResult.metadata = normalizeGeoIptFeatureMetadata(selectedFeature);
+      }
+      const geoIptResult = selectedFeatureResult ? {
+        ...selectedFeatureResult,
+        relatedFeature: selectedFeature,
+        metadata: normalizeGeoIptFeatureMetadata(selectedFeature)
+      } : null;
+      renderMetadataPanel(geoIptResult);
       drawSelectedFeatureOnMap(geoQueryMap, selectedFeatureResult);
 
       console.log("[GeoQuery GeoIPT] resultado final:", selectedFeatureResult);
@@ -1884,6 +2067,8 @@
       runGeoIptQueryAnalysis(lat, lon, geoQueryMap)
         .then(selectedFeatureResult => {
           window.geoQuerySelectedFeatureResult = selectedFeatureResult;
+          window.geoQueryState.geoIptResult = selectedFeatureResult || null;
+          window.geoQueryState.metadata = selectedFeatureResult?.metadata || null;
           window.geoQueryState.groupResults = [selectedFeatureResult].filter(Boolean);
           window.geoQueryState.status = selectedFeatureResult ? "resolved" : "empty";
           window.geoQueryState.executiveSummary = selectedFeatureResult ? "Análisis territorial PRC resuelto." : "No se identificó una zona PRC relacionada para la coordenada consultada.";
@@ -1894,6 +2079,7 @@
           console.warn("[GeoQuery GeoIPT] error buscando feature relacionada", error);
           renderRelatedFeaturePanel(null);
           renderGeometryPanel(null);
+          renderMetadataPanel(null);
           window.geoQueryState.status = "error";
           window.geoQueryState.executiveSummary = "No fue posible resolver el análisis territorial PRC.";
           elements.cardStatus.textContent = "Error de análisis";
