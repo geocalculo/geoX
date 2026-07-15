@@ -5,7 +5,9 @@ const fmtKm = new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximum
 const GEOQUERY_DEBUG = false;
 
 function $(id) { return document.getElementById(id); }
-function escapeHtml(v) { return String(v ?? "—").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])); }
+function escapeHtml(v) { return String(v ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;",'"':"&quot;"}[c])); }
+function escapeXml(v) { return String(v ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&apos;",'"':"&quot;"}[c])); }
+function safeCdata(v) { return String(v ?? "").replace(/]]>/g, "]]]]><![CDATA[>"); }
 function num(params, key) { const v = Number(params.get(key)); return Number.isFinite(v) ? v : null; }
 function validLatLon(lat, lon) { return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180; }
 function dms(value, type) { const a=Math.abs(value); let d=Math.floor(a), mf=(a-d)*60, m=Math.floor(mf), s=Number(((mf-m)*60).toFixed(2)); if(s>=60){s=0;m++} if(m>=60){m=0;d++} return `${d}° ${m}' ${s.toFixed(2)}" ${type==="lat"?(value>=0?"N":"S"):(value>=0?"E":"W")}`; }
@@ -16,7 +18,7 @@ function formatDistanceKm(km) { return Number.isFinite(km) ? `${fmtKm.format(km)
 function formatAreaM2(value) { const n = Number(value); return Number.isFinite(n) ? `${fmt.format(n)} m²` : null; }
 function cleanText(v) { const text = String(v ?? "").replace(/\s+/g, " ").trim(); return text && !["undefined", "null", "nan"].includes(text.toLowerCase()) ? text : null; }
 function displayRelaveTitle(r) { return cleanText(r.siteName) || cleanText(r.company) || cleanText(r.idRelave) || "Relave sin nombre informado"; }
-function rows(items) { return `<dl class="details">${items.map(([k,v]) => `<div class="detail-row"><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join("")}</dl>`; }
+function rows(items) { return `<dl class="details">${items.filter(([,v])=>cleanText(v)).map(([k,v]) => `<div class="detail-row"><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join("")}</dl>`; }
 async function fetchJson(url) { const href = url.toString(); if (!caches.json.has(href)) caches.json.set(href, fetch(href, {cache:"no-store"}).then(r => { if(!r.ok) throw new Error(`${r.status} ${r.url}`); return r.json(); })); return caches.json.get(href); }
 function safeLayerFile(file) { return typeof file === "string" && file.trim() && !file.startsWith("/") && !/^[a-z][\w+.-]*:/i.test(file) && !file.split(/[\\/]+/).includes(".."); }
 function getGroupBase(entry) { return new URL(`${entry.carpeta}/`, GEOQUERY_BASE_URL); }
@@ -24,12 +26,13 @@ function parseViewport(params) { const west=num(params,"viewWest"), south=num(pa
 function featureIntersectsViewport(feature, viewport) { if (!viewport || !feature?.geometry) return false; try { return turf.booleanIntersects(feature, viewport.polygon || turf.bboxPolygon([viewport.west,viewport.south,viewport.east,viewport.north])); } catch { try { const b=turf.bbox(feature); return !(b[2] < viewport.west || b[0] > viewport.east || b[3] < viewport.south || b[1] > viewport.north); } catch { return false; } } }
 function pointCoords(feature, props, cfg) { const c = feature?.geometry?.type === "Point" ? feature.geometry.coordinates : null; if (Array.isArray(c) && validLatLon(Number(c[1]), Number(c[0]))) return [Number(c[0]), Number(c[1])]; const lon = Number(field(props, cfg.campos?.longitud)); const lat = Number(field(props, cfg.campos?.latitud)); return validLatLon(lat, lon) ? [lon, lat] : null; }
 function normalizeRelave(feature, layer, cfg, i) { const p=feature.properties||{}, c=pointCoords(feature,p,cfg); const res=field(p,cfg.campos.recurso); return {groupId:"relaves",sourceFile:layer.archivo,layerId:layer.id,featureId:field(p,cfg.campos.id)??`${layer.id}-${i}`,idRelave:field(p,cfg.campos.id),company:field(p,cfg.campos.empresa),siteName:field(p,cfg.campos.faena),depositType:field(p,cfg.campos.tipo_deposito),resourceOriginal:res,resourceNormalized:normText(res),commune:field(p,cfg.campos.comuna),areaM2:field(p,cfg.campos.area_m2),constructionMethod:field(p,cfg.campos.metodo_constructivo),coordinates:c,originalProperties:p,feature:{type:"Feature",properties:p,geometry:feature.geometry}}; }
-function pollutant(p,cfg){ const rule=cfg.regla_contaminante||{}, ignore=(rule.ignorar||[]).map(v=>v===null?null:normText(v)); for(const key of [rule.principal,rule.fallback]) { const v=p?.[key]; if(v!==null&&v!==undefined&&!ignore.includes(normText(v))) return v; } return null; }
+function pollutant(p,cfg){ const rule=cfg.regla_contaminante||{}, ignore=(rule.ignorar||[]).map(v=>v===null?null:normText(v)); for(const key of [rule.principal,rule.fallback]) { const v=p?.[key]; if(v!==null&&v!==undefined&&!ignore.includes(normText(v))) return v; } return "Sin contaminante informado"; }
 function normalizeZona(feature, layer, cfg, i) { const p=feature.properties||{}; return {groupId:"zonas",sourceFile:layer.archivo,layerId:layer.id,featureId:field(p,cfg.campos.id)??`${layer.id}-${i}`,name:field(p,cfg.campos.nombre),condition:field(p,cfg.campos.condicion),pollutant:pollutant(p,cfg),saturatedValue:field(p,cfg.campos.saturado),latentValue:field(p,cfg.campos.latente),decree:field(p,cfg.campos.decreto),link:field(p,cfg.campos.link),regionCode:field(p,cfg.campos.region),officialArea:field(p,cfg.campos.superficie),originalProperties:p,feature:{type:"Feature",properties:p,geometry:feature.geometry}}; }
 function nearestOnBoundary(feature, queryPoint) { const line = turf.polygonToLine(feature); const snap = turf.nearestPointOnLine(line, queryPoint, {units:"kilometers"}); return { snap, distanceKm: snap.properties.dist }; }
 function buildRelavesResult(selectedRelaves, rules) {
   const clusterRadiusKm = selectedRelaves.at(-1)?.distanceKm ?? null;
   const dominant = dominantResource(selectedRelaves);
+  selectedRelaves.forEach((relave, index) => { relave.rank = relave.rank || index + 1; relave.isDominantResource = Boolean(dominant && normText(cleanText(relave.resourceOriginal)) === normText(dominant.resource)); });
   const dominantResourceRelavesList = dominantResourceRelaves(selectedRelaves, dominant);
   const pointRelationStats = pointDistanceStats(selectedRelaves);
   const pairwiseStats = pairDistanceStats(selectedRelaves);
@@ -58,7 +61,7 @@ function buildRelavesResult(selectedRelaves, rules) {
   };
 }
 function analyzeRelaves(items, queryPoint, rules) { const max=rules.regla_busqueda?.cantidad_maxima || 10; const ranked=items.filter(x=>x.coordinates).map(x=>({...x,distanceKm:turf.distance(queryPoint,turf.point(x.coordinates),{units:"kilometers"})})).sort((a,b)=>a.distanceKm-b.distanceKm).slice(0,max); return buildRelavesResult(ranked, rules); }
-function analyzeZonas(items, queryPoint) { const containing=[]; for(const item of items){ try{ if(turf.booleanPointInPolygon(queryPoint,item.feature)) containing.push(item); }catch{} } if(containing.length) return {groupId:"zonas",status:"resolved",relation:"intersects",items:containing,distanceKm:0}; let nearest=null; for(const item of items){ try{ const n=nearestOnBoundary(item.feature,queryPoint); if(!nearest||n.distanceKm<nearest.distanceKm) nearest={...item,...n}; }catch{} } return nearest ? {groupId:"zonas",status:"resolved",relation:"nearest",items:[nearest],distanceKm:nearest.distanceKm,nearestPoint:nearest.snap} : {groupId:"zonas",status:"empty",relation:"none",items:[]}; }
+function analyzeZonas(items, queryPoint) { const containing=[]; for(const item of items){ try{ if(turf.booleanPointInPolygon(queryPoint,item.feature)) containing.push(item); }catch{} } if(containing.length) return {groupId:"zonas",status:"resolved",relation:"intersects",relationType:"intersects",items:containing,relatedFeature:containing[0]?.feature,distanceKm:0,minimumDistanceKm:null}; let nearest=null; for(const item of items){ try{ const n=nearestOnBoundary(item.feature,queryPoint); if(!nearest||n.distanceKm<nearest.distanceKm) nearest={...item,...n}; }catch{} } return nearest ? {groupId:"zonas",status:"resolved",relation:"nearest",relationType:"nearest",items:[nearest],relatedFeature:nearest.feature,distanceKm:nearest.distanceKm,minimumDistanceKm:nearest.distanceKm,nearestPoint:nearest.snap} : {groupId:"zonas",status:"empty",relation:"none",relationType:"none",items:[]}; }
 function renderRelaveMetadataItem(r, idx) {
   const details = [
     ["Empresa", cleanText(r.company)],
@@ -216,6 +219,62 @@ function setupMobileMapGesture(map, mapEl) {
   mapEl.addEventListener("touchcancel", () => map.dragging.disable(), { passive: true });
 }
 
+
+function isPresentValue(value) { if (value === null || value === undefined) return false; if (typeof value === "number") return Number.isFinite(value); if (typeof value === "object") return false; const text = String(value).trim(); return text !== "" && !["undefined", "null", "nan", "N/D", "—"].includes(text.toLowerCase()); }
+function htmlTable(rows) { return rows.length ? `<table>${rows.join("")}</table>` : ""; }
+function appendHtmlRow(target, label, value, options = {}) { if (!isPresentValue(value)) return; const htmlValue = options.html ? String(value) : escapeHtml(value); target.push(`<tr><th>${escapeHtml(label)}</th><td>${htmlValue}</td></tr>`); }
+function kmlData(entries) { const out = {}; entries.forEach(([name, displayName, value]) => { if (isPresentValue(value)) out[displayName || name] = value; }); return out; }
+function validHttpUrl(value) { const text = cleanText(value); return text && /^https?:\/\//i.test(text) ? text : null; }
+function formatPercent(value) { return Number.isFinite(value) ? `${fmt.format(value)}%` : null; }
+function formatOfficialArea(value) { return cleanText(value); }
+function relationLabel(result) { return (result?.relationType || result?.relation) === "intersects" ? "Punto dentro de la zona relacionada" : "Zona más cercana al punto consultado"; }
+function relaveTitle(relave) { return cleanText(relave?.siteName) || cleanText(relave?.company) || cleanText(relave?.idRelave) || "Relave relacionado"; }
+function buildGeoNoxaRelaveKmlDescription(relave, relavesResult) {
+  const total = relavesResult?.selectedRelaves?.length || relavesResult?.items?.length || null;
+  const rowsId = [];
+  appendHtmlRow(rowsId, "Empresa", relave.company || relave.originalProperties?.empresa);
+  appendHtmlRow(rowsId, "Faena", relave.siteName || relave.originalProperties?.faena);
+  appendHtmlRow(rowsId, "Recurso", relave.resourceOriginal || relave.originalProperties?.recurso);
+  appendHtmlRow(rowsId, "Tipo de depósito", relave.depositType || relave.originalProperties?.tipo_deposito);
+  appendHtmlRow(rowsId, "Comuna", relave.commune || relave.originalProperties?.comuna);
+  appendHtmlRow(rowsId, "Método constructivo", relave.constructionMethod || relave.originalProperties?.metodo_constructivo);
+  appendHtmlRow(rowsId, "Área", formatAreaM2(relave.areaM2 || relave.originalProperties?.shape_area_m2));
+  appendHtmlRow(rowsId, "ID relave", relave.idRelave || relave.originalProperties?.id_relave);
+  const rowsSpatial = [];
+  appendHtmlRow(rowsSpatial, "Ranking", `${relave.rank || ""}${total ? ` de ${total}` : ""}`);
+  appendHtmlRow(rowsSpatial, "Distancia al punto consultado", formatDistanceKm(relave.distanceKm));
+  appendHtmlRow(rowsSpatial, "Recurso dominante", relavesResult?.dominantResource);
+  appendHtmlRow(rowsSpatial, "Pertenece al recurso dominante", relave.isDominantResource ? "Sí" : "No");
+  appendHtmlRow(rowsSpatial, "Participación del recurso dominante", formatPercent(relavesResult?.dominantResourcePercentage));
+  appendHtmlRow(rowsSpatial, "Radio del clúster", formatDistanceKm(relavesResult?.clusterRadiusKm ?? relavesResult?.radiusKm));
+  appendHtmlRow(rowsSpatial, "Archivo de origen", relave.sourceFile || relavesResult?.sourceFile);
+  return `<h2>${escapeHtml(`${relave.rank || ""}. ${relaveTitle(relave)}`.trim())}</h2>${rowsId.length ? `<h3>Identificación del relave</h3>${htmlTable(rowsId)}` : ""}${rowsSpatial.length ? `<h3>Relación espacial</h3>${htmlTable(rowsSpatial)}` : ""}`;
+}
+function buildGeoNoxaRelaveExtendedData(relave, relavesResult) {
+  return kmlData([["ranking","Ranking",relave.rank],["id_relave","ID relave",relave.idRelave || relave.originalProperties?.id_relave],["faena","Faena",relave.siteName || relave.originalProperties?.faena],["empresa","Empresa",relave.company || relave.originalProperties?.empresa],["recurso","Recurso",relave.resourceOriginal || relave.originalProperties?.recurso],["tipo_deposito","Tipo de depósito",relave.depositType || relave.originalProperties?.tipo_deposito],["comuna","Comuna",relave.commune || relave.originalProperties?.comuna],["metodo_constructivo","Método constructivo",relave.constructionMethod || relave.originalProperties?.metodo_constructivo],["area","Área",formatAreaM2(relave.areaM2 || relave.originalProperties?.shape_area_m2)],["distancia","Distancia al punto consultado",formatDistanceKm(relave.distanceKm)],["recurso_dominante","Recurso dominante",relavesResult?.dominantResource],["pertenece_recurso_dominante","Pertenece al recurso dominante",relave.isDominantResource ? "Sí" : "No"],["archivo_origen","Archivo de origen",relave.sourceFile || relavesResult?.sourceFile]]);
+}
+function buildGeoNoxaZoneKmlDescription(metadata, result) {
+  const env = [];
+  appendHtmlRow(env, "Condición", metadata.condition);
+  appendHtmlRow(env, "Contaminante", metadata.pollutant);
+  appendHtmlRow(env, "Contaminante saturado", metadata.saturatedValue);
+  appendHtmlRow(env, "Contaminante latente", metadata.latentValue);
+  appendHtmlRow(env, "Código de región", metadata.regionCode);
+  appendHtmlRow(env, "Superficie oficial", formatOfficialArea(metadata.officialArea));
+  const norm = [];
+  appendHtmlRow(norm, "Decreto", metadata.decree);
+  const url = validHttpUrl(metadata.link);
+  appendHtmlRow(norm, "Enlace", url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Abrir documento normativo</a>` : metadata.link, {html:Boolean(url)});
+  const spatial = [];
+  appendHtmlRow(spatial, "Tipo de relación", relationLabel(result));
+  if ((result?.relationType || result?.relation) === "nearest") appendHtmlRow(spatial, "Distancia mínima al perímetro", formatDistanceKm(result.minimumDistanceKm ?? result.distanceKm));
+  appendHtmlRow(spatial, "Archivo de origen", metadata.sourceFile);
+  return `<h2>${escapeHtml(metadata.name || "Zona saturada o latente relacionada")}</h2>${env.length ? `<h3>Identificación ambiental</h3>${htmlTable(env)}` : ""}${norm.length ? `<h3>Documento normativo</h3>${htmlTable(norm)}` : ""}<h3>Relación espacial</h3>${htmlTable(spatial)}`;
+}
+function buildGeoNoxaZoneExtendedData(metadata, result) {
+  return kmlData([["identificador","Identificador",metadata.featureId],["nombre_zona","Nombre de zona",metadata.name],["condicion","Condición",metadata.condition],["contaminante","Contaminante utilizado",metadata.pollutant],["contaminante_saturado","Contaminante saturado",metadata.saturatedValue],["contaminante_latente","Contaminante latente",metadata.latentValue],["decreto","Decreto",metadata.decree],["enlace","Enlace",metadata.link],["codigo_regional","Código regional",metadata.regionCode],["superficie_oficial","Superficie oficial",formatOfficialArea(metadata.officialArea)],["tipo_relacion","Tipo de relación",relationLabel(result)],["distancia_minima","Distancia mínima",(result?.relationType || result?.relation) === "nearest" ? formatDistanceKm(result.minimumDistanceKm ?? result.distanceKm) : null],["archivo_origen","Archivo de origen",metadata.sourceFile]]);
+}
+
 function buildReturnUrl(lat,lon,zoom,basemap,viewLat,viewLon){ const p=new URLSearchParams({from:"geoquery",lat:String(lat),lon:String(lon),zoom:String(zoom||14),basemap:basemap||"osm"}); if(Number.isFinite(viewLat)&&Number.isFinite(viewLon)){p.set("viewLat",viewLat);p.set("viewLon",viewLon)} return `../index.html?${p}`; }
 async function analyzeGroup(entry, queryPoint, viewport){ const base=getGroupBase(entry); const cfg=await fetchJson(new URL(entry.config,GEOQUERY_BASE_URL)); const rules=await fetchJson(new URL(entry.listado_query || `${entry.carpeta}/listado_query.json`, GEOQUERY_BASE_URL)); let loaded=0, normalized=[]; for(const layer of (rules.capas||[]).filter(l=>l.activo && safeLayerFile(l.archivo))){ const gj=await fetchJson(new URL(layer.archivo,base)); const feats=Array.isArray(gj.features)?gj.features:[]; loaded += feats.length; const visible=feats.filter(f=>featureIntersectsViewport(f,viewport)); normalized.push(...visible.map((f,i)=> cfg.id==="relaves"?normalizeRelave(f,layer,cfg,i):normalizeZona(f,layer,cfg,i))); }
  const meta={loaded,inViewport:normalized.length,universe:rules.regla_busqueda?.universo,viewportSource:viewport?.source||"no_disponible"}; const result=cfg.id==="relaves"?analyzeRelaves(normalized,queryPoint,rules):analyzeZonas(normalized,queryPoint,rules); return {entry,cfg,rules,result,meta}; }
@@ -224,13 +283,53 @@ function drawResult(map,layers,group){ const cfg=group.cfg, res=group.result; if
 let queryLat, queryLon;
 
 function buildGeoNoxaMapExport(relavesResult, zonasResult) {
- const state=window.geoQueryState||{}; const theme=GeoQueryKmlExporter.themeFor("geonoxa"); const st=GeoQueryKmlExporter.themedStyle("geonoxa","line",{weight:3,fill:true}); const labelStyle={...st,kmlTextColor:theme.textColor,kmlHaloColor:theme.haloColor,labelScale:.9,iconScale:0}; const folders=[{id:"query",name:"Punto consultado"},{id:"cluster",name:"Clúster de relaves"},{id:"relaves",name:"Relaves seleccionados"},{id:"zonas",name:"Zona saturada o latente"},{id:"relations",name:"Relación espacial"},{id:"labels",name:"Etiquetas"}];
- const features=[{id:"query-point",folderId:"query",type:"point",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:{...st,fillOpacity:.95,weight:3},extendedData:{Latitud:state.lat,Longitud:state.lon,CRS:"WGS84 / EPSG:4326"},visible:true},{id:"query-label",folderId:"labels",type:"label",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:labelStyle,visible:true}];
+ const state=window.geoQueryState||{};
+ const theme=GeoQueryKmlExporter.themeFor("geonoxa");
+ const st=GeoQueryKmlExporter.themedStyle("geonoxa","line",{weight:3,fill:true});
+ const labelStyle={...st,kmlTextColor:theme.textColor,labelScale:.9,iconScale:0};
+ const folders=[{id:"query",name:"Punto consultado"},{id:"cluster",name:"Clúster de relaves"},{id:"relaves",name:"Relaves seleccionados"},{id:"zonas",name:"Zona saturada o latente"},{id:"relations",name:"Relación espacial"},{id:"labels",name:"Etiquetas"}];
+ const features=[{id:"query-point",folderId:"query",role:"query-point",type:"point",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:{...st,fillOpacity:.95,weight:3},description:`<h2>Punto consultado</h2>${htmlTable([`<tr><th>Latitud</th><td>${escapeHtml(state.lat)}</td></tr>`,`<tr><th>Longitud</th><td>${escapeHtml(state.lon)}</td></tr>`])}`,extendedData:{Latitud:state.lat,Longitud:state.lon,CRS:"WGS84 / EPSG:4326"},visible:true},{id:"query-label",folderId:"labels",role:"query-point",type:"label",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:labelStyle,description:"Punto consultado",extendedData:{Latitud:state.lat,Longitud:state.lon},visible:true}];
  const rels=Array.isArray(relavesResult?.selectedRelaves)?relavesResult.selectedRelaves:(relavesResult?.items||[]);
- if(relavesResult?.status==="resolved"&&rels.length){ const radius=relavesResult.clusterRadiusKm??relavesResult.radiusKm; if(Number.isFinite(radius)){ const circle=turf.circle([state.lon,state.lat],radius,{steps:128,units:"kilometers"}); features.push({id:"relaves-cluster",folderId:"cluster",type:"polygon",name:"Círculo del clúster de relaves",geometry:circle.geometry,style:st,extendedData:{Radio:formatDistanceKm(radius),"Recurso dominante":relavesResult.dominantResource,Participación:relavesResult.dominantResourcePercentage,Cantidad:rels.length},visible:true}); }
-  rels.slice(0,10).forEach((r,i)=>{ const name=`${i+1}. ${r.siteName||r.faena||"Relave"}`; features.push({id:`relave-${i+1}`,folderId:"relaves",type:"point",name,geometry:{type:"Point",coordinates:r.coordinates},style:{...st,fillOpacity:.85,weight:2},extendedData:{Ranking:i+1,Faena:r.siteName||r.faena,Empresa:r.company||r.empresa,Recurso:r.resource||r.recurso,"Tipo de depósito":r.depositType,"Método constructivo":r.constructionMethod,Comuna:r.commune,Área:r.area,Distancia:formatDistanceKm(r.distanceKm)},visible:true}); features.push({id:`relave-${i+1}-label`,folderId:"labels",type:"label",name,geometry:{type:"Point",coordinates:r.coordinates},style:labelStyle,visible:true}); }); }
- const z=zonasResult?.items?.[0]; if(zonasResult?.status==="resolved"&&z){ features.push({id:"zona-saturada-latente",folderId:"zonas",type:z.feature?.geometry?.type?.toLowerCase(),name:z.name||"Zona saturada o latente",geometry:z.feature?.geometry,style:st,extendedData:{Nombre:z.name,Condición:z.condition,Contaminante:z.pollutant,Decreto:z.decree,Región:z.regionCode,Superficie:z.officialArea,Relación:zonasResult.relation,Distancia:formatDistance(zonasResult.distanceKm)},visible:true}); const label=turf.pointOnFeature(z.feature)?.geometry?.coordinates; if(label) features.push({id:"zona-label",folderId:"labels",type:"label",name:z.name||"Zona",geometry:{type:"Point",coordinates:label},style:labelStyle,visible:true}); if(zonasResult.relation!=="intersects"&&zonasResult.nearestPoint?.geometry?.coordinates){ const p=zonasResult.nearestPoint.geometry.coordinates; const line=[[state.lon,state.lat],p]; const mid=turf.midpoint(turf.point(line[0]),turf.point(line[1])).geometry.coordinates; features.push({id:"zona-nearest-line",folderId:"relations",type:"line",name:"Distancia mínima al perímetro",geometry:{type:"LineString",coordinates:line},style:{...st,weight:3,opacity:1,dashArray:"4 6"},extendedData:{Distancia:formatDistance(zonasResult.distanceKm)},visible:true}); features.push({id:"zona-contact",folderId:"relations",type:"point",name:"Punto de contacto con perímetro",geometry:{type:"Point",coordinates:p},style:{...st,fillOpacity:1,weight:2,iconType:"contact"},visible:true}); features.push({id:"zona-distance-label",folderId:"labels",type:"label",name:`Distancia mínima: ${formatDistance(zonasResult.distanceKm)}`,geometry:{type:"Point",coordinates:mid},style:labelStyle,visible:true}); } }
- return {site:"geonoxa",documentName:"GeoQuery | GeoNOXA",documentDescription:state.executiveSummary,queryPoint:{lat:state.lat,lon:state.lon},folders,features};
+ if(relavesResult?.status==="resolved"&&rels.length){
+  const radius=relavesResult.clusterRadiusKm??relavesResult.radiusKm;
+  const selectedStats=pointDistanceStats(rels);
+  const resourceCount=new Set(rels.map(r=>cleanText(r.resourceOriginal)).filter(Boolean).map(normText)).size;
+  if(Number.isFinite(radius)){
+   const circle=turf.circle([state.lon,state.lat],radius,{steps:128,units:"kilometers"});
+   const clusterData=kmlData([["tipo","Tipo","Clúster de relaves"],["relaves_seleccionados","Relaves seleccionados",rels.length],["radio_cluster","Radio del clúster",formatDistanceKm(radius)],["recurso_dominante","Recurso dominante",relavesResult.dominantResource],["cantidad_recurso_dominante","Cantidad del recurso dominante",relavesResult.dominantResourceCount],["participacion_recurso_dominante","Participación del recurso dominante",formatPercent(relavesResult.dominantResourcePercentage)],["recursos_diferentes","Recursos diferentes",resourceCount],["distancia_minima","Distancia mínima al punto",formatDistanceKm(selectedStats.minKm)],["distancia_media","Distancia media desde el punto",formatDistanceKm(selectedStats.meanKm)],["distancia_maxima","Distancia máxima al punto",formatDistanceKm(radius)]]);
+   features.push({id:"geonoxa-cluster-circle",folderId:"cluster",role:"cluster-circle",type:"polygon",name:`Clúster de ${rels.length} relaves`,geometry:circle.geometry,style:st,description:`<h2>Clúster de ${escapeHtml(rels.length)} relaves</h2>${htmlTable(Object.entries(clusterData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:clusterData,visible:true});
+  }
+  rels.slice(0,10).forEach((r,i)=>{
+   const rank=r.rank || i+1;
+   const name=`${rank}. ${relaveTitle(r)}`;
+   const description=buildGeoNoxaRelaveKmlDescription({...r,rank},relavesResult);
+   const extendedData=buildGeoNoxaRelaveExtendedData({...r,rank},relavesResult);
+   const geometry=r.feature?.geometry || {type:"Point",coordinates:r.coordinates};
+   features.push({id:`geonoxa-relave-${rank}`,folderId:"relaves",groupId:"relaves",role:"relave-point",type:"point",name,geometry,style:{...st,fillOpacity:.85,weight:2},description,extendedData,properties:{...(r.originalProperties||{})},visible:true});
+   features.push({id:`geonoxa-relave-${rank}-label`,folderId:"labels",groupId:"relaves",role:"relave-point",type:"label",name,geometry:{type:"Point",coordinates:r.coordinates},style:labelStyle,description,extendedData,visible:true});
+  });
+ }
+ const z=(zonasResult?.items||[])[0];
+ if(zonasResult?.status==="resolved"&&z){
+  const zoneNameParts=[cleanText(z.name) || cleanText(z.condition) || "Zona saturada o latente relacionada", cleanText(z.pollutant)].filter(Boolean);
+  const zoneName=[...new Set(zoneNameParts)].join(" · ");
+  const description=buildGeoNoxaZoneKmlDescription(z,zonasResult);
+  const extendedData=buildGeoNoxaZoneExtendedData(z,zonasResult);
+  features.push({id:"geonoxa-related-zone",folderId:"zonas",groupId:"zonas",role:"related-zone",type:z.feature?.geometry?.type?.toLowerCase(),name:zoneName,geometry:z.feature?.geometry,style:st,description,extendedData,properties:{...(z.originalProperties||z.feature?.properties||{})},visible:true});
+  const label=turf.pointOnFeature(z.feature)?.geometry?.coordinates;
+  if(label) features.push({id:"geonoxa-related-zone-label",folderId:"labels",groupId:"zonas",role:"related-zone",type:"label",name:zoneName,geometry:{type:"Point",coordinates:label},style:labelStyle,description,extendedData,visible:true});
+  if((zonasResult.relationType||zonasResult.relation)!=="intersects"&&zonasResult.nearestPoint?.geometry?.coordinates){
+   const p=zonasResult.nearestPoint.geometry.coordinates;
+   const line=[[state.lon,state.lat],p];
+   const mid=turf.midpoint(turf.point(line[0]),turf.point(line[1])).geometry.coordinates;
+   const relationData=kmlData([["nombre_zona","Nombre de zona",z.name],["tipo_relacion","Tipo de relación",relationLabel(zonasResult)],["distancia_minima","Distancia mínima",formatDistanceKm(zonasResult.minimumDistanceKm ?? zonasResult.distanceKm)]]);
+   features.push({id:"geonoxa-zone-nearest-line",folderId:"relations",role:"nearest-line",type:"line",name:"Distancia mínima al perímetro",geometry:{type:"LineString",coordinates:line},style:{...st,weight:3,opacity:1,dashArray:"4 6"},description:`<h2>Distancia mínima al perímetro</h2>${htmlTable(Object.entries(relationData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:relationData,visible:true});
+   const contactData={...relationData,"Coordenadas del punto de contacto":`${fmt.format(p[1])}, ${fmt.format(p[0])}`};
+   features.push({id:"geonoxa-zone-contact-point",folderId:"relations",role:"contact-point",type:"point",name:"Punto de contacto con perímetro",geometry:{type:"Point",coordinates:p},style:{...st,fillOpacity:1,weight:2,iconType:"contact"},description:`<h2>Punto de contacto con perímetro</h2>${htmlTable(Object.entries(contactData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:contactData,visible:true});
+   features.push({id:"geonoxa-zone-distance-label",folderId:"labels",role:"distance-label",type:"label",name:`Distancia mínima: ${formatDistanceKm(zonasResult.minimumDistanceKm ?? zonasResult.distanceKm)}`,geometry:{type:"Point",coordinates:mid},style:labelStyle,description:`<h2>Distancia mínima</h2>${htmlTable(Object.entries(relationData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:relationData,visible:true});
+  }
+ }
+ return {site:"geonoxa",documentName:"GeoQuery | GeoNOXA",documentDescription:state.executiveSummary,queryPoint:{lat:state.lat,lon:state.lon},folders,features,debugTheme:false};
 }
 window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
 
