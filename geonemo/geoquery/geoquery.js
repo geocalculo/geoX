@@ -579,12 +579,179 @@ function buildAuxiliaryKmlDescription(metadata) {
   return kmlSection("Relación espacial", [["Grupo", metadata.group], ["Nombre", metadata.name], ["Tipo de relación", metadata.relationLabel], ["Distancia mínima", metadata.distance], ["Archivo de origen", metadata.sourceFile]]);
 }
 
-function buildGeoNemoMapExport(results) {
-  const state=window.geoQueryState||{}; const theme=GeoQueryKmlExporter.themeFor("geonemo"); const st=GeoQueryKmlExporter.themedStyle("geonemo","line",{weight:3,fill:true}); const labelStyle={...st,kmlTextColor:theme.textColor,kmlHaloColor:theme.haloColor,labelScale:1,iconScale:0}; const folders=[{id:"query",name:"Punto consultado"},{id:"snaspe",name:"SNASPE"},{id:"ramsar",name:"Sitios Ramsar"},{id:"relations",name:"Relaciones espaciales"},{id:"labels",name:"Etiquetas"}];
-  const features=[{id:"query-point",folderId:"query",type:"point",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:{...st,fillOpacity:.95,weight:3},extendedData:{Latitud:state.lat_decimal,Longitud:state.lon_decimal,CRS:state.crs},visible:true},{id:"query-label",folderId:"labels",type:"label",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:labelStyle,visible:true}];
-  (results||[]).filter(r=>r.status==="resolved"&&r.relatedFeature?.geometry).forEach(r=>{ const gid=r.groupConfig?.id||r.groupId; const isSnaspe=gid==="snaspe"; const metadata=isSnaspe?getSnaspeKmlMetadata(r):getRamsarKmlMetadata(r); const description=isSnaspe?buildSnaspeKmlDescription(metadata,r):buildRamsarKmlDescription(metadata,r); const extendedData=isSnaspe?buildSnaspeKmlExtendedData(metadata,r):buildRamsarKmlExtendedData(metadata,r); const name=metadata.name || r.groupConfig?.nombre || gid; features.push({id:`${gid}-feature`,folderId:gid,type:r.relatedFeature.geometry?.type?.toLowerCase(),name,geometry:r.relatedFeature.geometry,style:{...st,opacity:1},description,extendedData,properties:{...(r.relatedFeature.properties||{})},visible:true}); const label=turf.pointOnFeature(r.relatedFeature)?.geometry?.coordinates; if(label) features.push({id:`${gid}-label`,folderId:"labels",type:"label",name,geometry:{type:"Point",coordinates:label},style:labelStyle,description,extendedData,properties:{...(r.relatedFeature.properties||{})},preserveKmlMetadataOnHalo:true,visible:true}); if(r.nearestPoint?.geometry?.coordinates){ const p=r.nearestPoint.geometry.coordinates; const line=[[state.lon,state.lat],p]; const mid=turf.midpoint(turf.point(line[0]),turf.point(line[1])).geometry.coordinates; const auxDescription=buildAuxiliaryKmlDescription(metadata); const auxExtendedData=buildKmlExtendedData([["Grupo", metadata.group], ["Nombre", metadata.name], ["Tipo de relación", metadata.relationLabel], ["Distancia mínima", metadata.distance], ["Archivo de origen", metadata.sourceFile]]); features.push({id:`${gid}-nearest-line`,folderId:"relations",type:"line",name:"Distancia mínima al perímetro",geometry:{type:"LineString",coordinates:line},style:{...st,weight:3,opacity:1,dashArray:"4 6"},description:auxDescription,extendedData:auxExtendedData,visible:true}); features.push({id:`${gid}-contact`,folderId:"relations",type:"point",name:"Punto de contacto con perímetro",geometry:{type:"Point",coordinates:p},style:{...st,fillOpacity:1,weight:2,iconType:"contact"},description:auxDescription,extendedData:auxExtendedData,visible:true}); features.push({id:`${gid}-distance-label`,folderId:"labels",type:"label",name:`Distancia mínima: ${formatDistance(r.distanceKm)}`,geometry:{type:"Point",coordinates:mid},style:{...labelStyle,labelScale:.9},description:auxDescription,extendedData:auxExtendedData,preserveKmlMetadataOnHalo:true,visible:true}); } });
-  return {site:"geonemo",documentName:"GeoQuery | GeoNEMO",documentDescription:state.executiveSummary,queryPoint:{lat:state.lat,lon:state.lon},folders,features};
+const GEO_NEMO_KML_IDS = {
+  queryPoint: "geonemo-query-point",
+  snaspeFeature: "geonemo-snaspe-feature",
+  ramsarFeature: "geonemo-ramsar-feature",
+  snaspeNearestLine: "geonemo-snaspe-nearest-line",
+  ramsarNearestLine: "geonemo-ramsar-nearest-line",
+  snaspeDistanceLabel: "geonemo-snaspe-distance-label",
+  ramsarDistanceLabel: "geonemo-ramsar-distance-label",
+  snaspeContactPoint: "geonemo-snaspe-contact-point",
+  ramsarContactPoint: "geonemo-ramsar-contact-point"
+};
+
+function addUniqueGeoNemoExportItem(registry, item) {
+  if (!item?.id) return;
+  if (registry.has(item.id)) {
+    console.warn(`[GeoNEMO KML] Elemento duplicado omitido: ${item.id}`);
+    return;
+  }
+  if (item.role) {
+    if (!registry.semanticRoles) registry.semanticRoles = new Set();
+    const groupId = item.role === "query-point" ? "general" : (item.groupId || "general");
+    const roleKey = `${groupId}:${item.role}`;
+    if (registry.semanticRoles.has(roleKey)) {
+      console.warn(`[GeoNEMO KML] Elemento con rol duplicado omitido: ${roleKey}`);
+      return;
+    }
+    registry.semanticRoles.add(roleKey);
+  }
+  registry.set(item.id, item);
 }
+
+function validateNoDuplicateSemanticRoles(exportItems) {
+  const seen = new Set();
+  (exportItems || []).forEach(item => {
+    if (!item?.role) return;
+    const groupId = item.role === "query-point" ? "general" : (item.groupId || "general");
+    const key = `${groupId}:${item.role}`;
+    if (seen.has(key)) {
+      console.warn(`[GeoNEMO KML] Rol semántico duplicado omitido o requiere revisión: ${key}`);
+      return;
+    }
+    seen.add(key);
+  });
+}
+
+function geoNemoGroupKmlId(groupId) {
+  return groupId === "ramsar" ? "ramsar" : "snaspe";
+}
+
+function buildGeoNemoMapExport(results) {
+  const state = window.geoQueryState || {};
+  const theme = GeoQueryKmlExporter.themeFor("geonemo");
+  const st = GeoQueryKmlExporter.themedStyle("geonemo", "line", { weight: 3, fill: true });
+  const labelStyle = { ...st, kmlTextColor: theme.textColor, kmlHaloColor: null, labelScale: 1, iconScale: 0 };
+  const hiddenLabelStyle = { ...st, labelScale: 0 };
+  const folders = [
+    { id: "query", name: "Punto consultado" },
+    { id: "snaspe", name: "SNASPE" },
+    { id: "ramsar", name: "Sitio Ramsar" },
+    { id: "relations", name: "Relación espacial" },
+    { id: "labels", name: "Etiquetas" }
+  ];
+  const registry = new Map();
+
+  addUniqueGeoNemoExportItem(registry, {
+    id: GEO_NEMO_KML_IDS.queryPoint,
+    groupId: "general",
+    role: "query-point",
+    folderId: "query",
+    type: "point",
+    name: "Punto consultado",
+    geometry: { type: "Point", coordinates: [state.lon, state.lat] },
+    style: { ...st, fillOpacity: .95, weight: 3, labelScale: 1 },
+    extendedData: { Latitud: state.lat_decimal, Longitud: state.lon_decimal, CRS: state.crs },
+    visible: true
+  });
+
+  (results || []).filter(r => r.status === "resolved" && r.relatedFeature?.geometry).forEach(r => {
+    const gid = geoNemoGroupKmlId(r.groupConfig?.id || r.groupId);
+    const isSnaspe = gid === "snaspe";
+    const metadata = isSnaspe ? getSnaspeKmlMetadata(r) : getRamsarKmlMetadata(r);
+    const description = isSnaspe ? buildSnaspeKmlDescription(metadata, r) : buildRamsarKmlDescription(metadata, r);
+    const extendedData = isSnaspe ? buildSnaspeKmlExtendedData(metadata, r) : buildRamsarKmlExtendedData(metadata, r);
+    const name = metadata.name || r.groupConfig?.nombre || gid;
+    const folderId = isSnaspe ? "snaspe" : "ramsar";
+
+    addUniqueGeoNemoExportItem(registry, {
+      id: GEO_NEMO_KML_IDS[`${gid}Feature`],
+      groupId: gid,
+      role: "related-feature",
+      folderId,
+      type: r.relatedFeature.geometry?.type?.toLowerCase(),
+      name,
+      geometry: r.relatedFeature.geometry,
+      style: { ...st, ...hiddenLabelStyle, opacity: 1 },
+      description,
+      extendedData,
+      properties: { ...(r.relatedFeature.properties || {}) },
+      visible: true
+    });
+
+    const label = turf.pointOnFeature(r.relatedFeature)?.geometry?.coordinates;
+    if (label) addUniqueGeoNemoExportItem(registry, {
+      id: `geonemo-${gid}-feature-label`,
+      groupId: gid,
+      role: "feature-label",
+      folderId: "labels",
+      type: "label",
+      name,
+      geometry: { type: "Point", coordinates: label },
+      style: labelStyle,
+      description,
+      extendedData,
+      properties: { ...(r.relatedFeature.properties || {}) },
+      visible: true
+    });
+
+    if (r.nearestPoint?.geometry?.coordinates) {
+      const p = r.nearestPoint.geometry.coordinates;
+      const line = [[state.lon, state.lat], p];
+      const mid = turf.midpoint(turf.point(line[0]), turf.point(line[1])).geometry.coordinates;
+      const auxDescription = buildAuxiliaryKmlDescription(metadata);
+      const auxExtendedData = buildKmlExtendedData([["Grupo", metadata.group], ["Nombre", metadata.name], ["Tipo de relación", metadata.relationLabel], ["Distancia mínima", metadata.distance], ["Archivo de origen", metadata.sourceFile]]);
+      const distanceLabel = `${isSnaspe ? "Distancia SNASPE" : "Distancia Ramsar"}: ${formatDistance(r.distanceKm)}`;
+
+      addUniqueGeoNemoExportItem(registry, {
+        id: GEO_NEMO_KML_IDS[`${gid}NearestLine`],
+        groupId: gid,
+        role: "nearest-line",
+        folderId: "relations",
+        type: "line",
+        name: "Relación espacial",
+        geometry: { type: "LineString", coordinates: line },
+        style: { ...st, weight: 3, opacity: 1, dashArray: "4 6", labelScale: 0 },
+        description: auxDescription,
+        extendedData: auxExtendedData,
+        visible: true
+      });
+      addUniqueGeoNemoExportItem(registry, {
+        id: GEO_NEMO_KML_IDS[`${gid}ContactPoint`],
+        groupId: gid,
+        role: "contact-point",
+        folderId: "relations",
+        type: "point",
+        name: "Punto de contacto con perímetro",
+        geometry: { type: "Point", coordinates: p },
+        style: { ...st, fillOpacity: 1, weight: 2, iconType: "contact", labelScale: 1 },
+        description: auxDescription,
+        extendedData: auxExtendedData,
+        visible: true
+      });
+      addUniqueGeoNemoExportItem(registry, {
+        id: GEO_NEMO_KML_IDS[`${gid}DistanceLabel`],
+        groupId: gid,
+        role: "distance-label",
+        folderId: "labels",
+        type: "label",
+        name: distanceLabel,
+        geometry: { type: "Point", coordinates: mid },
+        style: { ...labelStyle, labelScale: .9 },
+        description: auxDescription,
+        extendedData: auxExtendedData,
+        visible: true
+      });
+    }
+  });
+
+  const features = Array.from(registry.values());
+  validateNoDuplicateSemanticRoles(features);
+  console.table(features.map(item => ({ id: item.id, groupId: item.groupId, role: item.role, name: item.name, geometryType: item.geometry?.type })));
+  return { site: "geonemo", documentName: "GeoQuery | GeoNEMO", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
+}
+
 window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
 
 (function initGeoQuery() {
