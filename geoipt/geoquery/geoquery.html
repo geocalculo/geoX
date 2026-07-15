@@ -919,6 +919,20 @@
         .replace(/'/g, "&#039;");
     }
 
+    function escapeXml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+    }
+
+    function safeCdata(value) {
+      return String(value ?? "")
+        .replace(/]]>/g, "]]]]><![CDATA[>");
+    }
+
     const GEOIPT_FIELD_ALIASES = {
       region: ["REG", "REGION"],
       commune: ["COM", "COMUNA"],
@@ -963,12 +977,14 @@
         locality: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.locality)),
         zoneCode: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.zoneCode)),
         zoneName: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.zoneName)),
+        prcName: cleanText(properties.prcName || properties.nombre_prc || properties.Capa || properties.capa || ""),
         permittedUses: cleanLongText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.permittedUses)),
         prohibitedUses: cleanLongText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.prohibitedUses)),
         documentDate: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.documentDate)),
         documentNumber: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.documentNumber)),
         documentType: cleanText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.documentType)),
         observations: cleanLongText(getAliasedProperty(properties, GEOIPT_FIELD_ALIASES.observations)),
+        sourceFile: cleanText(properties.sourceFile || properties.archivo || ""),
         originalProperties: properties
       };
     }
@@ -999,6 +1015,7 @@
         metadataCompactItem("Región", metadata.region),
         metadataCompactItem("Comuna", metadata.commune),
         metadataCompactItem("Localidad", metadata.locality),
+        metadataCompactItem("PRC", metadata.prcName),
         metadataCompactItem("Código de zona", metadata.zoneCode),
         metadataCompactItem("Nombre de zona", metadata.zoneName)
       ].join("");
@@ -1893,12 +1910,16 @@
       const selectedFeature = selectedFeatureResult?.spatialRelation?.relatedFeature || selectedFeatureResult?.relatedFeature || selectedFeatureResult?.feature || null;
       if (selectedFeatureResult && selectedFeature) {
         selectedFeatureResult.relatedFeature = selectedFeature;
-        selectedFeatureResult.metadata = normalizeGeoIptFeatureMetadata(selectedFeature);
+        selectedFeatureResult.metadata = {
+          ...normalizeGeoIptFeatureMetadata(selectedFeature),
+          prcName: cleanText(selectedFeatureResult.prcName || selectedFeatureResult.prc_name || selectedFeatureResult.source?.nombre || selectedFeature?.properties?.Capa || selectedFeature?.properties?.nombre_prc || ""),
+          sourceFile: cleanText(selectedFeatureResult.sourceFile || selectedFeatureResult.source?.archivo_geojson || selectedFeatureResult.source?.geojson_url || selectedFeature?.properties?.sourceFile || "")
+        };
       }
       const geoIptResult = selectedFeatureResult ? {
         ...selectedFeatureResult,
         relatedFeature: selectedFeature,
-        metadata: normalizeGeoIptFeatureMetadata(selectedFeature)
+        metadata: selectedFeatureResult.metadata || normalizeGeoIptFeatureMetadata(selectedFeature)
       } : null;
       renderMetadataPanel(geoIptResult);
       drawSelectedFeatureOnMap(geoQueryMap, selectedFeatureResult);
@@ -2049,16 +2070,79 @@
       window.geoQueryState.mapExport = mapExport;
       window.geoQueryKmlRefresh?.();
     }
+    function appendHtmlRow(rows, label, value) {
+      if (!cleanText(value)) return;
+      rows.push(`<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`);
+    }
+
+    function geoIptPlacemarkName(metadata) {
+      return metadata.zoneCode && metadata.zoneName
+        ? `${metadata.zoneCode} · ${metadata.zoneName}`
+        : metadata.zoneCode
+          ? `Zona PRC ${metadata.zoneCode}`
+          : metadata.zoneName
+            ? metadata.zoneName
+            : "Zona PRC relacionada";
+    }
+
+    function buildGeoIptZoneKmlDescription(metadata, spatialResult) {
+      const sections = [];
+      sections.push(`<h2>${escapeHtml(geoIptPlacemarkName(metadata))}</h2>`);
+      const territorialRows = [];
+      appendHtmlRow(territorialRows, "Región", metadata.region);
+      appendHtmlRow(territorialRows, "Comuna", metadata.commune);
+      appendHtmlRow(territorialRows, "Localidad", metadata.locality);
+      appendHtmlRow(territorialRows, "PRC", metadata.prcName);
+      appendHtmlRow(territorialRows, "Código de zona", metadata.zoneCode);
+      appendHtmlRow(territorialRows, "Nombre de zona", metadata.zoneName);
+      if (territorialRows.length) sections.push(`<h3>Identificación territorial</h3><table>${territorialRows.join("")}</table>`);
+      if (metadata.permittedUses) sections.push(`<h3>Usos permitidos</h3><p>${escapeHtml(metadata.permittedUses).replace(/\n/g, "<br>")}</p>`);
+      if (metadata.prohibitedUses) sections.push(`<h3>Usos prohibidos</h3><p>${escapeHtml(metadata.prohibitedUses).replace(/\n/g, "<br>")}</p>`);
+      const documentParts = [metadata.documentType, metadata.documentNumber ? `N.º ${metadata.documentNumber}` : "", metadata.documentDate ? `de fecha ${metadata.documentDate}` : ""].filter(Boolean);
+      if (documentParts.length) sections.push(`<h3>Documento normativo</h3><p>${escapeHtml(documentParts.join(" "))}</p>`);
+      if (metadata.observations) sections.push(`<h3>Observaciones</h3><p>${escapeHtml(metadata.observations).replace(/\n/g, "<br>")}</p>`);
+      const spatialRows = [];
+      appendHtmlRow(spatialRows, "Tipo de relación", spatialResult.relation_type === "intersects" || spatialResult.relationType === "intersects" ? "Punto dentro de la zona relacionada" : "Zona PRC más cercana");
+      if (Number.isFinite(spatialResult.minimumDistanceKm) && spatialResult.relation_type !== "intersects") appendHtmlRow(spatialRows, "Distancia mínima", formatMinimumDistanceValue(spatialResult.minimumDistanceKm));
+      if (spatialRows.length) sections.push(`<h3>Relación espacial</h3><table>${spatialRows.join("")}</table>`);
+      return safeCdata(sections.join(""));
+    }
+
+    function buildGeoIptExtendedData(metadata, spatialResult) {
+      const data = {
+        "Región": metadata.region,
+        "Comuna": metadata.commune,
+        "Localidad": metadata.locality,
+        "PRC": metadata.prcName,
+        "Código de zona": metadata.zoneCode,
+        "Nombre de zona": metadata.zoneName,
+        "Usos permitidos": metadata.permittedUses,
+        "Usos prohibidos": metadata.prohibitedUses,
+        "Tipo de documento": metadata.documentType,
+        "Número de documento": metadata.documentNumber,
+        "Fecha del documento": metadata.documentDate,
+        "Observaciones": metadata.observations,
+        "Archivo de origen": metadata.sourceFile,
+        "Tipo de relación": spatialResult.relation_type === "intersects" || spatialResult.relationType === "intersects" ? "Punto dentro de la zona relacionada" : "Zona PRC más cercana",
+        "Distancia mínima": spatialResult.relation_type !== "intersects" && Number.isFinite(spatialResult.minimumDistanceKm) ? formatMinimumDistanceValue(spatialResult.minimumDistanceKm) : ""
+      };
+      Object.keys(data).forEach((key) => { if (!cleanText(data[key])) delete data[key]; });
+      return data;
+    }
+
     function buildGeoIptMapExport(result) {
       const state = window.geoQueryState || {};
       const folders = [{ id: "query", name: "Punto consultado" }, { id: "zone", name: "Zona PRC relacionada" }, { id: "relation", name: "Relación espacial" }];
       const features = [{ id: "query-point", folderId: "query", type: "point", name: "Punto consultado", geometry: { type: "Point", coordinates: [state.lon, state.lat] }, style: { color: "#111827", fillColor: "#facc15", fillOpacity: .95, weight: 3 }, extendedData: { Latitud: state.lat_decimal, Longitud: state.lon_decimal, CRS: "WGS84 / EPSG:4326" }, visible: true }];
-      if (result?.feature) {
+      const relatedFeature = result?.relatedFeature || result?.spatialRelation?.relatedFeature || result?.feature;
+      if (relatedFeature?.geometry) {
         const isIntersects = result.relation_type === "intersects";
-        const md = result.metadata || {};
-        features.push({ id: "zona-prc", folderId: "zone", type: result.feature.geometry?.type?.toLowerCase(), name: md.zona || md.nombre || "Zona PRC relacionada", description: "Metadata normativa de la zona PRC relacionada con el punto consultado.", geometry: result.feature.geometry, style: { color: isIntersects ? "#1d4ed8" : "#dc2626", weight: 3, opacity: .95, fillColor: isIntersects ? "#1d4ed8" : "#dc2626", fillOpacity: isIntersects ? .18 : .04 }, extendedData: md, visible: true });
-        const labelPoint = turf.pointOnFeature(result.feature)?.geometry?.coordinates;
-        if (labelPoint) features.push({ id: "zona-prc-label", folderId: "zone", type: "label", name: md.zona || md.nombre || "Zona PRC", geometry: { type: "Point", coordinates: labelPoint }, style: { color: "#1d4ed8", labelColor: "#1d4ed8", labelScale: 1.05, scale: .1 }, extendedData: { Etiqueta: "Zona PRC" }, visible: true });
+        const metadata = result.metadata || normalizeGeoIptFeatureMetadata(relatedFeature);
+        const placemarkName = geoIptPlacemarkName(metadata);
+        const exportFeature = { type: "Feature", geometry: structuredClone(relatedFeature.geometry), properties: structuredClone(relatedFeature.properties || {}) };
+        features.push({ id: "zona-prc", folderId: "zone", type: exportFeature.geometry?.type?.toLowerCase(), name: placemarkName, description: buildGeoIptZoneKmlDescription(metadata, result), geometry: exportFeature.geometry, style: { color: isIntersects ? "#1d4ed8" : "#dc2626", weight: 3, opacity: .95, fillColor: isIntersects ? "#1d4ed8" : "#dc2626", fillOpacity: isIntersects ? .18 : .04 }, extendedData: buildGeoIptExtendedData(metadata, result), properties: { ...exportFeature.properties }, visible: true });
+        const labelPoint = turf.pointOnFeature(exportFeature)?.geometry?.coordinates;
+        if (labelPoint) features.push({ id: "zona-prc-label", folderId: "zone", type: "label", name: placemarkName, geometry: { type: "Point", coordinates: labelPoint }, style: { color: "#1d4ed8", labelColor: "#1d4ed8", labelScale: 1.05, scale: .1 }, extendedData: { Etiqueta: placemarkName }, visible: true });
         const near = result.nearestBoundaryPoint || result.spatialRelation?.nearestBoundaryPoint;
         const qp = result.spatialRelation?.queryPoint;
         if (!isIntersects && near && qp) {
@@ -2069,7 +2153,7 @@
           features.push({ id: "etiqueta-distancia", folderId: "relation", type: "label", name: formatMinimumDistanceLabel(result.minimumDistanceKm), geometry: { type: "Point", coordinates: mid }, style: { labelColor: "#7c2d12", labelScale: .9, scale: .1 }, visible: true });
         }
       }
-      return { site: "GeoIPT", documentName: "GeoQuery | GeoIPT", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
+      return { site: "GeoIPT", documentName: "GeoQuery | GeoIPT", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features, debugTheme: false };
     }
 
     window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
