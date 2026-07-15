@@ -456,6 +456,15 @@ async function processGroup(entry, queryPoint, originalViewport) {
   }
 }
 
+
+function buildGeoNemoMapExport(results) {
+  const state=window.geoQueryState||{}; const folders=[{id:"query",name:"Punto consultado"},{id:"snaspe",name:"SNASPE"},{id:"ramsar",name:"Sitio Ramsar"}];
+  const features=[{id:"query-point",folderId:"query",type:"point",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:{color:"#064e3b",fillColor:"#facc15",fillOpacity:.95,weight:3},extendedData:{Latitud:state.lat_decimal,Longitud:state.lon_decimal,CRS:state.crs},visible:true}];
+  (results||[]).filter(r=>r.status==="resolved"&&r.feature?.feature).forEach(r=>{ const gid=r.groupConfig?.id||r.groupId; const st=styleForGroup(gid); const name=r.feature.name||r.groupConfig?.nombre||gid; features.push({id:`${gid}-feature`,folderId:gid,type:r.feature.feature.geometry?.type?.toLowerCase(),name,geometry:r.feature.feature.geometry,style:{...st,opacity:1},extendedData:{Grupo:r.groupConfig?.nombre,Nombre:name,Relación:r.relation,Distancia:formatDistance(r.distanceKm),Fuente:r.sourceFile||r.metadata?.sourceFile,Territorio:r.territory},visible:true}); const label=turf.pointOnFeature(r.feature.feature)?.geometry?.coordinates; if(label) features.push({id:`${gid}-label`,folderId:gid,type:"label",name,geometry:{type:"Point",coordinates:label},style:{labelColor:st.color,labelScale:1,scale:.1},visible:true}); if(r.nearestPoint?.geometry?.coordinates){ const p=r.nearestPoint.geometry.coordinates; const line=[[state.lon,state.lat],p]; const mid=turf.midpoint(turf.point(line[0]),turf.point(line[1])).geometry.coordinates; features.push({id:`${gid}-nearest-line`,folderId:gid,type:"line",name:"Distancia mínima al perímetro",geometry:{type:"LineString",coordinates:line},style:{color:st.color,weight:3,opacity:1,dashArray:"4 6"},extendedData:{Distancia:formatDistance(r.distanceKm)},visible:true}); features.push({id:`${gid}-contact`,folderId:gid,type:"point",name:"Punto de contacto con perímetro",geometry:{type:"Point",coordinates:p},style:{color:"#111827",fillColor:"#ffffff",fillOpacity:1,weight:2,iconType:"contact"},visible:true}); features.push({id:`${gid}-distance-label`,folderId:gid,type:"label",name:`Distancia mínima: ${formatDistance(r.distanceKm)}`,geometry:{type:"Point",coordinates:mid},style:{labelColor:st.color,labelScale:.9,scale:.1},visible:true}); } });
+  return {site:"GeoNEMO",documentName:"GeoQuery | GeoNEMO",documentDescription:state.executiveSummary,queryPoint:{lat:state.lat,lon:state.lon},folders,features};
+}
+window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
+
 (function initGeoQuery() {
   const params = new URLSearchParams(window.location.search);
   const lat = Number.parseFloat(params.get("lat"));
@@ -523,6 +532,8 @@ async function processGroup(entry, queryPoint, originalViewport) {
     window.geoQueryState.status = overallStatus === "Resuelto" ? "resolved" : overallStatus === "Sin resultados en viewport" ? "empty" : overallStatus === "Error" ? "error" : "partial";
     window.geoQueryState.executiveSummary = executiveSummary;
     window.geoQueryState.exportState = { pdfEnabled: results.some((r) => r.status === "resolved"), kmlEnabled: results.some((r) => r.status === "resolved") };
+    window.geoQueryState.mapExport = buildGeoNemoMapExport(results);
+    window.geoQueryKmlRefresh?.();
     const boundsParts = [queryMarker];
     results.forEach((result) => addGroupResultToMap(result, layers, [lat, lon], boundsParts));
     setTimeout(() => { geoQueryMap.invalidateSize(); const bounds = L.featureGroup(boundsParts).getBounds(); if (bounds.isValid()) geoQueryMap.fitBounds(bounds.pad(0.12), { maxZoom: 14, padding: window.innerWidth <= 560 ? [22, 22] : [36, 36], animate: false }); else geoQueryMap.setView([lat, lon], targetZoom, { animate: false }); }, 150);
