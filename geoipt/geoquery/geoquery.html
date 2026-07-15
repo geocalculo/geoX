@@ -867,6 +867,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="../../shared/geoquery-kml-exporter.js"></script>
   <script>
     function decimalToDMS(value, type) {
       const absolute = Math.abs(value);
@@ -2043,6 +2044,36 @@
       return `../index.html?${backParams.toString()}`;
     }
 
+
+    function setGeoQueryKmlExport(mapExport) {
+      window.geoQueryState.mapExport = mapExport;
+      window.geoQueryKmlRefresh?.();
+    }
+    function buildGeoIptMapExport(result) {
+      const state = window.geoQueryState || {};
+      const folders = [{ id: "query", name: "Punto consultado" }, { id: "zone", name: "Zona PRC relacionada" }, { id: "relation", name: "Relación espacial" }];
+      const features = [{ id: "query-point", folderId: "query", type: "point", name: "Punto consultado", geometry: { type: "Point", coordinates: [state.lon, state.lat] }, style: { color: "#111827", fillColor: "#facc15", fillOpacity: .95, weight: 3 }, extendedData: { Latitud: state.lat_decimal, Longitud: state.lon_decimal, CRS: "WGS84 / EPSG:4326" }, visible: true }];
+      if (result?.feature) {
+        const isIntersects = result.relation_type === "intersects";
+        const md = result.metadata || {};
+        features.push({ id: "zona-prc", folderId: "zone", type: result.feature.geometry?.type?.toLowerCase(), name: md.zona || md.nombre || "Zona PRC relacionada", description: "Metadata normativa de la zona PRC relacionada con el punto consultado.", geometry: result.feature.geometry, style: { color: isIntersects ? "#1d4ed8" : "#dc2626", weight: 3, opacity: .95, fillColor: isIntersects ? "#1d4ed8" : "#dc2626", fillOpacity: isIntersects ? .18 : .04 }, extendedData: md, visible: true });
+        const labelPoint = turf.pointOnFeature(result.feature)?.geometry?.coordinates;
+        if (labelPoint) features.push({ id: "zona-prc-label", folderId: "zone", type: "label", name: md.zona || md.nombre || "Zona PRC", geometry: { type: "Point", coordinates: labelPoint }, style: { color: "#1d4ed8", labelColor: "#1d4ed8", labelScale: 1.05, scale: .1 }, extendedData: { Etiqueta: "Zona PRC" }, visible: true });
+        const near = result.nearestBoundaryPoint || result.spatialRelation?.nearestBoundaryPoint;
+        const qp = result.spatialRelation?.queryPoint;
+        if (!isIntersects && near && qp) {
+          const line = [[qp.lon, qp.lat], [near.lon, near.lat]];
+          const mid = turf.midpoint(turf.point(line[0]), turf.point(line[1])).geometry.coordinates;
+          features.push({ id: "distancia-minima", folderId: "relation", type: "line", name: "Distancia mínima al perímetro", geometry: { type: "LineString", coordinates: line }, style: { color: "#f97316", opacity: .9, weight: 3, dashArray: "4 6" }, extendedData: { Distancia: formatMinimumDistanceValue(result.minimumDistanceKm) }, visible: true });
+          features.push({ id: "punto-perimetro", folderId: "relation", type: "point", name: "Punto de contacto con perímetro", geometry: { type: "Point", coordinates: [near.lon, near.lat] }, style: { color: "#7c2d12", fillColor: "#fed7aa", fillOpacity: .95, weight: 2, iconType: "contact" }, visible: true });
+          features.push({ id: "etiqueta-distancia", folderId: "relation", type: "label", name: formatMinimumDistanceLabel(result.minimumDistanceKm), geometry: { type: "Point", coordinates: mid }, style: { labelColor: "#7c2d12", labelScale: .9, scale: .1 }, visible: true });
+        }
+      }
+      return { site: "GeoIPT", documentName: "GeoQuery | GeoIPT", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
+    }
+
+    window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
+
     (async function initGeoQuery() {
       const params = new URLSearchParams(window.location.search);
       const lat = Number.parseFloat(params.get("lat"));
@@ -2243,6 +2274,7 @@
           window.geoQueryState.status = selectedFeatureResult ? "resolved" : "empty";
           window.geoQueryState.executiveSummary = selectedFeatureResult ? "Análisis territorial PRC resuelto." : "No se identificó una zona PRC relacionada para la coordenada consultada.";
           window.geoQueryState.exportState = { pdfEnabled: Boolean(selectedFeatureResult), kmlEnabled: Boolean(selectedFeatureResult) };
+          setGeoQueryKmlExport(buildGeoIptMapExport(selectedFeatureResult));
           elements.cardStatus.textContent = selectedFeatureResult ? "Resuelto" : "Sin resultados";
         })
         .catch(error => {

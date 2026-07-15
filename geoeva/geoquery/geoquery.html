@@ -996,6 +996,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="../../shared/geoquery-kml-exporter.js"></script>
   <script>
     const GEOEVA_GEOQUERY_PROJECTS_URL = "../capas_geoquery/geoeva_geoquery_proyectos.geojson";
 
@@ -1438,6 +1439,23 @@
       `;
     }
 
+
+    function buildGeoEvaMapExport(baseApprovedCluster, projectsInsideRadius, radiusMeters, territorialGroup) {
+      const state = window.geoQueryState || {};
+      const folders = [{ id: "query", name: "Punto consultado" }, { id: "cluster", name: "Clúster de proyectos" }, { id: "projects", name: "Proyectos aprobados del clúster" }, { id: "additional", name: "Proyectos adicionales dentro del radio" }];
+      const features = [{ id: "query-point", folderId: "query", type: "point", name: "Punto consultado", geometry: { type: "Point", coordinates: [state.lon, state.lat] }, style: { color: "#111827", fillColor: "#facc15", fillOpacity: .95, weight: 3 }, extendedData: { Latitud: state.lat_decimal, Longitud: state.lon_decimal, CRS: "WGS84 / EPSG:4326" }, visible: true }];
+      if (Number.isFinite(radiusMeters)) {
+        const circle = turf.circle([state.lon, state.lat], radiusMeters / 1000, { steps: 128, units: "kilometers" });
+        features.push({ id: "cluster-circle", folderId: "cluster", type: "polygon", name: "Círculo del clúster de proyectos", geometry: circle.geometry, style: { color: "#2563eb", opacity: .75, weight: 2, fill: false, fillOpacity: 0, dashArray: "4 8" }, extendedData: { Radio: formatLength(radiusMeters), "Sector dominante": territorialGroup?.dominantSector, Participación: formatPercent(territorialGroup?.dominantSectorShare) }, visible: true });
+      }
+      const baseIds = new Set();
+      (baseApprovedCluster || []).forEach((item, i) => { const p = item.feature?.properties || {}; baseIds.add(item.feature); const name = `${i + 1}. ${p.nombre_proyecto || p.nombre_busq || "Proyecto"}`; features.push({ id: `project-${i+1}`, folderId: "projects", type: "point", name, geometry: { type: "Point", coordinates: [item.lon, item.lat] }, style: { color: "#2563eb", fillColor: "#60a5fa", fillOpacity: .9, weight: 2, labelColor: "#1d4ed8" }, extendedData: { Ranking: i + 1, Nombre: p.nombre_proyecto || p.nombre_busq, Titular: p.titular, Sector: normalizeSector(p.sector), Estado: p.estado, Inversión: formatInvestmentMMUSD(p.inversion_mmusd), Distancia: formatDistanceKm(item.distance_km), "Sector dominante": territorialGroup?.dominantSector }, visible: true }); });
+      (projectsInsideRadius || []).filter(item => !baseIds.has(item.feature)).forEach((item, i) => { const p = item.feature?.properties || {}; features.push({ id: `additional-project-${i+1}`, folderId: "additional", type: "point", name: p.nombre_proyecto || p.nombre_busq || "Proyecto adicional", geometry: { type: "Point", coordinates: [item.lon, item.lat] }, style: { color: "#64748b", fillColor: "#94a3b8", fillOpacity: .75, weight: 1 }, extendedData: { Titular: p.titular, Sector: normalizeSector(p.sector), Estado: p.estado, Distancia: formatDistanceKm(item.distance_km) }, visible: true }); });
+      return { site: "GeoEVA", documentName: "GeoQuery | GeoEVA", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
+    }
+
+    window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
+
     (async function initGeoQuery() {
       const params = new URLSearchParams(window.location.search);
       const lat = Number.parseFloat(params.get("lat"));
@@ -1740,6 +1758,8 @@
         window.geoQueryState.groupResults = [{ groupId: "projects", status: window.geoQueryState.status, relationType: "nearest", selectedFeatures: baseApprovedCluster, normalizedProperties: territorialGroup, geometryStats: territorialGroup?.geometryStats || null, spatialRelationStats: territorialGroup?.spatialRelationStats || null }];
         window.geoQueryState.executiveSummary = baseApprovedCluster.length ? `Clúster base de ${baseApprovedCluster.length} proyectos aprobados cercanos resuelto.` : "No se identificaron proyectos aprobados cercanos para construir el clúster.";
         window.geoQueryState.exportState = { pdfEnabled: baseApprovedCluster.length > 0, kmlEnabled: baseApprovedCluster.length > 0 };
+        window.geoQueryState.mapExport = buildGeoEvaMapExport(baseApprovedCluster, projectsInsideRadius, radiusMeters, territorialGroup);
+        window.geoQueryKmlRefresh?.();
         elements.cardStatus.textContent = baseApprovedCluster.length ? "Resuelto" : "Sin resultados";
 
         if (analysisCircle) {
