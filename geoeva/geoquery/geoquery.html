@@ -1440,12 +1440,97 @@
     }
 
 
+
+    function appendKmlHtmlRow(rows, label, value) {
+      if (value === undefined || value === null) return;
+      const text = String(value).trim();
+      if (!text || /^(undefined|null|NaN)$/i.test(text)) return;
+      rows.push(`<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(text)}</td></tr>`);
+    }
+
+    function getGeoEvaProjectDisplayName(project) {
+      const props = project?.feature?.properties || {};
+      return props.nombre_proyecto || props.nombre_busq || props.id || "Proyecto relacionado";
+    }
+
+    function getGeoEvaProjectKmlName(project, index) {
+      const rank = Number.isFinite(Number(project?.rank)) ? Number(project.rank) : index + 1;
+      return `${rank}. ${getGeoEvaProjectDisplayName(project)}`;
+    }
+
+    function getGeoEvaProjectInvestmentText(project) {
+      const value = project?.feature?.properties?.inversion_mmusd;
+      return Number.isFinite(Number(value)) ? formatInvestmentMMUSD(value) : "";
+    }
+
+    function getGeoEvaProjectDistanceText(project) {
+      const value = project?.distance_km;
+      return Number.isFinite(Number(value)) ? formatDistanceKm(value) : "";
+    }
+
+    function buildGeoEvaProjectKmlDescription(project, clusterResult, options = {}) {
+      const props = project?.feature?.properties || {};
+      const title = getGeoEvaProjectKmlName(project, (Number(project?.rank) || 1) - 1);
+      const sections = [`<h2>${escapeHtml(title)}</h2>`];
+      const projectRows = [];
+      appendKmlHtmlRow(projectRows, "Titular", props.titular);
+      appendKmlHtmlRow(projectRows, "Sector", normalizeSector(props.sector));
+      appendKmlHtmlRow(projectRows, "Estado", props.estado);
+      appendKmlHtmlRow(projectRows, "Inversión", getGeoEvaProjectInvestmentText(project));
+      appendKmlHtmlRow(projectRows, "Comuna", props.comuna);
+      appendKmlHtmlRow(projectRows, "Región", props.region);
+      appendKmlHtmlRow(projectRows, "Tipo de proyecto", props.tipo_presentacion);
+      appendKmlHtmlRow(projectRows, "Año", props.anio);
+      if (isValidHttpUrl(props.web)) appendKmlHtmlRow(projectRows, "Expediente", props.web);
+      if (projectRows.length) {
+        sections.push(`<h3>Identificación del proyecto</h3><table>${projectRows.join("")}</table>`);
+      }
+
+      const spatialRows = [];
+      const total = Array.isArray(clusterResult?.selectedProjects) ? clusterResult.selectedProjects.length : "";
+      appendKmlHtmlRow(spatialRows, "Ranking", total ? `${project.rank} de ${total}` : project.rank);
+      appendKmlHtmlRow(spatialRows, "Distancia al punto consultado", getGeoEvaProjectDistanceText(project));
+      appendKmlHtmlRow(spatialRows, "Participación en el clúster", options.additional ? "Proyecto adicional dentro del radio" : "Proyecto aprobado utilizado para definir el clúster base");
+      if (spatialRows.length) {
+        sections.push(`<h3>Relación espacial</h3><table>${spatialRows.join("")}</table>`);
+      }
+      return sections.join("");
+    }
+
+    function buildGeoEvaProjectExtendedData(project, clusterResult, options = {}) {
+      const props = project?.feature?.properties || {};
+      const sector = normalizeSector(props.sector);
+      const dominant = clusterResult?.dominantSector && sector === clusterResult.dominantSector ? "Sí" : "No";
+      const data = {
+        ranking: project.rank,
+        nombre_proyecto: getGeoEvaProjectDisplayName(project),
+        id: props.id,
+        titular: props.titular,
+        sector,
+        estado: props.estado,
+        inversion: getGeoEvaProjectInvestmentText(project),
+        distancia_km: getGeoEvaProjectDistanceText(project),
+        comuna: props.comuna,
+        region: props.region,
+        tipo_proyecto: props.tipo_presentacion,
+        fecha: props.anio,
+        fuente: isValidHttpUrl(props.web) ? props.web : "",
+        participacion_cluster: options.additional ? "Proyecto adicional dentro del radio" : "Proyecto aprobado del clúster base",
+        pertenece_sector_dominante: dominant
+      };
+      return Object.fromEntries(Object.entries(data).filter(([, value]) => {
+        if (value === undefined || value === null) return false;
+        const text = String(value).trim();
+        return text && !/^(undefined|null|NaN)$/i.test(text);
+      }));
+    }
+
     function buildGeoEvaMapExport(baseApprovedCluster, projectsInsideRadius, radiusMeters, territorialGroup) {
       const state = window.geoQueryState || {};
       const theme = GeoQueryKmlExporter.themeFor("geoeva");
       const vectorStyle = (extra = {}) => GeoQueryKmlExporter.themedStyle("geoeva", "line", extra);
       const labelStyle = { ...vectorStyle({ kmlTextColor: theme.textColor, kmlHaloColor: theme.haloColor, labelScale: 0.9, iconScale: 0 }) };
-      const folders = [{ id: "query", name: "Punto consultado" }, { id: "cluster", name: "Clúster de proyectos aprobados" }, { id: "projects", name: "Proyectos aprobados" }, { id: "additional", name: "Proyectos adicionales dentro del radio" }, { id: "labels", name: "Etiquetas" }];
+      const folders = [{ id: "query", name: "Punto consultado" }, { id: "cluster", name: "Clúster de proyectos aprobados" }, { id: "projects", name: "Proyectos aprobados del clúster" }, { id: "additional", name: "Proyectos adicionales dentro del radio" }, { id: "labels", name: "Etiquetas" }];
       const features = [{ id: "query-point", folderId: "query", type: "point", name: "Punto consultado", geometry: { type: "Point", coordinates: [state.lon, state.lat] }, style: vectorStyle({ fillOpacity: .95, weight: 3 }), extendedData: { Latitud: state.lat_decimal, Longitud: state.lon_decimal, CRS: "WGS84 / EPSG:4326" }, visible: true }];
       if (Number.isFinite(radiusMeters)) {
         const clusterRadiusKm = radiusMeters / 1000;
@@ -1454,8 +1539,9 @@
         features.push({ id: "cluster-label", folderId: "labels", type: "label", name: `Radio clúster: ${formatLength(radiusMeters)}`, geometry: { type: "Point", coordinates: [state.lon, state.lat] }, style: labelStyle, visible: true });
       }
       const baseIds = new Set();
-      (baseApprovedCluster || []).forEach((item, i) => { const p = item.feature?.properties || {}; baseIds.add(item.feature); const name = `${i + 1}. ${p.nombre_proyecto || p.nombre_busq || "Proyecto"}`; features.push({ id: `project-${i+1}`, folderId: "projects", type: "point", name, geometry: { type: "Point", coordinates: [item.lon, item.lat] }, style: vectorStyle({ fillOpacity: .9, weight: 2 }), extendedData: { Ranking: i + 1, Nombre: p.nombre_proyecto || p.nombre_busq, Titular: p.titular, Sector: normalizeSector(p.sector), Estado: p.estado, Inversión: formatInvestmentMMUSD(p.inversion_mmusd), Distancia: formatDistanceKm(item.distance_km), "Sector dominante": territorialGroup?.dominantSector }, visible: true }); features.push({ id: `project-${i+1}-label`, folderId: "labels", type: "label", name, geometry: { type: "Point", coordinates: [item.lon, item.lat] }, style: labelStyle, visible: true }); });
-      (projectsInsideRadius || []).filter(item => !baseIds.has(item.feature)).forEach((item, i) => { const p = item.feature?.properties || {}; features.push({ id: `additional-project-${i+1}`, folderId: "additional", type: "point", name: p.nombre_proyecto || p.nombre_busq || "Proyecto adicional", geometry: { type: "Point", coordinates: [item.lon, item.lat] }, style: vectorStyle({ fillOpacity: .75, weight: 1 }), extendedData: { Titular: p.titular, Sector: normalizeSector(p.sector), Estado: p.estado, Distancia: formatDistanceKm(item.distance_km) }, visible: true }); });
+      const clusterResult = { ...(territorialGroup || {}), selectedProjects: baseApprovedCluster || [] };
+      (baseApprovedCluster || []).forEach((item, i) => { item.rank = i + 1; baseIds.add(item.feature); const name = getGeoEvaProjectKmlName(item, i); const description = buildGeoEvaProjectKmlDescription(item, clusterResult); const extendedData = buildGeoEvaProjectExtendedData(item, clusterResult); const geometry = { type: "Point", coordinates: [item.lon, item.lat] }; features.push({ id: `project-${i+1}`, folderId: "projects", type: "point", name, description, geometry, style: vectorStyle({ fillOpacity: .9, weight: 2 }), extendedData, visible: true }); features.push({ id: `project-${i+1}-label`, folderId: "labels", type: "label", name, description, geometry, style: labelStyle, extendedData, preserveKmlMetadataOnHalo: true, visible: true }); });
+      (projectsInsideRadius || []).filter(item => !baseIds.has(item.feature)).forEach((item, i) => { item.rank = baseApprovedCluster.length + i + 1; const name = getGeoEvaProjectKmlName(item, item.rank - 1); const description = buildGeoEvaProjectKmlDescription(item, clusterResult, { additional: true }); const extendedData = buildGeoEvaProjectExtendedData(item, clusterResult, { additional: true }); features.push({ id: `additional-project-${i+1}`, folderId: "additional", type: "point", name, description, geometry: { type: "Point", coordinates: [item.lon, item.lat] }, style: vectorStyle({ fillOpacity: .75, weight: 1 }), extendedData, visible: true }); });
       return { site: "geoeva", documentName: "GeoQuery | GeoEVA", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
     }
 
