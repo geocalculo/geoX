@@ -342,7 +342,7 @@ function buildResolvedResult(groupConfig, item, relation, nearest) {
   const areaHaCalc = areaSqm / 10000;
   const equivalentDiameterKm = 2 * Math.sqrt((areaSqm / 1000000) / Math.PI);
   const equivalentPerimeterKm = Math.PI * equivalentDiameterKm;
-  return { groupConfig, status: "resolved", relation, relationType: relation, feature: item, relatedFeature: item.feature, sourceFile: item.sourceFile, layerId: item.layerId, territory: item.territory, distanceKm: nearest?.distanceKm ?? null, minimumDistanceKm: nearest?.distanceKm ?? null, nearestPoint: nearest?.snap ?? null, nearestBoundaryPoint: nearest?.snap ?? null, metrics: { areaHaCalc, perimeterKm, equivalentDiameterKm, equivalentPerimeterKm } };
+  return { groupConfig, status: "resolved", relation, relationType: relation, feature: item, relatedFeature: item.feature, normalizedProperties: item, sourceId: item.sourceId, sourceFile: item.sourceFile, layerId: item.layerId, territory: item.territory, distanceKm: nearest?.distanceKm ?? null, minimumDistanceKm: nearest?.distanceKm ?? null, nearestPoint: nearest?.snap ?? null, nearestBoundaryPoint: nearest?.snap ?? null, metrics: { areaHaCalc, perimeterKm, equivalentDiameterKm, equivalentPerimeterKm } };
 }
 
 function formatDistance(km) { return km === null ? "No aplica" : (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(2)} km`); }
@@ -457,10 +457,132 @@ async function processGroup(entry, queryPoint, originalViewport) {
 }
 
 
+function hasKmlValue(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "number") return Number.isFinite(value);
+  const text = String(value).trim();
+  return text !== "" && !/^(undefined|null|NaN|Infinity)$/i.test(text);
+}
+
+function escapeXml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function safeCdata(value) {
+  return String(value ?? "").replace(/]]>/g, "]]]]><![CDATA[>");
+}
+
+function firstKmlValue(...values) {
+  return values.find(hasKmlValue) ?? "";
+}
+
+function formatKmlDistance(result) {
+  return result?.relation === "nearest" && Number.isFinite(Number(result?.minimumDistanceKm)) ? formatDistance(Number(result.minimumDistanceKm)) : "";
+}
+
+function formatKmlArea(areaHa) {
+  if (!areaHa) return "";
+  if (areaHa.value === null || areaHa.value === undefined) return firstKmlValue(areaHa.original);
+  return `${formatNumber(areaHa.value)} ha`;
+}
+
+function getSnaspeKmlMetadata(result) {
+  const normalized = result?.normalizedProperties || result?.feature || {};
+  const properties = result?.relatedFeature?.properties || normalized.originalProperties || {};
+  const territory = firstKmlValue(result?.territory, normalized.territory, properties.TERRITORIO);
+  const territoryFallbackName = territory === "maritimo" ? "Área SNASPE marítima" : territory === "continental" ? "Área SNASPE continental" : "Área SNASPE relacionada";
+  return {
+    group: "SNASPE",
+    name: firstKmlValue(properties.NOMBRE_TOT, properties.NOMBRE_UNI, normalized.name, territoryFallbackName),
+    unitName: firstKmlValue(properties.NOMBRE_UNI, normalized.alternateName),
+    category: firstKmlValue(normalized.category, properties.CATEGORIA),
+    protectionType: firstKmlValue(normalized.category, properties.CATEGORIA),
+    territory,
+    region: firstKmlValue(normalized.region, properties.REGION),
+    commune: firstKmlValue(normalized.commune, properties.COMUNA),
+    area: firstKmlValue(formatKmlArea(normalized.areaHa), properties.SUPERFICIE),
+    decree: firstKmlValue(normalized.decree, properties.DECRETO),
+    date: firstKmlValue(normalized.date, properties.FECHA, properties.FECHA_DEC),
+    administration: firstKmlValue(normalized.issuer, properties.EMISOR_DEC),
+    source: firstKmlValue(result?.groupConfig?.nombre_largo),
+    sourceId: firstKmlValue(result?.sourceId, normalized.sourceId),
+    sourceFile: firstKmlValue(result?.sourceFile, normalized.sourceFile),
+    identifier: firstKmlValue(normalized.featureId, properties.ID_CATASTR, properties.fid),
+    relationType: firstKmlValue(result?.relationType, result?.relation),
+    relationLabel: relationLabel(result),
+    minimumDistanceKm: result?.minimumDistanceKm,
+    distance: formatKmlDistance(result)
+  };
+}
+
+function getRamsarKmlMetadata(result) {
+  const normalized = result?.normalizedProperties || result?.feature || {};
+  const properties = result?.relatedFeature?.properties || normalized.originalProperties || {};
+  return {
+    group: "Ramsar",
+    name: firstKmlValue(normalized.name, properties.Nombre, "Sitio Ramsar relacionado"),
+    figureType: firstKmlValue(normalized.type, properties.Tipo, "Sitio Ramsar"),
+    region: firstKmlValue(normalized.region, properties.Nomreg),
+    province: firstKmlValue(normalized.province, properties.Nomprov),
+    commune: firstKmlValue(normalized.commune, properties.Nomcom),
+    area: firstKmlValue(formatKmlArea(normalized.areaHa), properties.superficie),
+    designationDate: firstKmlValue(normalized.date, properties.Fecha, properties.FECHA),
+    identifier: firstKmlValue(normalized.featureId, properties.Id, properties.tid),
+    decree: firstKmlValue(normalized.decree, properties.Decreto),
+    description: firstKmlValue(properties.Descripcion, properties.description),
+    source: firstKmlValue(result?.groupConfig?.nombre_largo),
+    sourceId: firstKmlValue(result?.sourceId, normalized.sourceId),
+    sourceFile: firstKmlValue(result?.sourceFile, normalized.sourceFile),
+    relationType: firstKmlValue(result?.relationType, result?.relation),
+    relationLabel: relationLabel(result),
+    minimumDistanceKm: result?.minimumDistanceKm,
+    distance: formatKmlDistance(result)
+  };
+}
+
+function kmlRows(items) {
+  const body = items.filter(([, value]) => hasKmlValue(value)).map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("");
+  return body ? `<table>${body}</table>` : "";
+}
+
+function kmlSection(title, items) {
+  const table = kmlRows(items);
+  return table ? `<h3>${escapeHtml(title)}</h3>${table}` : "";
+}
+
+function buildSnaspeKmlDescription(metadata) {
+  return `<h2>${escapeHtml(metadata.name)}</h2>${kmlSection("Identificación del área", [["Grupo", metadata.group], ["Nombre oficial", metadata.name], ["Nombre de unidad", metadata.unitName], ["Categoría", metadata.category], ["Tipo de figura", metadata.protectionType], ["Territorio", metadata.territory], ["Región", metadata.region], ["Comuna", metadata.commune], ["Superficie", metadata.area], ["Decreto o instrumento", metadata.decree], ["Fecha", metadata.date], ["Institución o administración", metadata.administration], ["Identificador", metadata.identifier]])}${kmlSection("Relación espacial", [["Tipo de relación", metadata.relationLabel], ["Distancia mínima", metadata.distance]])}${kmlSection("Fuente", [["Fuente", metadata.source], ["ID de fuente", metadata.sourceId], ["Archivo", metadata.sourceFile]])}`;
+}
+
+function buildRamsarKmlDescription(metadata) {
+  return `<h2>${escapeHtml(metadata.name)}</h2>${kmlSection("Identificación del sitio", [["Grupo", metadata.group], ["Nombre", metadata.name], ["Figura", metadata.figureType], ["Región", metadata.region], ["Provincia", metadata.province], ["Comuna o ubicación", metadata.commune], ["Superficie", metadata.area], ["Fecha de designación", metadata.designationDate], ["Número o identificador Ramsar", metadata.identifier], ["Decreto o instrumento", metadata.decree], ["Descripción", metadata.description]])}${kmlSection("Relación espacial", [["Tipo de relación", metadata.relationLabel], ["Distancia mínima", metadata.distance]])}${kmlSection("Fuente", [["Fuente", metadata.source], ["ID de fuente", metadata.sourceId], ["Archivo", metadata.sourceFile]])}`;
+}
+
+function buildKmlExtendedData(entries) {
+  return Object.fromEntries(entries.filter(([, value]) => hasKmlValue(value)));
+}
+
+function buildSnaspeKmlExtendedData(metadata) {
+  return buildKmlExtendedData([["Grupo", metadata.group], ["Nombre", metadata.name], ["Nombre de unidad", metadata.unitName], ["Categoría", metadata.category], ["Tipo de figura", metadata.protectionType], ["Territorio", metadata.territory], ["Región", metadata.region], ["Comuna", metadata.commune], ["Superficie", metadata.area], ["Decreto", metadata.decree], ["Fecha", metadata.date], ["Institución o administración", metadata.administration], ["Identificador", metadata.identifier], ["Tipo de relación", metadata.relationLabel], ["Distancia mínima", metadata.distance], ["Fuente", metadata.source], ["ID de fuente", metadata.sourceId], ["Archivo de origen", metadata.sourceFile]]);
+}
+
+function buildRamsarKmlExtendedData(metadata) {
+  return buildKmlExtendedData([["Grupo", metadata.group], ["Nombre", metadata.name], ["Tipo de figura", metadata.figureType], ["Región", metadata.region], ["Provincia", metadata.province], ["Comuna o ubicación", metadata.commune], ["Superficie", metadata.area], ["Fecha de designación", metadata.designationDate], ["Identificador", metadata.identifier], ["Decreto", metadata.decree], ["Tipo de relación", metadata.relationLabel], ["Distancia mínima", metadata.distance], ["Fuente", metadata.source], ["ID de fuente", metadata.sourceId], ["Archivo de origen", metadata.sourceFile]]);
+}
+
+function buildAuxiliaryKmlDescription(metadata) {
+  return kmlSection("Relación espacial", [["Grupo", metadata.group], ["Nombre", metadata.name], ["Tipo de relación", metadata.relationLabel], ["Distancia mínima", metadata.distance], ["Archivo de origen", metadata.sourceFile]]);
+}
+
 function buildGeoNemoMapExport(results) {
   const state=window.geoQueryState||{}; const theme=GeoQueryKmlExporter.themeFor("geonemo"); const st=GeoQueryKmlExporter.themedStyle("geonemo","line",{weight:3,fill:true}); const labelStyle={...st,kmlTextColor:theme.textColor,kmlHaloColor:theme.haloColor,labelScale:1,iconScale:0}; const folders=[{id:"query",name:"Punto consultado"},{id:"snaspe",name:"SNASPE"},{id:"ramsar",name:"Sitios Ramsar"},{id:"relations",name:"Relaciones espaciales"},{id:"labels",name:"Etiquetas"}];
   const features=[{id:"query-point",folderId:"query",type:"point",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:{...st,fillOpacity:.95,weight:3},extendedData:{Latitud:state.lat_decimal,Longitud:state.lon_decimal,CRS:state.crs},visible:true},{id:"query-label",folderId:"labels",type:"label",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:labelStyle,visible:true}];
-  (results||[]).filter(r=>r.status==="resolved"&&r.feature?.feature).forEach(r=>{ const gid=r.groupConfig?.id||r.groupId; const name=r.feature.name||r.groupConfig?.nombre||gid; features.push({id:`${gid}-feature`,folderId:gid,type:r.feature.feature.geometry?.type?.toLowerCase(),name,geometry:r.feature.feature.geometry,style:{...st,opacity:1},extendedData:{Grupo:r.groupConfig?.nombre,Nombre:name,Relación:r.relation,Distancia:formatDistance(r.distanceKm),Fuente:r.sourceFile||r.metadata?.sourceFile,Territorio:r.territory},visible:true}); const label=turf.pointOnFeature(r.feature.feature)?.geometry?.coordinates; if(label) features.push({id:`${gid}-label`,folderId:"labels",type:"label",name,geometry:{type:"Point",coordinates:label},style:labelStyle,visible:true}); if(r.nearestPoint?.geometry?.coordinates){ const p=r.nearestPoint.geometry.coordinates; const line=[[state.lon,state.lat],p]; const mid=turf.midpoint(turf.point(line[0]),turf.point(line[1])).geometry.coordinates; features.push({id:`${gid}-nearest-line`,folderId:"relations",type:"line",name:"Distancia mínima al perímetro",geometry:{type:"LineString",coordinates:line},style:{...st,weight:3,opacity:1,dashArray:"4 6"},extendedData:{Distancia:formatDistance(r.distanceKm)},visible:true}); features.push({id:`${gid}-contact`,folderId:"relations",type:"point",name:"Punto de contacto con perímetro",geometry:{type:"Point",coordinates:p},style:{...st,fillOpacity:1,weight:2,iconType:"contact"},visible:true}); features.push({id:`${gid}-distance-label`,folderId:"labels",type:"label",name:`Distancia mínima: ${formatDistance(r.distanceKm)}`,geometry:{type:"Point",coordinates:mid},style:{...labelStyle,labelScale:.9},visible:true}); } });
+  (results||[]).filter(r=>r.status==="resolved"&&r.relatedFeature?.geometry).forEach(r=>{ const gid=r.groupConfig?.id||r.groupId; const isSnaspe=gid==="snaspe"; const metadata=isSnaspe?getSnaspeKmlMetadata(r):getRamsarKmlMetadata(r); const description=isSnaspe?buildSnaspeKmlDescription(metadata,r):buildRamsarKmlDescription(metadata,r); const extendedData=isSnaspe?buildSnaspeKmlExtendedData(metadata,r):buildRamsarKmlExtendedData(metadata,r); const name=metadata.name || r.groupConfig?.nombre || gid; features.push({id:`${gid}-feature`,folderId:gid,type:r.relatedFeature.geometry?.type?.toLowerCase(),name,geometry:r.relatedFeature.geometry,style:{...st,opacity:1},description,extendedData,properties:{...(r.relatedFeature.properties||{})},visible:true}); const label=turf.pointOnFeature(r.relatedFeature)?.geometry?.coordinates; if(label) features.push({id:`${gid}-label`,folderId:"labels",type:"label",name,geometry:{type:"Point",coordinates:label},style:labelStyle,description,extendedData,properties:{...(r.relatedFeature.properties||{})},preserveKmlMetadataOnHalo:true,visible:true}); if(r.nearestPoint?.geometry?.coordinates){ const p=r.nearestPoint.geometry.coordinates; const line=[[state.lon,state.lat],p]; const mid=turf.midpoint(turf.point(line[0]),turf.point(line[1])).geometry.coordinates; const auxDescription=buildAuxiliaryKmlDescription(metadata); const auxExtendedData=buildKmlExtendedData([["Grupo", metadata.group], ["Nombre", metadata.name], ["Tipo de relación", metadata.relationLabel], ["Distancia mínima", metadata.distance], ["Archivo de origen", metadata.sourceFile]]); features.push({id:`${gid}-nearest-line`,folderId:"relations",type:"line",name:"Distancia mínima al perímetro",geometry:{type:"LineString",coordinates:line},style:{...st,weight:3,opacity:1,dashArray:"4 6"},description:auxDescription,extendedData:auxExtendedData,visible:true}); features.push({id:`${gid}-contact`,folderId:"relations",type:"point",name:"Punto de contacto con perímetro",geometry:{type:"Point",coordinates:p},style:{...st,fillOpacity:1,weight:2,iconType:"contact"},description:auxDescription,extendedData:auxExtendedData,visible:true}); features.push({id:`${gid}-distance-label`,folderId:"labels",type:"label",name:`Distancia mínima: ${formatDistance(r.distanceKm)}`,geometry:{type:"Point",coordinates:mid},style:{...labelStyle,labelScale:.9},description:auxDescription,extendedData:auxExtendedData,preserveKmlMetadataOnHalo:true,visible:true}); } });
   return {site:"geonemo",documentName:"GeoQuery | GeoNEMO",documentDescription:state.executiveSummary,queryPoint:{lat:state.lat,lon:state.lon},folders,features};
 }
 window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
