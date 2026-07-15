@@ -831,7 +831,54 @@ function escapeXml(str) {
     .replace(/'/g, "&apos;");
 }
 
-function featureToKmlPlacemark(feature, props, nombreFallback) {
+const GEOIPT_KML_THEME = { cssColor: "#FFFFFF", lineColor: "ffffffff", fillColor: "40ffffff", strongerFillColor: "59ffffff", textColor: "ff000000", haloColor: "ffffffff" };
+function cleanKmlValue(value) {
+  if (value === undefined || value === null) return "";
+  const text = String(value).trim();
+  return !text || /^(undefined|null)$/i.test(text) ? "" : text;
+}
+function pickProp(props, aliases) {
+  for (const key of aliases) {
+    const value = cleanKmlValue(props?.[key]);
+    if (value) return value;
+  }
+  return "";
+}
+function geoIptNormativeMetadata(props, item = {}) {
+  const merged = { ...(item.feature?.properties || {}), ...(props || {}), ...(item.metadata || {}) };
+  const rows = {
+    "Región": pickProp(merged, ["REG", "region", "REGION", "Región"]),
+    "Comuna": pickProp(merged, ["COM", "comuna", "COMUNA"]),
+    "Localidad": pickProp(merged, ["LOC", "LOCALIDAD", "localidad"]),
+    "Código de zona": pickProp(merged, ["ZONA", "zona", "COD_ZONA"]),
+    "Nombre de zona": pickProp(merged, ["NOM", "NOMBRE", "nombre", "Name"]),
+    "Usos permitidos": pickProp(merged, ["UPERM", "USOS_PERMITIDOS", "uso_permitido"]),
+    "Usos prohibidos": pickProp(merged, ["UPROH", "USOS_PROHIBIDOS", "uso_prohibido"]),
+    "Tipo de documento": pickProp(merged, ["T_DO", "TIPO_DOC", "tipo_documento"]),
+    "Número de documento": pickProp(merged, ["N_DOC", "NUM_DOC", "numero_documento"]),
+    "Fecha del documento": pickProp(merged, ["P_DO", "FECHA_DOC", "fecha_documento"]),
+    "Observaciones": pickProp(merged, ["OBS", "OBSERVACIONES", "observaciones"]),
+    "Tipo de relación": cleanKmlValue(item.relacion || item.relation || item.tipoRelacion),
+    "Distancia mínima": cleanKmlValue(item.distancia || item.distance || item.distanceKm),
+    "Fuente": cleanKmlValue(item.fuente || item.source || "KML normativo PRC"),
+    "Archivo regional de origen": cleanKmlValue(item.archivo)
+  };
+  Object.keys(rows).forEach((key) => { if (!cleanKmlValue(rows[key])) delete rows[key]; });
+  return rows;
+}
+function geoIptPlacemarkName(metadata) {
+  const code = metadata["Código de zona"];
+  const name = metadata["Nombre de zona"];
+  if (code && name) return `${code} · ${name}`;
+  if (code) return `Zona PRC ${code}`;
+  return "Zona PRC relacionada";
+}
+function geoIptDescription(metadata) {
+  const row = (label) => metadata[label] ? `<tr><th>${escapeXml(label)}</th><td>${escapeXml(metadata[label])}</td></tr>` : "";
+  const documentText = [metadata["Tipo de documento"], metadata["Número de documento"], metadata["Fecha del documento"]].filter(Boolean).join(" · ");
+  return `<h2>Zona PRC relacionada</h2><table>${["Región","Comuna","Localidad","Código de zona","Nombre de zona","Tipo de relación","Distancia mínima","Fuente","Archivo regional de origen"].map(row).join("")}</table>${metadata["Usos permitidos"] ? `<h3>Usos permitidos</h3><p>${escapeXml(metadata["Usos permitidos"])}</p>` : ""}${metadata["Usos prohibidos"] ? `<h3>Usos prohibidos</h3><p>${escapeXml(metadata["Usos prohibidos"])}</p>` : ""}${documentText ? `<h3>Documento normativo</h3><p>${escapeXml(documentText)}</p>` : ""}${metadata["Observaciones"] ? `<h3>Observaciones</h3><p>${escapeXml(metadata["Observaciones"])}</p>` : ""}`;
+}
+function featureToKmlPlacemark(feature, props, nombreFallback, item = {}) {
   const geom = feature.geometry;
   if (!geom) return "";
 
@@ -844,28 +891,14 @@ function featureToKmlPlacemark(feature, props, nombreFallback) {
     return "";
   }
 
-  const propsSafe = props || {};
-  const nombre =
-    propsSafe.NOM ||
-    propsSafe.NOMBRE ||
-    propsSafe.ZONA ||
-    nombreFallback ||
-    "Zona consultada";
-
-  let extendedData = "";
-  const entries = Object.entries(propsSafe);
-  if (entries.length) {
-    extendedData = "<ExtendedData>";
-    entries.forEach(([k, v]) => {
-      extendedData += `<Data name="${escapeXml(k)}"><value>${escapeXml(v)}</value></Data>`;
-    });
-    extendedData += "</ExtendedData>";
-  }
-
+  const metadata = geoIptNormativeMetadata(props, item);
+  const nombre = geoIptPlacemarkName(metadata) || nombreFallback || "Zona PRC relacionada";
+  const extendedData = Object.entries(metadata).length ? `<ExtendedData>${Object.entries(metadata).map(([k, v]) => `<Data name="${escapeXml(k)}"><displayName>${escapeXml(k)}</displayName><value>${escapeXml(v)}</value></Data>`).join("")}</ExtendedData>` : "";
   return `
     <Placemark>
       <name>${escapeXml(nombre)}</name>
       <styleUrl>#geoipt_poly</styleUrl>
+      <description><![CDATA[${geoIptDescription(metadata)}]]></description>
       ${extendedData}
       ${geomKml}
     </Placemark>`;
@@ -1014,7 +1047,7 @@ function descargarKmlZona(triggerType = "button") {
 
   const placemarks = featuresSeleccionadas
     .map((item, idx) =>
-      featureToKmlPlacemark(item.feature, item.metadata, `Zona ${idx + 1}`)
+      featureToKmlPlacemark(item.feature, item.metadata || item.feature?.properties, `Zona ${idx + 1}`, item)
     )
     .join("\n");
 
@@ -1024,11 +1057,13 @@ function descargarKmlZona(triggerType = "button") {
       <name>${escapeXml(nombreKml)}</name>
       <Style id="geoipt_poly">
         <LineStyle>
-          <color>ffeb6325</color>
-          <width>2</width>
+          <color>ffffffff</color>
+          <width>3</width>
         </LineStyle>
         <PolyStyle>
-          <color>66f6823b</color>
+          <color>40ffffff</color>
+          <fill>1</fill>
+          <outline>1</outline>
         </PolyStyle>
       </Style>
       ${placemarks}
