@@ -286,9 +286,10 @@ function buildGeoNoxaMapExport(relavesResult, zonasResult) {
  const state=window.geoQueryState||{};
  const theme=GeoQueryKmlExporter.themeFor("geonoxa");
  const st=GeoQueryKmlExporter.themedStyle("geonoxa","line",{weight:3,fill:true});
- const labelStyle={...st,kmlTextColor:theme.textColor,labelScale:.9,iconScale:0};
+ const labelStyle={...st,kmlTextColor:theme.textColor,kmlHaloColor:null,labelScale:.9,iconScale:0};
  const folders=[{id:"query",name:"Punto consultado"},{id:"cluster",name:"Clúster de relaves"},{id:"relaves",name:"Relaves seleccionados"},{id:"zonas",name:"Zona saturada o latente"},{id:"relations",name:"Relación espacial"},{id:"labels",name:"Etiquetas"}];
- const features=[{id:"query-point",folderId:"query",role:"query-point",type:"point",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:{...st,fillOpacity:.95,weight:3},description:`<h2>Punto consultado</h2>${htmlTable([`<tr><th>Latitud</th><td>${escapeHtml(state.lat)}</td></tr>`,`<tr><th>Longitud</th><td>${escapeHtml(state.lon)}</td></tr>`])}`,extendedData:{Latitud:state.lat,Longitud:state.lon,CRS:"WGS84 / EPSG:4326"},visible:true},{id:"query-label",folderId:"labels",role:"query-point",type:"label",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:labelStyle,description:"Punto consultado",extendedData:{Latitud:state.lat,Longitud:state.lon},visible:true}];
+ const registry=GeoQueryKmlExporter.createKmlExportRegistry();
+ GeoQueryKmlExporter.addUniqueKmlItem(registry,{id:"geonoxa-query-point",site:"geonoxa",groupId:"general",folderId:"query",role:"query-point",type:"point",name:"Punto consultado",geometry:{type:"Point",coordinates:[state.lon,state.lat]},style:{...st,fillOpacity:.95,weight:3,labelScale:1},description:`<h2>Punto consultado</h2>${htmlTable([`<tr><th>Latitud</th><td>${escapeHtml(state.lat)}</td></tr>`,`<tr><th>Longitud</th><td>${escapeHtml(state.lon)}</td></tr>`])}`,extendedData:{Latitud:state.lat,Longitud:state.lon,CRS:"WGS84 / EPSG:4326"},visible:true});
  const rels=Array.isArray(relavesResult?.selectedRelaves)?relavesResult.selectedRelaves:(relavesResult?.items||[]);
  if(relavesResult?.status==="resolved"&&rels.length){
   const radius=relavesResult.clusterRadiusKm??relavesResult.radiusKm;
@@ -297,7 +298,7 @@ function buildGeoNoxaMapExport(relavesResult, zonasResult) {
   if(Number.isFinite(radius)){
    const circle=turf.circle([state.lon,state.lat],radius,{steps:128,units:"kilometers"});
    const clusterData=kmlData([["tipo","Tipo","Clúster de relaves"],["relaves_seleccionados","Relaves seleccionados",rels.length],["radio_cluster","Radio del clúster",formatDistanceKm(radius)],["recurso_dominante","Recurso dominante",relavesResult.dominantResource],["cantidad_recurso_dominante","Cantidad del recurso dominante",relavesResult.dominantResourceCount],["participacion_recurso_dominante","Participación del recurso dominante",formatPercent(relavesResult.dominantResourcePercentage)],["recursos_diferentes","Recursos diferentes",resourceCount],["distancia_minima","Distancia mínima al punto",formatDistanceKm(selectedStats.minKm)],["distancia_media","Distancia media desde el punto",formatDistanceKm(selectedStats.meanKm)],["distancia_maxima","Distancia máxima al punto",formatDistanceKm(radius)]]);
-   features.push({id:"geonoxa-cluster-circle",folderId:"cluster",role:"cluster-circle",type:"polygon",name:`Clúster de ${rels.length} relaves`,geometry:circle.geometry,style:st,description:`<h2>Clúster de ${escapeHtml(rels.length)} relaves</h2>${htmlTable(Object.entries(clusterData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:clusterData,visible:true});
+   GeoQueryKmlExporter.addUniqueKmlItem(registry,{id:"geonoxa-cluster-circle",site:"geonoxa",groupId:"cluster",folderId:"cluster",role:"cluster-circle",type:"polygon",name:`Clúster de ${rels.length} relaves`,geometry:circle.geometry,style:st,description:`<h2>Clúster de ${escapeHtml(rels.length)} relaves</h2>${htmlTable(Object.entries(clusterData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:clusterData,visible:true});
   }
   rels.slice(0,10).forEach((r,i)=>{
    const rank=r.rank || i+1;
@@ -305,8 +306,7 @@ function buildGeoNoxaMapExport(relavesResult, zonasResult) {
    const description=buildGeoNoxaRelaveKmlDescription({...r,rank},relavesResult);
    const extendedData=buildGeoNoxaRelaveExtendedData({...r,rank},relavesResult);
    const geometry=r.feature?.geometry || {type:"Point",coordinates:r.coordinates};
-   features.push({id:`geonoxa-relave-${rank}`,folderId:"relaves",groupId:"relaves",role:"relave-point",type:"point",name,geometry,style:{...st,fillOpacity:.85,weight:2},description,extendedData,properties:{...(r.originalProperties||{})},visible:true});
-   features.push({id:`geonoxa-relave-${rank}-label`,folderId:"labels",groupId:"relaves",role:"relave-point",type:"label",name,geometry:{type:"Point",coordinates:r.coordinates},style:labelStyle,description,extendedData,visible:true});
+   GeoQueryKmlExporter.addUniqueKmlItem(registry,{id:`geonoxa-relave-${rank}`,site:"geonoxa",folderId:"relaves",groupId:"relaves",role:"related-point",type:"point",name,geometry,style:{...st,fillOpacity:.85,weight:2},description,extendedData,properties:{...(r.originalProperties||{})},visible:true});
   });
  }
  const z=(zonasResult?.items||[])[0];
@@ -315,21 +315,21 @@ function buildGeoNoxaMapExport(relavesResult, zonasResult) {
   const zoneName=[...new Set(zoneNameParts)].join(" · ");
   const description=buildGeoNoxaZoneKmlDescription(z,zonasResult);
   const extendedData=buildGeoNoxaZoneExtendedData(z,zonasResult);
-  features.push({id:"geonoxa-related-zone",folderId:"zonas",groupId:"zonas",role:"related-zone",type:z.feature?.geometry?.type?.toLowerCase(),name:zoneName,geometry:z.feature?.geometry,style:st,description,extendedData,properties:{...(z.originalProperties||z.feature?.properties||{})},visible:true});
+  GeoQueryKmlExporter.addUniqueKmlItem(registry,{id:"geonoxa-related-zone",site:"geonoxa",folderId:"zonas",groupId:"zonas",role:"related-feature",type:z.feature?.geometry?.type?.toLowerCase(),name:zoneName,geometry:z.feature?.geometry,style:{...st,labelScale:0},description,extendedData,properties:{...(z.originalProperties||z.feature?.properties||{})},visible:true});
   const label=turf.pointOnFeature(z.feature)?.geometry?.coordinates;
-  if(label) features.push({id:"geonoxa-related-zone-label",folderId:"labels",groupId:"zonas",role:"related-zone",type:"label",name:zoneName,geometry:{type:"Point",coordinates:label},style:labelStyle,description,extendedData,visible:true});
+  if(label) GeoQueryKmlExporter.addUniqueKmlItem(registry,{id:"geonoxa-related-zone-label",site:"geonoxa",folderId:"labels",groupId:"zonas",role:"feature-label",type:"label",name:zoneName,geometry:{type:"Point",coordinates:label},style:labelStyle,description,extendedData,visible:true});
   if((zonasResult.relationType||zonasResult.relation)!=="intersects"&&zonasResult.nearestPoint?.geometry?.coordinates){
    const p=zonasResult.nearestPoint.geometry.coordinates;
    const line=[[state.lon,state.lat],p];
    const mid=turf.midpoint(turf.point(line[0]),turf.point(line[1])).geometry.coordinates;
    const relationData=kmlData([["nombre_zona","Nombre de zona",z.name],["tipo_relacion","Tipo de relación",relationLabel(zonasResult)],["distancia_minima","Distancia mínima",formatDistanceKm(zonasResult.minimumDistanceKm ?? zonasResult.distanceKm)]]);
-   features.push({id:"geonoxa-zone-nearest-line",folderId:"relations",role:"nearest-line",type:"line",name:"Distancia mínima al perímetro",geometry:{type:"LineString",coordinates:line},style:{...st,weight:3,opacity:1,dashArray:"4 6"},description:`<h2>Distancia mínima al perímetro</h2>${htmlTable(Object.entries(relationData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:relationData,visible:true});
+   GeoQueryKmlExporter.addUniqueKmlItem(registry,{id:"geonoxa-zone-nearest-line",site:"geonoxa",groupId:"zonas",folderId:"relations",role:"nearest-line",type:"line",name:"Relación espacial",geometry:{type:"LineString",coordinates:line},style:{...st,weight:3,opacity:1,dashArray:"4 6",labelScale:0},description:`<h2>Distancia mínima al perímetro</h2>${htmlTable(Object.entries(relationData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:relationData,visible:true});
    const contactData={...relationData,"Coordenadas del punto de contacto":`${fmt.format(p[1])}, ${fmt.format(p[0])}`};
-   features.push({id:"geonoxa-zone-contact-point",folderId:"relations",role:"contact-point",type:"point",name:"Punto de contacto con perímetro",geometry:{type:"Point",coordinates:p},style:{...st,fillOpacity:1,weight:2,iconType:"contact"},description:`<h2>Punto de contacto con perímetro</h2>${htmlTable(Object.entries(contactData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:contactData,visible:true});
-   features.push({id:"geonoxa-zone-distance-label",folderId:"labels",role:"distance-label",type:"label",name:`Distancia mínima: ${formatDistanceKm(zonasResult.minimumDistanceKm ?? zonasResult.distanceKm)}`,geometry:{type:"Point",coordinates:mid},style:labelStyle,description:`<h2>Distancia mínima</h2>${htmlTable(Object.entries(relationData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:relationData,visible:true});
+   GeoQueryKmlExporter.addUniqueKmlItem(registry,{id:"geonoxa-zone-contact-point",site:"geonoxa",groupId:"zonas",folderId:"relations",role:"contact-point",type:"point",name:"Punto de contacto con perímetro",geometry:{type:"Point",coordinates:p},style:{...st,fillOpacity:1,weight:2,iconType:"contact"},description:`<h2>Punto de contacto con perímetro</h2>${htmlTable(Object.entries(contactData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:contactData,visible:true});
+   GeoQueryKmlExporter.addUniqueKmlItem(registry,{id:"geonoxa-zone-distance-label",site:"geonoxa",groupId:"zonas",folderId:"labels",role:"distance-label",type:"label",name:`Distancia mínima: ${formatDistanceKm(zonasResult.minimumDistanceKm ?? zonasResult.distanceKm)}`,geometry:{type:"Point",coordinates:mid},style:labelStyle,description:`<h2>Distancia mínima</h2>${htmlTable(Object.entries(relationData).map(([k,v])=>`<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`))}`,extendedData:relationData,visible:true});
   }
  }
- return {site:"geonoxa",documentName:"GeoQuery | GeoNOXA",documentDescription:state.executiveSummary,queryPoint:{lat:state.lat,lon:state.lon},folders,features,debugTheme:false};
+ const features=Array.from(registry.values()); GeoQueryKmlExporter.validateKmlExportItems(features); return {site:"geonoxa",documentName:"GeoQuery | GeoNOXA",documentDescription:state.executiveSummary,queryPoint:{lat:state.lat,lon:state.lon},folders,features,debugTheme:false};
 }
 window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
 

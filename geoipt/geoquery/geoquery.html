@@ -2133,26 +2133,29 @@
     function buildGeoIptMapExport(result) {
       const state = window.geoQueryState || {};
       const folders = [{ id: "query", name: "Punto consultado" }, { id: "zone", name: "Zona PRC relacionada" }, { id: "relation", name: "Relación espacial" }];
-      const features = [{ id: "query-point", folderId: "query", type: "point", name: "Punto consultado", geometry: { type: "Point", coordinates: [state.lon, state.lat] }, style: { color: "#111827", fillColor: "#facc15", fillOpacity: .95, weight: 3 }, extendedData: { Latitud: state.lat_decimal, Longitud: state.lon_decimal, CRS: "WGS84 / EPSG:4326" }, visible: true }];
+      const registry = GeoQueryKmlExporter.createKmlExportRegistry();
+      GeoQueryKmlExporter.addUniqueKmlItem(registry, { id: "geoipt-query-point", site: "geoipt", groupId: "general", role: "query-point", folderId: "query", type: "point", name: "Punto consultado", geometry: { type: "Point", coordinates: [state.lon, state.lat] }, style: { color: "#111827", fillColor: "#facc15", fillOpacity: .95, weight: 3, labelScale: 1 }, extendedData: { Latitud: state.lat_decimal, Longitud: state.lon_decimal, CRS: "WGS84 / EPSG:4326" }, visible: true });
       const relatedFeature = result?.relatedFeature || result?.spatialRelation?.relatedFeature || result?.feature;
       if (relatedFeature?.geometry) {
         const isIntersects = result.relation_type === "intersects";
         const metadata = result.metadata || normalizeGeoIptFeatureMetadata(relatedFeature);
         const placemarkName = geoIptPlacemarkName(metadata);
         const exportFeature = { type: "Feature", geometry: structuredClone(relatedFeature.geometry), properties: structuredClone(relatedFeature.properties || {}) };
-        features.push({ id: "zona-prc", folderId: "zone", type: exportFeature.geometry?.type?.toLowerCase(), name: placemarkName, description: buildGeoIptZoneKmlDescription(metadata, result), geometry: exportFeature.geometry, style: { color: isIntersects ? "#1d4ed8" : "#dc2626", weight: 3, opacity: .95, fillColor: isIntersects ? "#1d4ed8" : "#dc2626", fillOpacity: isIntersects ? .18 : .04 }, extendedData: buildGeoIptExtendedData(metadata, result), properties: { ...exportFeature.properties }, visible: true });
+        GeoQueryKmlExporter.addUniqueKmlItem(registry, { id: "geoipt-related-zone", site: "geoipt", groupId: "zone", role: "related-feature", folderId: "zone", type: exportFeature.geometry?.type?.toLowerCase(), name: placemarkName, description: buildGeoIptZoneKmlDescription(metadata, result), geometry: exportFeature.geometry, style: { color: isIntersects ? "#1d4ed8" : "#dc2626", weight: 3, opacity: .95, fillColor: isIntersects ? "#1d4ed8" : "#dc2626", fillOpacity: isIntersects ? .18 : .04, labelScale: 0 }, extendedData: buildGeoIptExtendedData(metadata, result), properties: { ...exportFeature.properties }, visible: true });
         const labelPoint = turf.pointOnFeature(exportFeature)?.geometry?.coordinates;
-        if (labelPoint) features.push({ id: "zona-prc-label", folderId: "zone", type: "label", name: placemarkName, geometry: { type: "Point", coordinates: labelPoint }, style: { color: "#1d4ed8", labelColor: "#1d4ed8", labelScale: 1.05, scale: .1 }, extendedData: { Etiqueta: placemarkName }, visible: true });
+        if (labelPoint) GeoQueryKmlExporter.addUniqueKmlItem(registry, { id: "geoipt-related-zone-label", site: "geoipt", groupId: "zone", role: "feature-label", folderId: "zone", type: "label", name: placemarkName, geometry: { type: "Point", coordinates: labelPoint }, style: { color: "#1d4ed8", labelColor: "#1d4ed8", labelScale: 1.05, iconScale: 0 }, extendedData: { Etiqueta: placemarkName }, visible: true });
         const near = result.nearestBoundaryPoint || result.spatialRelation?.nearestBoundaryPoint;
         const qp = result.spatialRelation?.queryPoint;
         if (!isIntersects && near && qp) {
           const line = [[qp.lon, qp.lat], [near.lon, near.lat]];
           const mid = turf.midpoint(turf.point(line[0]), turf.point(line[1])).geometry.coordinates;
-          features.push({ id: "distancia-minima", folderId: "relation", type: "line", name: "Distancia mínima al perímetro", geometry: { type: "LineString", coordinates: line }, style: { color: "#f97316", opacity: .9, weight: 3, dashArray: "4 6" }, extendedData: { Distancia: formatMinimumDistanceValue(result.minimumDistanceKm) }, visible: true });
-          features.push({ id: "punto-perimetro", folderId: "relation", type: "point", name: "Punto de contacto con perímetro", geometry: { type: "Point", coordinates: [near.lon, near.lat] }, style: { color: "#7c2d12", fillColor: "#fed7aa", fillOpacity: .95, weight: 2, iconType: "contact" }, visible: true });
-          features.push({ id: "etiqueta-distancia", folderId: "relation", type: "label", name: formatMinimumDistanceLabel(result.minimumDistanceKm), geometry: { type: "Point", coordinates: mid }, style: { labelColor: "#7c2d12", labelScale: .9, scale: .1 }, visible: true });
+          GeoQueryKmlExporter.addUniqueKmlItem(registry, { id: "geoipt-nearest-line", site: "geoipt", groupId: "zone", role: "nearest-line", folderId: "relation", type: "line", name: "Relación espacial", geometry: { type: "LineString", coordinates: line }, style: { color: "#f97316", opacity: .9, weight: 3, dashArray: "4 6", labelScale: 0 }, extendedData: { Distancia: formatMinimumDistanceValue(result.minimumDistanceKm) }, visible: true });
+          GeoQueryKmlExporter.addUniqueKmlItem(registry, { id: "geoipt-contact-point", site: "geoipt", groupId: "zone", role: "contact-point", folderId: "relation", type: "point", name: "Punto de contacto con perímetro", geometry: { type: "Point", coordinates: [near.lon, near.lat] }, style: { color: "#7c2d12", fillColor: "#fed7aa", fillOpacity: .95, weight: 2, iconType: "contact" }, visible: true });
+          GeoQueryKmlExporter.addUniqueKmlItem(registry, { id: "geoipt-distance-label", site: "geoipt", groupId: "zone", role: "distance-label", folderId: "relation", type: "label", name: formatMinimumDistanceLabel(result.minimumDistanceKm), geometry: { type: "Point", coordinates: mid }, style: { labelColor: "#7c2d12", labelScale: .9, iconScale: 0 }, visible: true });
         }
       }
+      const features = Array.from(registry.values());
+      GeoQueryKmlExporter.validateKmlExportItems(features);
       return { site: "GeoIPT", documentName: "GeoQuery | GeoIPT", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features, debugTheme: false };
     }
 
