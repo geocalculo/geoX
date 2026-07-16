@@ -2050,21 +2050,33 @@
         return "../index.html";
       }
 
+      const sourceParams = new URLSearchParams(window.location.search);
+      const centerLat = sourceParams.get("mapCenterLat") || viewLat;
+      const centerLon = sourceParams.get("mapCenterLon") || viewLon;
+      const returnZoom = sourceParams.get("mapZoom") || zoom || "14";
       const backParams = new URLSearchParams({
-        from: "geoquery",
+        from: sourceParams.get("from") === "crossaccess" ? "crossaccess" : "geoquery",
         lat: String(lat),
         lon: String(lon),
-        zoom: zoom || "14",
+        queryLat: sourceParams.get("queryLat") || String(lat),
+        queryLon: sourceParams.get("queryLon") || String(lon),
+        zoom: String(returnZoom),
+        mapZoom: String(returnZoom),
         basemap: basemap || "osm"
       });
-      if (Number.isFinite(Number(viewLat)) && Number.isFinite(Number(viewLon))) {
-        backParams.set("viewLat", String(viewLat));
-        backParams.set("viewLon", String(viewLon));
+      if (Number.isFinite(Number(centerLat)) && Number.isFinite(Number(centerLon))) {
+        backParams.set("viewLat", String(centerLat));
+        backParams.set("viewLon", String(centerLon));
+        backParams.set("mapCenterLat", String(centerLat));
+        backParams.set("mapCenterLon", String(centerLon));
       }
+      ["viewWest", "viewSouth", "viewEast", "viewNorth", "restoreViewport"].forEach((key) => {
+        const value = sourceParams.get(key);
+        if (value !== null) backParams.set(key, value);
+      });
 
       return `../index.html?${backParams.toString()}`;
     }
-
 
     function setGeoQueryKmlExport(mapExport) {
       window.geoQueryState.mapExport = mapExport;
@@ -2302,6 +2314,13 @@
       function updateReturnLink() {
         elements.backLink.href = buildReturnUrl(lat, lon, zoomFromIndex || "14", currentBasemap, viewLat, viewLon);
       }
+
+      elements.backLink?.addEventListener("click", (event) => {
+        if (history.length > 1) {
+          event.preventDefault();
+          history.back();
+        }
+      });
 
       function setBasemapButtonActive(type) {
         const osmBtn = document.getElementById("geoquery-osm-btn");

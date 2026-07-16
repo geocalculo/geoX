@@ -41,8 +41,12 @@ function getParam(params, key, fallback) { return params.get(key) || fallback; }
 
 function buildReturnUrl(lat, lon, zoom, basemap, viewLat, viewLon) {
   if (lat === null || lon === null) return "../index.html";
-  const backParams = new URLSearchParams({ from: "geoquery", lat: String(lat), lon: String(lon), zoom: zoom || "14", basemap: basemap || "osm" });
-  if (viewLat && viewLon) { backParams.set("viewLat", viewLat); backParams.set("viewLon", viewLon); }
+  const sourceParams = new URLSearchParams(window.location.search);
+  const backParams = new URLSearchParams({ from: sourceParams.get("from") === "crossaccess" ? "crossaccess" : "geoquery", lat: String(lat), lon: String(lon), queryLat: sourceParams.get("queryLat") || String(lat), queryLon: sourceParams.get("queryLon") || String(lon), zoom: String(zoom || sourceParams.get("mapZoom") || "14"), mapZoom: String(sourceParams.get("mapZoom") || zoom || "14"), basemap: basemap || "osm" });
+  const centerLat = sourceParams.get("mapCenterLat") || viewLat;
+  const centerLon = sourceParams.get("mapCenterLon") || viewLon;
+  if (centerLat && centerLon) { backParams.set("viewLat", centerLat); backParams.set("viewLon", centerLon); backParams.set("mapCenterLat", centerLat); backParams.set("mapCenterLon", centerLon); }
+  ["viewWest", "viewSouth", "viewEast", "viewNorth", "restoreViewport"].forEach((key) => { const value = sourceParams.get(key); if (value !== null) backParams.set(key, value); });
   return `../index.html?${backParams.toString()}`;
 }
 
@@ -783,6 +787,7 @@ window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => w
   toggle.innerHTML = `<button id="geoquery-osm-btn" class="map-toggle-btn" type="button" data-map="osm">OSM</button><button id="geoquery-sat-btn" class="map-toggle-btn" type="button" data-map="sat">SAT</button>`;
   document.getElementById("geoquery-map").appendChild(toggle); L.DomEvent.disableClickPropagation(toggle); L.DomEvent.disableScrollPropagation(toggle);
   function updateReturnLink() { elements.backLink.href = buildReturnUrl(lat, lon, zoomFromIndex || "14", currentBasemap, viewLat, viewLon); }
+  elements.backLink?.addEventListener("click", (event) => { if (history.length > 1) { event.preventDefault(); history.back(); } });
   function setBasemapButtonActive(type) { document.getElementById("geoquery-osm-btn")?.classList.toggle("active", type === "osm"); document.getElementById("geoquery-sat-btn")?.classList.toggle("active", type === "sat"); }
   function setBasemap(type) { if (geoQueryMap.hasLayer(osmLayer)) geoQueryMap.removeLayer(osmLayer); if (geoQueryMap.hasLayer(satLayer)) geoQueryMap.removeLayer(satLayer); (type === "sat" ? satLayer : osmLayer).addTo(geoQueryMap); currentBasemap = type === "sat" ? "sat" : "osm"; setBasemapButtonActive(currentBasemap); window.geoQueryState.basemap = currentBasemap; window.geoQueryState.mapState.basemap = currentBasemap; window.geoQueryState.queryContext.originalViewport.basemap = currentBasemap; updateReturnLink(); }
   toggle.querySelector('[data-map="osm"]').addEventListener("click", () => setBasemap("osm")); toggle.querySelector('[data-map="sat"]').addEventListener("click", () => setBasemap("sat"));
