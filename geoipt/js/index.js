@@ -11,6 +11,123 @@ const SITE_ID = "geoipt";
 const CROSS_ACCESS_PARAM_NAME = "from";
 const CROSS_ACCESS_PARAM_VALUE = "crossaccess";
 
+let viewportRestoreApplied = false;
+let geoQueryRestoreState = null;
+
+function toFiniteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function normalizeBasemap(value) {
+  return String(value || "").toLowerCase() === "sat" ? "sat" : "osm";
+}
+
+function validLat(value) { return Number.isFinite(value) && value >= -90 && value <= 90; }
+function validLon(value) { return Number.isFinite(value) && value >= -180 && value <= 180; }
+function validZoom(value) { return Number.isFinite(value) && value >= 0 && value <= 22; }
+
+function getGeoQueryOriginStorageKey(site = SITE_ID) {
+  return `geox:${site}:geoquery-origin`;
+}
+
+function normalizeGeoQueryOriginState(raw, site = SITE_ID) {
+  if (!raw || raw.site !== site) return null;
+  const centerLat = toFiniteNumber(raw.map?.centerLat);
+  const centerLon = toFiniteNumber(raw.map?.centerLon);
+  const zoom = toFiniteNumber(raw.map?.zoom);
+  const queryLat = toFiniteNumber(raw.queryPoint?.lat);
+  const queryLon = toFiniteNumber(raw.queryPoint?.lon);
+  const west = toFiniteNumber(raw.map?.bounds?.west);
+  const south = toFiniteNumber(raw.map?.bounds?.south);
+  const east = toFiniteNumber(raw.map?.bounds?.east);
+  const north = toFiniteNumber(raw.map?.bounds?.north);
+  const savedAt = toFiniteNumber(raw.savedAt) || Date.now();
+  const maxAgeMs = 12 * 60 * 60 * 1000;
+  if (!validLat(centerLat) || !validLon(centerLon) || !validZoom(zoom)) return null;
+  if (!validLat(queryLat) || !validLon(queryLon)) return null;
+  if (!validLon(west) || !validLon(east) || !validLat(south) || !validLat(north) || !(west < east) || !(south < north)) return null;
+  if (Date.now() - savedAt > maxAgeMs) return null;
+  return {
+    version: 1,
+    site,
+    source: "geoquery",
+    savedAt,
+    queryPoint: { lat: queryLat, lon: queryLon },
+    map: { centerLat, centerLon, zoom, basemap: normalizeBasemap(raw.map?.basemap), bounds: { west, south, east, north } },
+    navigation: { from: raw.navigation?.from || "index", crossAccess: raw.navigation?.crossAccess === true || raw.navigation?.from === "crossaccess" }
+  };
+}
+
+function readOriginStateFromUrl(site = SITE_ID) {
+  const params = new URLSearchParams(window.location.search);
+  const finiteParam = (name) => toFiniteNumber(params.get(name));
+  const centerLat = finiteParam("mapCenterLat") ?? finiteParam("viewLat");
+  const centerLon = finiteParam("mapCenterLon") ?? finiteParam("viewLon");
+  const zoom = finiteParam("mapZoom") ?? finiteParam("zoom");
+  const queryLat = finiteParam("queryLat") ?? finiteParam("lat");
+  const queryLon = finiteParam("queryLon") ?? finiteParam("lon");
+  const west = finiteParam("viewWest");
+  const south = finiteParam("viewSouth");
+  const east = finiteParam("viewEast");
+  const north = finiteParam("viewNorth");
+  return normalizeGeoQueryOriginState({ version: 1, site, source: "geoquery", savedAt: Date.now(), queryPoint: { lat: queryLat, lon: queryLon }, map: { centerLat, centerLon, zoom, basemap: params.get("basemap"), bounds: { west, south, east, north } }, navigation: { from: params.get("from") || "index", crossAccess: params.get("from") === "crossaccess" || params.get("source") === "crossaccess" } }, site);
+}
+
+function readOriginStateFromHistory(site = SITE_ID) {
+  return normalizeGeoQueryOriginState(history.state?.geoQueryOrigin, site);
+}
+
+function readOriginStateFromSessionStorage(site = SITE_ID) {
+  try { return normalizeGeoQueryOriginState(JSON.parse(sessionStorage.getItem(getGeoQueryOriginStorageKey(site)) || "null"), site); }
+  catch { return null; }
+}
+
+function resolveViewportRestoreState(site = SITE_ID) {
+  return readOriginStateFromUrl(site) || readOriginStateFromHistory(site) || readOriginStateFromSessionStorage(site) || null;
+}
+
+function captureGeoQueryOriginState({ site = SITE_ID, map, queryLat, queryLon, basemap, from }) {
+  const center = map.getCenter();
+  const bounds = map.getBounds();
+  return normalizeGeoQueryOriginState({ version: 1, site, source: "geoquery", savedAt: Date.now(), queryPoint: { lat: Number(queryLat), lon: Number(queryLon) }, map: { centerLat: center.lat, centerLon: center.lng, zoom: map.getZoom(), basemap, bounds: { west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() } }, navigation: { from: from || "index", crossAccess: from === "crossaccess" } }, site);
+}
+
+function persistOriginStateBeforeGeoQuery(originState) {
+  if (!originState) return;
+  try { sessionStorage.setItem(getGeoQueryOriginStorageKey(originState.site), JSON.stringify(originState)); } catch {}
+  const currentUrl = new URL(window.location.href);
+  const p = currentUrl.searchParams;
+  p.set("mapCenterLat", originState.map.centerLat); p.set("mapCenterLon", originState.map.centerLon); p.set("mapZoom", originState.map.zoom);
+  p.set("basemap", originState.map.basemap); p.set("queryLat", originState.queryPoint.lat); p.set("queryLon", originState.queryPoint.lon);
+  p.set("viewWest", originState.map.bounds.west); p.set("viewSouth", originState.map.bounds.south); p.set("viewEast", originState.map.bounds.east); p.set("viewNorth", originState.map.bounds.north);
+  p.set("restoreViewport", "1"); p.set("from", originState.navigation.crossAccess ? "crossaccess" : "geoquery");
+  history.replaceState({ ...(history.state || {}), geoQueryOrigin: originState }, "", currentUrl);
+}
+
+function appendOriginStateToGeoQueryUrl(url, originState) {
+  const target = new URL(url, window.location.href); const p = target.searchParams;
+  p.set("viewLat", originState.map.centerLat); p.set("viewLon", originState.map.centerLon); p.set("mapCenterLat", originState.map.centerLat); p.set("mapCenterLon", originState.map.centerLon);
+  p.set("zoom", originState.map.zoom); p.set("mapZoom", originState.map.zoom); p.set("basemap", originState.map.basemap); p.set("queryLat", originState.queryPoint.lat); p.set("queryLon", originState.queryPoint.lon);
+  p.set("viewWest", originState.map.bounds.west); p.set("viewSouth", originState.map.bounds.south); p.set("viewEast", originState.map.bounds.east); p.set("viewNorth", originState.map.bounds.north);
+  return target.pathname.split('/').pop() === 'geoquery.html' ? `./geoquery/geoquery.html?${p.toString()}` : target.toString();
+}
+
+function restoreMapViewport(mapInstance, restoreState) {
+  const state = normalizeGeoQueryOriginState(restoreState, SITE_ID); if (!mapInstance || !state) return false;
+  if (typeof switchBaseMap === "function") switchBaseMap(state.map.basemap);
+  mapInstance.setView([state.map.centerLat, state.map.centerLon], state.map.zoom, { animate: false });
+  if (typeof setSelectedPoint === "function") setSelectedPoint(state.queryPoint.lat, state.queryPoint.lon, "geoquery_restore");
+  else { selectedPoint = { lat: state.queryPoint.lat, lon: state.queryPoint.lon, source: "geoquery_restore", site: SITE_ID, timestamp: new Date().toISOString() }; window.selectedPoint = selectedPoint; }
+  viewportRestoreApplied = true; geoQueryRestoreState = state; return true;
+}
+
+function installGeoQueryViewportRestoreHandlers() {
+  window.addEventListener("pageshow", (event) => { if (!event.persisted) return; const state = resolveViewportRestoreState(SITE_ID); if (state && map) { restoreMapViewport(map, state); setTimeout(() => map.invalidateSize(false), 0); } });
+  window.addEventListener("popstate", (event) => { const state = normalizeGeoQueryOriginState(event.state?.geoQueryOrigin, SITE_ID) || resolveViewportRestoreState(SITE_ID); if (state && map) restoreMapViewport(map, state); });
+}
+
+
 const PARAMS_PATH = "parametros/parametros_index.json";
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
@@ -464,12 +581,13 @@ function iniciarMapa(params) {
   const centro = params.centro_mapa || [-27.3668, -70.3323];
   const zoom = params.zoom_inicial || 7;
 
+  geoQueryRestoreState = resolveViewportRestoreState(SITE_ID);
   map = L.map("map", {
     zoomControl: true
   }).setView(centro, zoom);
   window.geoxMap = map;
 
-  initGeoXInitialLocation(map);
+  if (!geoQueryRestoreState) initGeoXInitialLocation(map);
 
   osmLayer = L.tileLayer(
     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -487,8 +605,9 @@ function iniciarMapa(params) {
     }
   );
 
-  const initialBasemap = getInitialBasemapFromUrl() || params.mapa_base || "osm";
+  const initialBasemap = geoQueryRestoreState?.map?.basemap || getInitialBasemapFromUrl() || params.mapa_base || "osm";
   switchBaseMap(initialBasemap === "sat" ? "sat" : "osm");
+  if (geoQueryRestoreState) restoreMapViewport(map, geoQueryRestoreState);
 
   // GEOFACTORY ESCALA GRÁFICA
   L.control.scale({
@@ -503,6 +622,7 @@ function iniciarMapa(params) {
   map.invalidateSize();
   map.on("click", handleMapClick);
   map.on("moveend zoomend", scheduleTerritorialLabelUpdate);
+  installGeoQueryViewportRestoreHandlers();
 }
 
 
@@ -539,7 +659,9 @@ function buildGeoQueryUrl(point) {
 function openGeoQueryFromLatLng(lat, lon) {
   const queryUrl = buildGeoQueryUrl({ lat, lon });
   if (!queryUrl) return;
-  window.location.href = queryUrl;
+  const originState = captureGeoQueryOriginState({ site: SITE_ID, map, queryLat: lat, queryLon: lon, basemap: getCurrentBasemap(), from: isCrossAccessNavigationFromUrl() ? "crossaccess" : "index" });
+  persistOriginStateBeforeGeoQuery(originState);
+  window.location.href = appendOriginStateToGeoQueryUrl(queryUrl, originState);
 }
 
 function showToast(message) {
