@@ -67,20 +67,36 @@ function buildPDFFileName() {
   return `${sanitizePDFFileName(parts.join("_"))}.pdf`;
 }
 
-async function prepareMapsForPDF() {
-  const map = window.geoQueryLeafletMap;
-  if (map?.invalidateSize) {
-    map.invalidateSize();
-  }
-  await new Promise(resolve => setTimeout(resolve, 900));
+const PDF_EXPORT_WIDTH = 794;
+const PDF_EXPORT_HEIGHT = 1123;
+const PDF_PAGE_MARGIN = 45;
+const PDF_HEADER_HEIGHT = 42;
+const PDF_FOOTER_HEIGHT = 38;
+const PDF_CONTENT_WIDTH = PDF_EXPORT_WIDTH - PDF_PAGE_MARGIN * 2;
+const PDF_CONTENT_HEIGHT = PDF_EXPORT_HEIGHT - PDF_HEADER_HEIGHT - PDF_FOOTER_HEIGHT;
+
+function nextFrame() {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+function getGeoQueryReportElement() {
+  return document.querySelector("#geoquery-report");
+}
+
+function createPDFExportStage() {
+  const stage = document.createElement("div");
+  stage.id = "pdf-export-stage";
+  stage.className = "pdf-export-stage";
+  document.body.appendChild(stage);
+  return stage;
 }
 
 function expandPDFSections(container) {
   container.querySelectorAll("[hidden]").forEach(element => element.removeAttribute("hidden"));
-  container.querySelectorAll(".collapsed, .collapse, [aria-expanded]").forEach(element => {
-    element.classList.remove("collapsed", "collapse");
+  container.querySelectorAll(".collapsed, .collapse, .hidden, [aria-expanded]").forEach(element => {
+    element.classList.remove("collapsed", "collapse", "hidden");
     if (element.hasAttribute("aria-expanded")) element.setAttribute("aria-expanded", "true");
-    element.style.display = "block";
+    element.style.display = "";
     element.style.visibility = "visible";
     element.style.maxHeight = "none";
     element.style.height = "auto";
@@ -90,97 +106,270 @@ function expandPDFSections(container) {
 }
 
 function removePDFExcludedElements(container) {
-  container.querySelectorAll('.pdf-no-export, [data-pdf-export="false"], button, [role="tooltip"], .leaflet-control-container, .map-toggle').forEach(element => element.remove());
+  container.querySelectorAll('.pdf-no-export, [data-pdf-export="false"], [role="tooltip"], .leaflet-control-container, .map-toggle, .map-touch-hint').forEach(element => element.remove());
+  container.querySelectorAll("button").forEach(button => {
+    if (!button.closest("table, .details")) button.remove();
+  });
   container.querySelectorAll("a").forEach(anchor => {
     if (/volver|descargar|exportar/i.test(anchor.textContent || "")) anchor.remove();
   });
 }
 
-async function prepareCanvasForPDF(container) {
-  container.querySelectorAll("canvas").forEach(canvas => {
-    try {
-      const image = document.createElement("img");
-      image.src = canvas.toDataURL("image/png");
-      image.width = canvas.width;
-      image.height = canvas.height;
-      image.style.cssText = canvas.getAttribute("style") || "";
-      image.className = canvas.className;
-      canvas.replaceWith(image);
-    } catch (error) {
-      console.warn("[GeoQuery PDF] No fue posible convertir un canvas a imagen.", error);
-    }
+function normalizePDFLayout(container) {
+  container.querySelectorAll("*").forEach(element => {
+    element.style.transform = "none";
+    element.style.transition = "none";
+    element.style.animation = "none";
+    if (["fixed", "sticky"].includes(getComputedStyle(element).position)) element.style.position = "relative";
+    element.style.maxWidth = "100%";
+    element.style.minWidth = "0";
   });
 }
 
-async function waitForImages(container) {
-  const images = [...container.querySelectorAll("img")];
-  await Promise.all(images.map(img => {
-    if (img.complete && img.naturalWidth !== 0) return Promise.resolve();
-    return new Promise(resolve => {
-      img.addEventListener("load", resolve, { once: true });
-      img.addEventListener("error", resolve, { once: true });
-    });
+function createNormalizedReportClone(sourceElement) {
+  const clone = sourceElement.cloneNode(true);
+  clone.id = "geoquery-report-pdf-clone";
+  clone.classList.add("pdf-export-mode");
+  expandPDFSections(clone);
+  removePDFExcludedElements(clone);
+  normalizePDFLayout(clone);
+  return clone;
+}
+
+async function replaceCanvasWithImages(sourceContainer, clonedContainer) {
+  const sourceCanvas = [...sourceContainer.querySelectorAll("canvas")];
+  const clonedCanvas = [...clonedContainer.querySelectorAll("canvas")];
+  await Promise.all(sourceCanvas.map(async (canvas, index) => {
+    const target = clonedCanvas[index];
+    if (!target) return;
+    try {
+      const image = document.createElement("img");
+      image.src = canvas.toDataURL("image/png");
+      image.className = target.className;
+      image.alt = target.getAttribute("aria-label") || "Gráfico del reporte";
+      image.style.width = `${canvas.getBoundingClientRect().width || canvas.width}px`;
+      image.style.height = "auto";
+      await waitForImageElement(image);
+      target.replaceWith(image);
+    } catch (error) {
+      console.warn("[GeoQuery PDF] No fue posible convertir un canvas a imagen.", error);
+    }
   }));
 }
 
-function createPDFExportClone(reportElement) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "pdf-export-container";
-  const clone = reportElement.cloneNode(true);
-  clone.id = "geoquery-report-pdf-clone";
-  clone.classList.add("pdf-export-mode");
-  wrapper.appendChild(clone);
-  document.body.appendChild(wrapper);
-  expandPDFSections(clone);
-  removePDFExcludedElements(clone);
-  return { wrapper, clone };
+function waitForImageElement(img, timeout = 8000) {
+  if (img.complete && img.naturalWidth !== 0) return Promise.resolve();
+  return new Promise(resolve => {
+    const timer = setTimeout(resolve, timeout);
+    const done = () => { clearTimeout(timer); resolve(); };
+    img.addEventListener("load", done, { once: true });
+    img.addEventListener("error", done, { once: true });
+  });
+}
+
+async function waitForImages(container, timeout = 8000) {
+  const images = [...container.querySelectorAll("img")];
+  await Promise.race([
+    Promise.all(images.map(img => waitForImageElement(img, timeout))),
+    new Promise(resolve => setTimeout(resolve, timeout))
+  ]);
+  if (document.fonts?.ready) await document.fonts.ready;
+}
+
+async function waitForLeafletTiles(mapInstance, timeout = 8000) {
+  const mapElement = mapInstance?.getContainer?.();
+  if (!mapElement) return;
+  const images = [...mapElement.querySelectorAll(".leaflet-tile")];
+  const pending = images.filter(img => !img.complete || img.naturalWidth === 0);
+  if (!pending.length) return;
+  await Promise.race([
+    Promise.all(pending.map(img => waitForImageElement(img, timeout))),
+    new Promise(resolve => setTimeout(() => { console.warn("[GeoQuery PDF] Timeout esperando teselas Leaflet."); resolve(); }, timeout))
+  ]);
+}
+
+async function createLeafletMapSnapshot(mapInstance, mapElement) {
+  if (!mapInstance || !mapElement) return null;
+  const hidden = [];
+  try {
+    mapInstance.invalidateSize({ pan: false, animate: false });
+    await nextFrame();
+    await waitForLeafletTiles(mapInstance);
+    mapElement.querySelectorAll(".leaflet-control-container, .map-toggle, .map-touch-hint").forEach(element => {
+      hidden.push([element, element.style.visibility]);
+      element.style.visibility = "hidden";
+    });
+    const canvas = await window.html2canvas(mapElement, {
+      scale: Math.min(2, window.devicePixelRatio || 1.5),
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: "#ffffff",
+      logging: false,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: PDF_EXPORT_WIDTH
+    });
+    const image = document.createElement("img");
+    image.className = "pdf-map-snapshot";
+    image.alt = "Mapa de ubicación del punto consultado";
+    image.src = canvas.toDataURL("image/png");
+    image.style.width = "100%";
+    image.style.height = "auto";
+    await waitForImageElement(image);
+    return image;
+  } catch (error) {
+    console.warn("[GeoQuery PDF] Falló la captura del mapa Leaflet.", error);
+    const fallback = document.createElement("div");
+    fallback.className = "pdf-map-fallback";
+    fallback.textContent = "Mapa no disponible en la exportación PDF por restricciones de carga o CORS de teselas.";
+    return fallback;
+  } finally {
+    hidden.forEach(([element, visibility]) => { element.style.visibility = visibility; });
+  }
+}
+
+async function replaceMapWithSnapshot(source, clone) {
+  const sourceMap = source.querySelector("#geoquery-map");
+  const clonedMap = clone.querySelector("#geoquery-map");
+  if (!sourceMap || !clonedMap) return;
+  const snapshot = await createLeafletMapSnapshot(window.geoQueryLeafletMap, sourceMap);
+  if (snapshot) clonedMap.replaceWith(snapshot);
+}
+
+function collectPDFBlocks(container) {
+  const direct = [...container.children];
+  const blocks = [];
+  direct.forEach(child => {
+    if (child.id === "geoquery-groups" && child.children.length) blocks.push(...child.children);
+    else blocks.push(child);
+  });
+  return blocks;
+}
+
+function createPDFPage() {
+  const page = document.createElement("div");
+  page.className = "pdf-page";
+  const content = document.createElement("div");
+  content.className = "pdf-page-content";
+  page.appendChild(content);
+  return { page, content };
+}
+
+function appendPage(stage, pages) {
+  const page = createPDFPage();
+  stage.appendChild(page.page);
+  pages.push(page.page);
+  return page;
+}
+
+function splitOversizedBlock(block, page, stage, pages) {
+  const shell = block.cloneNode(false);
+  const children = [...block.children];
+  if (!children.length) {
+    page.content.appendChild(block);
+    return page;
+  }
+  page.content.appendChild(shell);
+  children.forEach(child => {
+    shell.appendChild(child);
+    if (page.content.scrollHeight > PDF_CONTENT_HEIGHT && shell.children.length > 1) {
+      shell.removeChild(child);
+      page = appendPage(stage, pages);
+      const nextShell = block.cloneNode(false);
+      nextShell.appendChild(child);
+      page.content.appendChild(nextShell);
+    } else if (page.content.scrollHeight > PDF_CONTENT_HEIGHT && shell.children.length === 1) {
+      shell.removeChild(child);
+      if (!shell.children.length) shell.remove();
+      page = appendPage(stage, pages);
+      page.content.appendChild(child);
+      if (page.content.scrollHeight > PDF_CONTENT_HEIGHT && child.children.length) {
+        page.content.removeChild(child);
+        page = splitOversizedBlock(child, page, stage, pages);
+      }
+    }
+  });
+  return page;
+}
+
+function paginatePDFBlocks(blocks, stage) {
+  const pages = [];
+  let current = appendPage(stage, pages);
+  blocks.forEach(block => {
+    current.content.appendChild(block);
+    if (current.content.scrollHeight <= PDF_CONTENT_HEIGHT) return;
+    current.content.removeChild(block);
+    if (block.scrollHeight > PDF_CONTENT_HEIGHT || block.dataset.pdfSplittable === "true") {
+      current = splitOversizedBlock(block, current, stage, pages);
+      return;
+    }
+    current = appendPage(stage, pages);
+    current.content.appendChild(block);
+  });
+  return pages.filter(page => page.querySelector(".pdf-page-content")?.children.length);
+}
+
+function addPDFHeaderAndFooter(pdf, pageIndex, totalPages) {
+  const date = new Date().toLocaleDateString("es-CL");
+  pdf.setFontSize(8);
+  pdf.setTextColor(75, 85, 99);
+  pdf.text("GeoNOXA | Reporte del punto consultado", 12, 8);
+  pdf.text(`Fecha de generación: ${date}`, 12, 292);
+  pdf.text(`Página ${pageIndex} de ${totalPages}`, 182, 292);
+}
+
+async function renderPDFPages(pageElements) {
+  const jsPDF = window.jspdf?.jsPDF || window.jsPDF;
+  if (!jsPDF || typeof window.html2canvas !== "function") throw new Error("jsPDF/html2canvas no están disponibles.");
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+  const scale = window.innerWidth < 768 ? 1.5 : Math.min(2, window.devicePixelRatio || 1.5);
+  for (let index = 0; index < pageElements.length; index += 1) {
+    const page = pageElements[index];
+    await waitForImages(page);
+    const canvas = await window.html2canvas(page, { scale, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", logging: false, scrollX: 0, scrollY: 0, windowWidth: PDF_EXPORT_WIDTH });
+    if (index > 0) pdf.addPage();
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297, undefined, "FAST");
+    addPDFHeaderAndFooter(pdf, index + 1, pageElements.length);
+  }
+  return pdf;
+}
+
+function cleanupPDFExport(stage) {
+  stage?.remove();
 }
 
 async function exportGeoQueryToPDF(event) {
   if (isGeneratingPDF) return;
   const button = event?.currentTarget || getPDFButtons()[0];
   const originalText = button?.textContent || "Exportar PDF";
-  let wrapper = null;
+  let stage = null;
   try {
     if (!geoQueryReady || !window.geoQueryState?.exportState?.pdfEnabled) {
       alert("El reporte GeoQuery aún no está listo para exportar.");
       return;
     }
-    if (typeof window.html2pdf !== "function") throw new Error("La biblioteca html2pdf.js no está disponible.");
+    if (typeof window.html2canvas !== "function" || !(window.jspdf?.jsPDF || window.jsPDF)) throw new Error("Las bibliotecas PDF no están disponibles.");
     isGeneratingPDF = true;
     getPDFButtons().forEach(pdfButton => { pdfButton.disabled = true; pdfButton.textContent = "Generando PDF…"; });
-    await prepareMapsForPDF();
-    const reportElement = document.querySelector("#geoquery-report");
+    const reportElement = getGeoQueryReportElement();
     if (!reportElement) throw new Error("No se encontró el contenedor principal #geoquery-report.");
-    const prepared = createPDFExportClone(reportElement);
-    wrapper = prepared.wrapper;
-    await prepareCanvasForPDF(prepared.clone);
-    await waitForImages(prepared.clone);
-    const scale = Math.min(window.innerWidth < 768 ? 1.5 : 2, window.devicePixelRatio || 1.5);
-    await window.html2pdf().set({
-      margin: [12, 12, 16, 12],
-      filename: buildPDFFileName(),
-      image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale, useCORS: true, allowTaint: true, backgroundColor: "#ffffff", logging: false, windowWidth: 794 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
-      pagebreak: { mode: ["css", "legacy"], avoid: [".card", ".subpanel", ".visual-panel", "#geoquery-map"] }
-    }).from(prepared.clone).toPdf().get("pdf").then(pdf => {
-      const total = pdf.internal.getNumberOfPages();
-      const date = new Date().toLocaleDateString("es-CL");
-      for (let i = 1; i <= total; i += 1) {
-        pdf.setPage(i);
-        pdf.setFontSize(8);
-        pdf.setTextColor(75, 85, 99);
-        pdf.text("GeoNOXA | Reporte del punto consultado", 12, 8);
-        pdf.text(`Fecha de generación: ${date}`, 12, 292);
-        pdf.text(`Página ${i} de ${total}`, 182, 292);
-      }
-    }).save();
+    stage = createPDFExportStage();
+    const clone = createNormalizedReportClone(reportElement);
+    stage.appendChild(clone);
+    await replaceCanvasWithImages(reportElement, clone);
+    await replaceMapWithSnapshot(reportElement, clone);
+    await waitForImages(clone);
+    const blocks = collectPDFBlocks(clone);
+    const pages = paginatePDFBlocks(blocks, stage);
+    clone.remove();
+    await nextFrame();
+    const pdf = await renderPDFPages(pages);
+    pdf.save(buildPDFFileName());
   } catch (error) {
     console.error("[GeoQuery PDF]", error);
     alert("No fue posible generar el PDF. Intente nuevamente.");
   } finally {
-    wrapper?.remove();
+    cleanupPDFExport(stage);
     isGeneratingPDF = false;
     getPDFButtons().forEach(pdfButton => restorePDFButton(pdfButton, originalText));
     setPDFButtonsReady(geoQueryReady);

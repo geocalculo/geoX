@@ -825,7 +825,7 @@
 
     @page {
       size: A4 portrait;
-      margin: 12mm;
+      margin: 0;
     }
 
     .pdf-no-export,
@@ -833,26 +833,54 @@
       /* Hidden only in the temporary PDF clone by JS/CSS scope. */
     }
 
-    .pdf-export-container {
+    .pdf-export-stage {
       position: fixed;
-      left: -10000px;
+      left: 0;
       top: 0;
       width: 794px;
-      max-width: 794px;
+      min-height: 1123px;
       background: #ffffff;
-      color: #111827;
       z-index: -1;
+      opacity: 0;
       pointer-events: none;
+      overflow: visible;
+      transform: none !important;
+    }
+
+    .pdf-export-mode,
+    .pdf-export-mode * {
+      box-sizing: border-box;
     }
 
     .pdf-export-mode {
-      width: 794px !important;
-      max-width: 794px !important;
+      width: 704px !important;
+      max-width: 704px !important;
       margin: 0 !important;
       padding: 0 !important;
+      position: relative !important;
+      left: auto !important;
+      right: auto !important;
+      top: auto !important;
+      overflow: visible !important;
+      transform: none !important;
       background: #ffffff !important;
-      color: #111827 !important;
+      color: #24313d !important;
       box-shadow: none !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .pdf-export-mode > *,
+    .pdf-export-mode section,
+    .pdf-export-mode article,
+    .pdf-export-mode .panel,
+    .pdf-export-mode .card,
+    .pdf-export-mode .subpanel {
+      max-width: 100% !important;
+      min-width: 0 !important;
+      transform: none !important;
+      overflow: visible !important;
     }
 
     .pdf-export-mode .pdf-no-export,
@@ -860,13 +888,15 @@
     .pdf-export-mode button,
     .pdf-export-mode .leaflet-control-container,
     .pdf-export-mode .map-toggle,
+    .pdf-export-mode .map-touch-hint,
     .pdf-export-mode [role="tooltip"] {
       display: none !important;
     }
 
     .pdf-export-mode [hidden],
     .pdf-export-mode .collapsed,
-    .pdf-export-mode .collapse {
+    .pdf-export-mode .collapse,
+    .pdf-export-mode .hidden {
       display: block !important;
       visibility: visible !important;
       max-height: none !important;
@@ -875,39 +905,115 @@
       opacity: 1 !important;
     }
 
+    .pdf-export-mode .cards,
     .pdf-export-mode .geoquery-primary-grid,
     .pdf-export-mode .geoquery-secondary-grid,
     .pdf-export-mode .group-grid,
     .pdf-export-mode .relaves-report-grid,
     .pdf-export-mode .zonas-report-grid {
-      display: block !important;
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+      width: 100% !important;
+    }
+
+    .pdf-export-mode .cards,
+    .pdf-export-mode .metadata-project-details {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
 
     .pdf-export-mode .panel,
     .pdf-export-mode .card,
+    .pdf-export-mode .subpanel {
+      width: 100% !important;
+      margin: 0 0 10px !important;
+      padding: 10px 12px !important;
+      border-radius: 10px !important;
+      box-shadow: none !important;
+      break-inside: auto;
+      page-break-inside: auto;
+      background: #ffffff !important;
+    }
+
+    .pdf-export-mode .card,
+    .pdf-export-mode .metadata-project-item,
+    .pdf-export-mode .detail-row,
+    .pdf-export-mode [data-pdf-keep-together],
     .pdf-export-mode .indicator-card,
-    .pdf-export-mode .subpanel,
-    .pdf-export-mode .visual-panel,
-    .pdf-export-mode canvas,
+    .pdf-export-mode .result-card,
+    .pdf-export-mode .report-map,
+    .pdf-export-mode .pdf-map-snapshot,
     .pdf-export-mode img,
-    .pdf-export-mode #geoquery-map {
+    .pdf-export-mode canvas {
       break-inside: avoid;
       page-break-inside: avoid;
     }
 
+    .pdf-export-mode h1,
+    .pdf-export-mode h2,
+    .pdf-export-mode h3,
+    .pdf-export-mode h4 {
+      break-after: avoid;
+      page-break-after: avoid;
+      overflow-wrap: anywhere;
+    }
+
+    .pdf-export-mode .detail-row {
+      grid-template-columns: minmax(120px, 180px) 1fr !important;
+      gap: 8px !important;
+      padding: 7px 9px !important;
+    }
+
     .pdf-export-mode table {
       width: 100%;
+      max-width: 100%;
       table-layout: fixed;
       border-collapse: collapse;
     }
 
     .pdf-export-mode thead { display: table-header-group; }
+    .pdf-export-mode tr { break-inside: avoid; page-break-inside: avoid; }
     .pdf-export-mode th,
-    .pdf-export-mode td { overflow-wrap: anywhere; }
+    .pdf-export-mode td {
+      overflow-wrap: anywhere;
+      word-break: normal;
+      white-space: normal;
+    }
 
-    .pdf-export-mode #geoquery-map {
+    .pdf-map-snapshot {
+      display: block;
       width: 100% !important;
-      min-height: 360px !important;
+      max-height: 360px;
+      object-fit: contain;
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      background: #ffffff;
+    }
+
+    .pdf-map-fallback {
+      padding: 18px;
+      border: 1px solid #f59e0b;
+      border-radius: 12px;
+      background: #fffbeb;
+      color: #92400e;
+      font-weight: 700;
+    }
+
+    .pdf-page {
+      width: 794px;
+      height: 1123px;
+      padding: 42px 45px 38px;
+      background: #ffffff;
+      overflow: hidden;
+      position: relative;
+      box-shadow: none;
+    }
+
+    .pdf-page-content {
+      width: 704px;
+      height: 1043px;
+      overflow: hidden;
+      background: #ffffff;
     }
   </style>
 </head>
