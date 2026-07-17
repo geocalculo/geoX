@@ -822,6 +822,93 @@
         padding: 14px 16px;
       }
     }
+
+    @page {
+      size: A4 portrait;
+      margin: 12mm;
+    }
+
+    .pdf-no-export,
+    [data-pdf-export="false"] {
+      /* Hidden only in the temporary PDF clone by JS/CSS scope. */
+    }
+
+    .pdf-export-container {
+      position: fixed;
+      left: -10000px;
+      top: 0;
+      width: 794px;
+      max-width: 794px;
+      background: #ffffff;
+      color: #111827;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .pdf-export-mode {
+      width: 794px !important;
+      max-width: 794px !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      color: #111827 !important;
+      box-shadow: none !important;
+    }
+
+    .pdf-export-mode .pdf-no-export,
+    .pdf-export-mode [data-pdf-export="false"],
+    .pdf-export-mode button,
+    .pdf-export-mode .leaflet-control-container,
+    .pdf-export-mode .map-toggle,
+    .pdf-export-mode [role="tooltip"] {
+      display: none !important;
+    }
+
+    .pdf-export-mode [hidden],
+    .pdf-export-mode .collapsed,
+    .pdf-export-mode .collapse {
+      display: block !important;
+      visibility: visible !important;
+      max-height: none !important;
+      height: auto !important;
+      overflow: visible !important;
+      opacity: 1 !important;
+    }
+
+    .pdf-export-mode .geoquery-primary-grid,
+    .pdf-export-mode .geoquery-secondary-grid,
+    .pdf-export-mode .group-grid,
+    .pdf-export-mode .relaves-report-grid,
+    .pdf-export-mode .zonas-report-grid {
+      display: block !important;
+    }
+
+    .pdf-export-mode .panel,
+    .pdf-export-mode .card,
+    .pdf-export-mode .indicator-card,
+    .pdf-export-mode .subpanel,
+    .pdf-export-mode .visual-panel,
+    .pdf-export-mode canvas,
+    .pdf-export-mode img,
+    .pdf-export-mode #geoquery-map {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .pdf-export-mode table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .pdf-export-mode thead { display: table-header-group; }
+    .pdf-export-mode th,
+    .pdf-export-mode td { overflow-wrap: anywhere; }
+
+    .pdf-export-mode #geoquery-map {
+      width: 100% !important;
+      min-height: 360px !important;
+    }
   </style>
 </head>
 <body>
@@ -841,13 +928,13 @@
       </div>
     </header>
 
-    <nav id="geoquery-actions" class="top-actions geoquery-section" aria-label="Acciones de GeoQuery">
+    <nav id="geoquery-actions" class="top-actions geoquery-section pdf-no-export" data-pdf-export="false" aria-label="Acciones de GeoQuery">
       <a class="back-button" id="back-link" href="../index.html">Volver a GeoNOXA</a>
-      <button class="download-button" type="button" disabled title="Disponible cuando exista análisis territorial.">Descargar PDF</button>
-      <button class="download-button" type="button" disabled title="Disponible cuando exista análisis territorial.">Descargar KML</button>
+      <button id="geoquery-export-pdf" class="download-button pdf-no-export" type="button" data-pdf-button="true" disabled title="Disponible cuando exista análisis territorial." data-pdf-export="false">Exportar PDF</button>
+      <button class="download-button pdf-no-export" type="button" disabled title="Disponible cuando exista análisis territorial." data-pdf-export="false">Descargar KML</button>
     </nav>
 
-    <main class="content geoquery-analysis">
+    <main id="geoquery-report" class="content geoquery-analysis">
       <!-- =====================================================
            02. CARDS RESUMEN DE GEOQUERY
       ===================================================== -->
@@ -943,8 +1030,8 @@
         <h2>Descargas PDF y KML</h2>
         <p class="placeholder-text">Exportaciones disponibles cuando exista información territorial asociada al punto consultado.</p>
         <div class="actions">
-          <button class="download-button" type="button" disabled title="Disponible cuando exista el módulo de exportación GeoNOXA.">Descargar PDF</button>
-          <button class="download-button" type="button" disabled title="Disponible cuando exista el módulo de exportación GeoNOXA.">Descargar KML</button>
+          <button class="download-button pdf-no-export" type="button" data-pdf-button="true" disabled title="Disponible cuando exista análisis territorial." data-pdf-export="false">Exportar PDF</button>
+          <button class="download-button pdf-no-export" type="button" disabled title="Disponible cuando exista análisis territorial." data-pdf-export="false">Descargar KML</button>
         </div>
       </section>
     </main>
@@ -952,6 +1039,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="../../shared/geoquery-kml-exporter.js"></script>
   <script src="geoquery.js"></script>
 </body>
