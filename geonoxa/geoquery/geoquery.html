@@ -837,8 +837,10 @@
       position: absolute;
       left: 100vw;
       top: 0;
-      width: 794px;
-      min-height: 1123px;
+      width: 1024px;
+      min-width: 1024px;
+      max-width: 1024px;
+      min-height: 1288.1px;
       background: #ffffff;
       z-index: 0;
       pointer-events: none;
@@ -851,9 +853,10 @@
       box-sizing: border-box;
     }
 
-    .pdf-export-mode {
-      width: 704px !important;
-      max-width: 704px !important;
+    .pdf-export-stage .pdf-export-mode {
+      width: 1024px !important;
+      min-width: 1024px !important;
+      max-width: 1024px !important;
       margin: 0 !important;
       padding: 0 !important;
       position: relative !important;
@@ -870,16 +873,22 @@
       line-height: 1.35;
     }
 
-    .pdf-export-mode > *,
-    .pdf-export-mode section,
-    .pdf-export-mode article,
-    .pdf-export-mode .panel,
-    .pdf-export-mode .card,
-    .pdf-export-mode .subpanel {
-      max-width: 100% !important;
-      min-width: 0 !important;
-      transform: none !important;
-      overflow: visible !important;
+    .pdf-page,
+    .pdf-page-content {
+      width: 1024px !important;
+      min-width: 1024px !important;
+      max-width: 1024px !important;
+      background: #ffffff;
+    }
+
+    .pdf-page {
+      overflow: hidden;
+      margin: 0 0 16px;
+    }
+
+    .pdf-page-content {
+      height: 1288.1px;
+      overflow: hidden;
     }
 
     .pdf-export-mode .pdf-no-export,
@@ -892,39 +901,64 @@
       display: none !important;
     }
 
-    .pdf-export-mode [hidden],
-    .pdf-export-mode .collapsed,
-    .pdf-export-mode .collapse,
-    .pdf-export-mode .hidden {
-      display: block !important;
-      visibility: visible !important;
-      max-height: none !important;
-      height: auto !important;
-      overflow: visible !important;
-      opacity: 1 !important;
+    .pdf-export-mode [hidden]:not([data-pdf-expand="true"]),
+    .pdf-export-mode .pdf-hidden-message,
+    .pdf-export-mode #invalid-message {
+      display: none !important;
+      visibility: hidden !important;
     }
 
-    .pdf-export-mode .cards,
-    .pdf-export-mode .geoquery-primary-grid,
-    .pdf-export-mode .geoquery-secondary-grid,
-    .pdf-export-mode .group-grid,
-    .pdf-export-mode .relaves-report-grid,
-    .pdf-export-mode .zonas-report-grid {
+    .pdf-export-mode > *,
+    .pdf-export-mode section,
+    .pdf-export-mode article,
+    .pdf-export-mode .panel,
+    .pdf-export-mode .card,
+    .pdf-export-mode .subpanel {
+      transform: none !important;
+      overflow: visible !important;
+    }
+
+    .pdf-export-mode .cards {
       display: grid !important;
-      grid-template-columns: 1fr !important;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
       gap: 10px !important;
       width: 100% !important;
     }
 
-    .pdf-export-mode .cards,
+    .pdf-export-mode .geoquery-primary-grid {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr) !important;
+      gap: 12px !important;
+      align-items: stretch !important;
+      width: 100% !important;
+    }
+
+    .pdf-export-mode .geoquery-secondary-grid,
+    .pdf-export-mode .group-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 12px !important;
+      align-items: start !important;
+      width: 100% !important;
+    }
+
+    .pdf-export-mode .relaves-report-grid,
+    .pdf-export-mode .zonas-report-grid {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr) !important;
+      gap: 12px !important;
+      align-items: start !important;
+      width: 100% !important;
+    }
+
     .pdf-export-mode .metadata-project-details {
+      display: grid !important;
       grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
 
     .pdf-export-mode .panel,
     .pdf-export-mode .card,
     .pdf-export-mode .subpanel {
-      width: 100% !important;
       margin: 0 0 10px !important;
       padding: 10px 12px !important;
       border-radius: 10px !important;
@@ -958,7 +992,7 @@
     }
 
     .pdf-export-mode .detail-row {
-      grid-template-columns: minmax(120px, 180px) 1fr !important;
+      grid-template-columns: minmax(132px, 190px) 1fr !important;
       gap: 8px !important;
       padding: 7px 9px !important;
     }
@@ -996,23 +1030,6 @@
       background: #fffbeb;
       color: #92400e;
       font-weight: 700;
-    }
-
-    .pdf-page {
-      width: 794px;
-      height: 1123px;
-      padding: 42px 45px 38px;
-      background: #ffffff;
-      overflow: hidden;
-      position: relative;
-      box-shadow: none;
-    }
-
-    .pdf-page-content {
-      width: 704px;
-      height: 1043px;
-      overflow: hidden;
-      background: #ffffff;
     }
   </style>
 </head>
