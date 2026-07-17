@@ -882,13 +882,15 @@
     }
 
     .pdf-page {
-      overflow: hidden;
+      height: 1288.1px;
+      overflow: visible;
       margin: 0 0 16px;
     }
 
     .pdf-page-content {
       height: 1288.1px;
-      overflow: hidden;
+      max-height: 1288.1px;
+      overflow: visible;
     }
 
     .pdf-export-mode .pdf-no-export,
@@ -963,6 +965,9 @@
       padding: 10px 12px !important;
       border-radius: 10px !important;
       box-shadow: none !important;
+      overflow: visible !important;
+      max-height: none !important;
+      height: auto !important;
       break-inside: auto;
       page-break-inside: auto;
       background: #ffffff !important;

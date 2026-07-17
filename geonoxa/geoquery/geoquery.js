@@ -6,6 +6,7 @@ const GEOQUERY_DEBUG = false;
 const PDF_DEBUG = false;
 const MAX_PDF_PAGES = 100;
 const MAX_PAGINATION_ITERATIONS = 5000;
+const MAX_PAGE_REFLOW_ATTEMPTS = 100;
 
 function pdfLog(...args) { if (PDF_DEBUG) console.debug("[GeoNOXA PDF]", ...args); }
 function pdfInfo(...args) { if (PDF_DEBUG) console.info("[GeoNOXA PDF]", ...args); }
@@ -306,12 +307,13 @@ async function replaceMapWithSnapshot(source, clone) {
 }
 
 function collectPDFBlocks(container) {
-  const direct = [...container.children];
+  const direct = [...container.children].filter(isVisiblePDFElement);
   const blocks = [];
   direct.forEach(child => {
-    if (child.id === "geoquery-groups" && child.children.length) blocks.push(...child.children);
+    if (child.id === "geoquery-groups" && child.children.length) blocks.push(...[...child.children].filter(isVisiblePDFElement));
     else blocks.push(child);
   });
+  pdfLog("Bloques fuente:", blocks.length);
   return blocks;
 }
 
@@ -327,6 +329,7 @@ function createPDFPage() {
   content.style.minWidth = `${PDF_DESKTOP_WIDTH_PX}px`;
   content.style.maxWidth = `${PDF_DESKTOP_WIDTH_PX}px`;
   content.style.height = `${SOURCE_PAGE_HEIGHT_PX}px`;
+  content.style.maxHeight = `${SOURCE_PAGE_HEIGHT_PX}px`;
   page.appendChild(content);
   return { page, content };
 }
@@ -338,59 +341,213 @@ function appendPage(stage, pages) {
   return page;
 }
 
-function splitOversizedBlock(block, page, stage, pages) {
-  const shell = block.cloneNode(false);
-  const children = [...block.children];
-  if (!children.length) {
-    page.content.appendChild(block);
-    return page;
-  }
-  page.content.appendChild(shell);
-  children.forEach(child => {
-    shell.appendChild(child);
-    if (page.content.scrollHeight > PDF_CONTENT_HEIGHT && shell.children.length > 1) {
-      shell.removeChild(child);
-      page = appendPage(stage, pages);
-      const nextShell = block.cloneNode(false);
-      nextShell.appendChild(child);
-      page.content.appendChild(nextShell);
-    } else if (page.content.scrollHeight > PDF_CONTENT_HEIGHT && shell.children.length === 1) {
-      shell.removeChild(child);
-      if (!shell.children.length) shell.remove();
-      page = appendPage(stage, pages);
-      page.content.appendChild(child);
-      if (page.content.scrollHeight > PDF_CONTENT_HEIGHT && child.children.length) {
-        page.content.removeChild(child);
-        page = splitOversizedBlock(child, page, stage, pages);
-      }
-    }
-  });
-  return page;
+function isVisiblePDFElement(element) {
+  if (!element || element.classList?.contains("pdf-measure-probe") || element.classList?.contains("pdf-no-export")) return false;
+  if (element.matches?.('[data-pdf-export="false"]')) return false;
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden" && element.getBoundingClientRect().height > 0;
 }
 
-function paginatePDFBlocks(blocks, stage) {
-  if (!blocks.length) throw new Error("No existen bloques para paginar");
-  const pages = [];
-  let iterations = 0;
-  let current = appendPage(stage, pages);
-  blocks.forEach(block => {
-    iterations += 1;
-    if (iterations > MAX_PAGINATION_ITERATIONS || pages.length > MAX_PDF_PAGES) throw new Error("La paginación excedió el límite de seguridad");
-    current.content.appendChild(block);
-    if (current.content.scrollHeight <= PDF_CONTENT_HEIGHT) return;
-    current.content.removeChild(block);
-    if (block.scrollHeight > PDF_CONTENT_HEIGHT || block.dataset.pdfSplittable === "true") {
-      current = splitOversizedBlock(block, current, stage, pages);
-      return;
+function isPDFPageEmpty(pageElement) {
+  const content = pageElement.querySelector(".pdf-page-content");
+  if (!content) return true;
+  return [...content.children].filter(isVisiblePDFElement).length === 0;
+}
+
+function removeEmptyPDFPages(pages) {
+  const filtered = pages.filter(page => !isPDFPageEmpty(page));
+  pages.filter(page => isPDFPageEmpty(page)).forEach(page => page.remove());
+  return filtered;
+}
+
+function getRemainingPageHeight(page) {
+  return SOURCE_PAGE_HEIGHT_PX - page.content.scrollHeight;
+}
+
+async function measurePDFBlock(block, page) {
+  const probe = block.cloneNode(true);
+  probe.classList.add("pdf-measure-probe");
+  page.content.appendChild(probe);
+  await nextAnimationFrames(1);
+  const height = Math.max(probe.getBoundingClientRect().height, probe.scrollHeight);
+  probe.remove();
+  return height;
+}
+
+function isKeepTogetherBlock(block) {
+  return block.matches?.('[data-pdf-keep-together], .card, .metadata-project-item, .result-card, .indicator-card, .report-map, .pdf-map-snapshot');
+}
+
+function isSplittableBlock(block) {
+  return block.matches?.('[data-pdf-splittable], .relaves-report-grid, .zonas-report-grid, .group-grid, .geoquery-secondary-grid') ||
+    block.querySelector?.('.metadata-project-list, .analysis-category, .details, table, .metadata-project-item');
+}
+
+function getBlockHeader(block) {
+  const first = block.firstElementChild;
+  if (!first) return null;
+  if (first.matches('h1,h2,h3,h4,.group-header')) return first;
+  if (first.querySelector?.('h1,h2,h3,h4')) return first;
+  return null;
+}
+
+function getSplittableChildren(block) {
+  const list = block.querySelector(':scope > .metadata-project-list, :scope > .metadata-relave-list');
+  if (list) return [...list.children].filter(isVisiblePDFElement);
+  const direct = [...block.children].filter(child => child !== getBlockHeader(block) && isVisiblePDFElement(child));
+  return direct.length ? direct : [...block.querySelectorAll(':scope > .analysis-category, :scope > .details, :scope > table, :scope > .metadata-project-item')].filter(isVisiblePDFElement);
+}
+
+function createContinuationHeader(originalHeader) {
+  const clone = originalHeader.cloneNode(true);
+  clone.dataset.pdfContinuationHeader = "true";
+  const title = clone.querySelector?.('h1,h2,h3,h4') || (clone.matches?.('h1,h2,h3,h4') ? clone : null);
+  if (title && !/continuación/i.test(title.textContent)) title.textContent = `${title.textContent.trim()} — continuación`;
+  clone.querySelectorAll?.('.placeholder-text, .status-pill').forEach(node => node.remove());
+  return clone;
+}
+
+async function fitsInPage(node, page) {
+  page.content.appendChild(node);
+  await nextAnimationFrames(1);
+  const fits = page.content.scrollHeight <= SOURCE_PAGE_HEIGHT_PX + 1;
+  page.content.removeChild(node);
+  return fits;
+}
+
+async function ensurePageForNode(node, pages, currentPage, stage) {
+  if (await fitsInPage(node, currentPage)) return currentPage;
+  if (!isPDFPageEmpty(currentPage.page)) currentPage = appendPage(stage, pages);
+  return currentPage;
+}
+
+async function splitBlockByChildren(block, pages, currentPage, stage) {
+  const header = getBlockHeader(block);
+  const sourceList = block.querySelector(':scope > .metadata-project-list, :scope > .metadata-relave-list');
+  const items = getSplittableChildren(block);
+  if (!items.length) return addBlockToPages(block, pages, currentPage, stage, true);
+  const buildShell = (continuation = false) => {
+    const shell = block.cloneNode(false);
+    if (header) shell.appendChild(continuation ? createContinuationHeader(header) : header.cloneNode(true));
+    const target = sourceList ? sourceList.cloneNode(false) : shell;
+    if (sourceList) shell.appendChild(target);
+    return { shell, target };
+  };
+  let { shell, target } = buildShell(false);
+  currentPage = await ensurePageForNode(shell, pages, currentPage, stage);
+  currentPage.content.appendChild(shell);
+  for (let index = 0; index < items.length; index += 1) {
+    const itemClone = items[index].cloneNode(true);
+    target.appendChild(itemClone);
+    await nextAnimationFrames(1);
+    if (currentPage.content.scrollHeight <= SOURCE_PAGE_HEIGHT_PX + 1) continue;
+    target.removeChild(itemClone);
+    if (!target.children.length && shell.isConnected) shell.remove();
+    currentPage = appendPage(stage, pages);
+    ({ shell, target } = buildShell(Boolean(header)));
+    currentPage.content.appendChild(shell);
+    target.appendChild(itemClone);
+    await nextAnimationFrames(1);
+    if (currentPage.content.scrollHeight > SOURCE_PAGE_HEIGHT_PX + 1 && itemClone.children.length) {
+      target.removeChild(itemClone);
+      currentPage = await splitBlockByChildren(itemClone, pages, currentPage, stage);
+      ({ shell, target } = buildShell(Boolean(header)));
+      if (index < items.length - 1) currentPage.content.appendChild(shell);
     }
-    current = appendPage(stage, pages);
-    current.content.appendChild(block);
+  }
+  return currentPage;
+}
+
+async function splitOversizedBlock(block, pages, currentPage, stage) {
+  return splitBlockByChildren(block, pages, currentPage, stage);
+}
+
+async function addBlockToPages(block, pages, currentPage, stage, forceWhole = false) {
+  const blockHeight = await measurePDFBlock(block, currentPage);
+  if (!forceWhole && blockHeight > SOURCE_PAGE_HEIGHT_PX && isSplittableBlock(block)) return splitOversizedBlock(block, pages, currentPage, stage);
+  currentPage.content.appendChild(block);
+  await nextAnimationFrames(1);
+  if (currentPage.content.scrollHeight <= SOURCE_PAGE_HEIGHT_PX + 1) return currentPage;
+  currentPage.content.removeChild(block);
+  if (!forceWhole && isSplittableBlock(block) && !isKeepTogetherBlock(block)) return splitOversizedBlock(block, pages, currentPage, stage);
+  if (!isPDFPageEmpty(currentPage.page)) currentPage = appendPage(stage, pages);
+  currentPage.content.appendChild(block);
+  await nextAnimationFrames(1);
+  if (currentPage.content.scrollHeight > SOURCE_PAGE_HEIGHT_PX + 1 && !forceWhole && isSplittableBlock(block)) {
+    currentPage.content.removeChild(block);
+    return splitOversizedBlock(block, pages, currentPage, stage);
+  }
+  return currentPage;
+}
+
+function assignPDFNodeIds(container) {
+  let index = 0;
+  container.querySelectorAll('[data-pdf-block], .metadata-project-item, .analysis-category, .detail-row').forEach(element => {
+    element.dataset.pdfNodeId = `pdf-node-${index++}`;
   });
-  const filtered = pages.filter(page => page.querySelector(".pdf-page-content")?.children.length);
-  const insertedBlockCount = filtered.reduce((total, page) => total + page.querySelector(".pdf-page-content").children.length, 0);
-  if (insertedBlockCount !== blocks.length) console.warn("[GeoNOXA PDF] Diferencia de bloques:", { sourceBlockCount: blocks.length, insertedBlockCount });
-  pdfLog("Paginación", { blocks: blocks.length, pages: filtered.length, insertedBlockCount });
+}
+
+function assertSameItemCount(source, pages, selector, label) {
+  const sourceCount = source.querySelectorAll(selector).length;
+  const outputCount = pages.reduce((sum, page) => sum + page.querySelectorAll(selector).length, 0);
+  if (sourceCount !== outputCount) throw new Error(`${label}: se esperaban ${sourceCount} elementos y se insertaron ${outputCount}`);
+  return { sourceCount, outputCount };
+}
+
+function assertPDFContentIntegrity(source, pages) {
+  const original = [...source.querySelectorAll('[data-pdf-node-id]')].map(el => el.dataset.pdfNodeId);
+  const output = pages.flatMap(page => [...page.querySelectorAll('[data-pdf-node-id]')].map(el => el.dataset.pdfNodeId));
+  const missing = original.filter(id => !output.includes(id));
+  const seen = new Set();
+  const duplicated = output.filter(id => id && (seen.has(id) || !seen.add(id)));
+  pdfLog("Elementos omitidos:", missing);
+  pdfLog("Elementos duplicados:", duplicated);
+  if (missing.length || duplicated.length) {
+    console.error("[GeoNOXA PDF] Integridad inválida", { missing, duplicated });
+    throw new Error("La paginación PDF omitió o duplicó contenido informativo");
+  }
+  const relaves = assertSameItemCount(source, pages, ".metadata-relave-item", "Tarjetas de relaves");
+  const details = assertSameItemCount(source, pages, ".detail-row", "Filas de indicadores/detalles");
+  const sourcePanels = source.querySelectorAll(".panel").length;
+  const outputPanels = pages.reduce((sum, page) => sum + page.querySelectorAll(".panel").length, 0);
+  if (outputPanels < sourcePanels) throw new Error(`Paneles principales: se esperaban al menos ${sourcePanels} y se insertaron ${outputPanels}`);
+  return { original: original.length, output: output.length, relaves, details, panels: { sourceCount: sourcePanels, outputCount: outputPanels } };
+}
+
+function assertNoPageOverflow(pages) {
+  pages.forEach((page, index) => {
+    const content = page.querySelector(".pdf-page-content");
+    if (!content || isPDFPageEmpty(page)) throw new Error(`La página ${index + 1} está vacía`);
+    let overflowAmount = content.scrollHeight - content.clientHeight;
+    let attempts = 0;
+    while (overflowAmount > 1 && attempts < MAX_PAGE_REFLOW_ATTEMPTS) {
+      attempts += 1;
+      overflowAmount = content.scrollHeight - content.clientHeight;
+      break;
+    }
+    if (overflowAmount > 1) throw new Error(`No fue posible resolver el desbordamiento de la página PDF (${index + 1}: ${overflowAmount}px)`);
+  });
+}
+
+async function paginatePDFBlocks(blocks, stage, source = null) {
+  if (!blocks.length) throw new Error("No existen bloques para paginar");
+  if (source) assignPDFNodeIds(source);
+  const pages = [];
+  let current = appendPage(stage, pages);
+  let reflowAttempts = 0;
+  for (const block of blocks) {
+    reflowAttempts += 1;
+    if (reflowAttempts > MAX_PAGINATION_ITERATIONS || pages.length > MAX_PDF_PAGES) throw new Error("La paginación excedió el límite de seguridad");
+    current = await addBlockToPages(block, pages, current, stage);
+  }
+  pdfLog("Páginas antes de filtrar:", pages.length);
+  const filtered = removeEmptyPDFPages(pages);
+  pdfLog("Páginas después de filtrar:", filtered.length);
+  pdfLog("Altura útil:", SOURCE_PAGE_HEIGHT_PX);
   if (!filtered.length) throw new Error("La paginación no generó páginas");
+  assertNoPageOverflow(filtered);
+  const integrity = source ? assertPDFContentIntegrity(source, filtered) : null;
+  pdfInfo("Paginación", { blocks: blocks.length, pages: filtered.length, integrity });
   return filtered;
 }
 
@@ -460,7 +617,7 @@ async function exportGeoQueryToPDF(event) {
     await runPDFStep("Captura del mapa", async () => replaceMapWithSnapshot(reportElement, clone));
     await runPDFStep("Espera de imágenes", async () => waitForImages(clone));
     const blocks = await runPDFStep("Recolección de bloques", async () => collectPDFBlocks(clone));
-    const pages = await runPDFStep("Paginación", async () => paginatePDFBlocks(blocks, stage));
+    const pages = await runPDFStep("Paginación", async () => paginatePDFBlocks(blocks, stage, clone));
     clone.remove();
     await nextAnimationFrames(2);
     const pdf = await runPDFStep("Renderizado de páginas", async () => renderPDFPages(pages));
