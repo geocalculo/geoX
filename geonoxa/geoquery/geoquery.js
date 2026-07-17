@@ -3,6 +3,29 @@ const caches = { json: new Map() };
 const fmt = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
 const fmtKm = new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const GEOQUERY_DEBUG = false;
+const PDF_DEBUG = false;
+const MAX_PDF_PAGES = 100;
+const MAX_PAGINATION_ITERATIONS = 5000;
+
+function pdfLog(...args) { if (PDF_DEBUG) console.debug("[GeoNOXA PDF]", ...args); }
+function pdfInfo(...args) { if (PDF_DEBUG) console.info("[GeoNOXA PDF]", ...args); }
+
+async function runPDFStep(name, operation) {
+  pdfInfo(`Iniciando: ${name}`);
+  try {
+    const result = await operation();
+    pdfInfo(`Completado: ${name}`);
+    return result;
+  } catch (error) {
+    console.error(`[GeoNOXA PDF] Falló: ${name}`, error);
+    throw new Error(`${name}: ${error?.message || String(error)}`, { cause: error });
+  }
+}
+
+function assertPDFDependencies() {
+  if (typeof window.html2canvas !== "function") throw new Error("html2canvas no está disponible");
+  if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") throw new Error("jsPDF no está disponible");
+}
 
 function $(id) { return document.getElementById(id); }
 function escapeHtml(v) { return String(v ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;",'"':"&quot;"}[c])); }
@@ -79,8 +102,25 @@ function nextFrame() {
   return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 }
 
+function nextAnimationFrames(count = 2) {
+  return new Promise(resolve => {
+    const step = remaining => {
+      if (remaining <= 0) resolve();
+      else requestAnimationFrame(() => step(remaining - 1));
+    };
+    step(count);
+  });
+}
+
 function getGeoQueryReportElement() {
-  return document.querySelector("#geoquery-report");
+  const reportSource = document.querySelector("#geoquery-report");
+  if (!reportSource) throw new Error("No se encontró el contenedor principal #geoquery-report");
+  const rect = reportSource.getBoundingClientRect();
+  pdfLog("Reporte localizado", { width: rect.width, height: rect.height, children: reportSource.children.length, connected: reportSource.isConnected });
+  if (!reportSource.isConnected || rect.width <= 0 || rect.height <= 0 || !reportSource.children.length) {
+    throw new Error(`El contenedor #geoquery-report no tiene dimensiones o contenido válido: ${rect.width}x${rect.height}`);
+  }
+  return reportSource;
 }
 
 function createPDFExportStage() {
@@ -137,24 +177,32 @@ function createNormalizedReportClone(sourceElement) {
 }
 
 async function replaceCanvasWithImages(sourceContainer, clonedContainer) {
-  const sourceCanvas = [...sourceContainer.querySelectorAll("canvas")];
-  const clonedCanvas = [...clonedContainer.querySelectorAll("canvas")];
-  await Promise.all(sourceCanvas.map(async (canvas, index) => {
+  const sourceCanvas = [...sourceContainer.querySelectorAll("canvas")].filter(canvas => !canvas.closest("#geoquery-map"));
+  const clonedCanvas = [...clonedContainer.querySelectorAll("canvas")].filter(canvas => !canvas.closest("#geoquery-map"));
+  for (let index = 0; index < sourceCanvas.length; index += 1) {
+    const canvas = sourceCanvas[index];
     const target = clonedCanvas[index];
-    if (!target) return;
+    if (!canvas || !target) {
+      console.warn("[GeoNOXA PDF] Elemento canvas equivalente no encontrado", { index });
+      continue;
+    }
     try {
       const image = document.createElement("img");
       image.src = canvas.toDataURL("image/png");
       image.className = target.className;
       image.alt = target.getAttribute("aria-label") || "Gráfico del reporte";
-      image.style.width = `${canvas.getBoundingClientRect().width || canvas.width}px`;
-      image.style.height = "auto";
+      const rect = canvas.getBoundingClientRect();
+      image.style.width = `${rect.width || canvas.width}px`;
+      image.style.height = `${rect.height || canvas.height}px`;
+      image.style.maxWidth = "100%";
+      image.style.objectFit = "contain";
       await waitForImageElement(image);
       target.replaceWith(image);
     } catch (error) {
-      console.warn("[GeoQuery PDF] No fue posible convertir un canvas a imagen.", error);
+      console.warn("[GeoNOXA PDF] No fue posible convertir un canvas:", error);
+      target.remove();
     }
-  }));
+  }
 }
 
 function waitForImageElement(img, timeout = 8000) {
@@ -170,31 +218,37 @@ function waitForImageElement(img, timeout = 8000) {
 async function waitForImages(container, timeout = 8000) {
   const images = [...container.querySelectorAll("img")];
   await Promise.race([
-    Promise.all(images.map(img => waitForImageElement(img, timeout))),
+    Promise.allSettled(images.map(img => waitForImageElement(img, timeout))),
     new Promise(resolve => setTimeout(resolve, timeout))
   ]);
-  if (document.fonts?.ready) await document.fonts.ready;
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+  } catch (error) {
+    console.warn("[GeoNOXA PDF] No fue posible esperar las fuentes:", error);
+  }
 }
 
 async function waitForLeafletTiles(mapInstance, timeout = 8000) {
   const mapElement = mapInstance?.getContainer?.();
   if (!mapElement) return;
   const images = [...mapElement.querySelectorAll(".leaflet-tile")];
-  const pending = images.filter(img => !img.complete || img.naturalWidth === 0);
+  const pending = images.filter(img => !img.complete);
   if (!pending.length) return;
   await Promise.race([
-    Promise.all(pending.map(img => waitForImageElement(img, timeout))),
-    new Promise(resolve => setTimeout(() => { console.warn("[GeoQuery PDF] Timeout esperando teselas Leaflet."); resolve(); }, timeout))
+    Promise.allSettled(pending.map(img => waitForImageElement(img, timeout))),
+    new Promise(resolve => setTimeout(() => { console.warn("[GeoNOXA PDF] Timeout esperando teselas Leaflet."); resolve(); }, timeout))
   ]);
 }
 
 async function createLeafletMapSnapshot(mapInstance, mapElement) {
-  if (!mapInstance || !mapElement) return null;
+  if (!mapInstance) throw new Error("No existe la instancia Leaflet");
+  if (!mapElement) throw new Error("No existe el contenedor del mapa");
   const hidden = [];
   try {
     mapInstance.invalidateSize({ pan: false, animate: false });
-    await nextFrame();
-    await waitForLeafletTiles(mapInstance);
+    await nextAnimationFrames(2);
+    await waitForLeafletTiles(mapInstance, 8000);
+    await nextAnimationFrames(2);
     mapElement.querySelectorAll(".leaflet-control-container, .map-toggle, .map-touch-hint").forEach(element => {
       hidden.push([element, element.style.visibility]);
       element.style.visibility = "hidden";
@@ -204,7 +258,7 @@ async function createLeafletMapSnapshot(mapInstance, mapElement) {
       useCORS: true,
       allowTaint: false,
       backgroundColor: "#ffffff",
-      logging: false,
+      logging: PDF_DEBUG,
       scrollX: 0,
       scrollY: 0,
       windowWidth: PDF_EXPORT_WIDTH
@@ -218,10 +272,12 @@ async function createLeafletMapSnapshot(mapInstance, mapElement) {
     await waitForImageElement(image);
     return image;
   } catch (error) {
-    console.warn("[GeoQuery PDF] Falló la captura del mapa Leaflet.", error);
+    console.error("[GeoNOXA PDF] Error capturando mapa:", error);
     const fallback = document.createElement("div");
     fallback.className = "pdf-map-fallback";
-    fallback.textContent = "Mapa no disponible en la exportación PDF por restricciones de carga o CORS de teselas.";
+    const lat = Number(window.geoQueryState?.lat ?? queryLat);
+    const lon = Number(window.geoQueryState?.lon ?? queryLon);
+    fallback.innerHTML = `<strong>Mapa de ubicación</strong><br>Coordenadas: ${Number.isFinite(lat) ? lat.toFixed(6) : "N/D"}, ${Number.isFinite(lon) ? lon.toFixed(6) : "N/D"}<br>El mapa base no pudo incorporarse durante la exportación.`;
     return fallback;
   } finally {
     hidden.forEach(([element, visibility]) => { element.style.visibility = visibility; });
@@ -293,9 +349,13 @@ function splitOversizedBlock(block, page, stage, pages) {
 }
 
 function paginatePDFBlocks(blocks, stage) {
+  if (!blocks.length) throw new Error("No existen bloques para paginar");
   const pages = [];
+  let iterations = 0;
   let current = appendPage(stage, pages);
   blocks.forEach(block => {
+    iterations += 1;
+    if (iterations > MAX_PAGINATION_ITERATIONS || pages.length > MAX_PDF_PAGES) throw new Error("La paginación excedió el límite de seguridad");
     current.content.appendChild(block);
     if (current.content.scrollHeight <= PDF_CONTENT_HEIGHT) return;
     current.content.removeChild(block);
@@ -306,7 +366,10 @@ function paginatePDFBlocks(blocks, stage) {
     current = appendPage(stage, pages);
     current.content.appendChild(block);
   });
-  return pages.filter(page => page.querySelector(".pdf-page-content")?.children.length);
+  const filtered = pages.filter(page => page.querySelector(".pdf-page-content")?.children.length);
+  pdfLog("Paginación", { blocks: blocks.length, pages: filtered.length });
+  if (!filtered.length) throw new Error("La paginación no generó páginas");
+  return filtered;
 }
 
 function addPDFHeaderAndFooter(pdf, pageIndex, totalPages) {
@@ -319,23 +382,35 @@ function addPDFHeaderAndFooter(pdf, pageIndex, totalPages) {
 }
 
 async function renderPDFPages(pageElements) {
-  const jsPDF = window.jspdf?.jsPDF || window.jsPDF;
-  if (!jsPDF || typeof window.html2canvas !== "function") throw new Error("jsPDF/html2canvas no están disponibles.");
+  assertPDFDependencies();
+  const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const scale = window.innerWidth < 768 ? 1.5 : Math.min(2, window.devicePixelRatio || 1.5);
   for (let index = 0; index < pageElements.length; index += 1) {
     const page = pageElements[index];
     await waitForImages(page);
-    const canvas = await window.html2canvas(page, { scale, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", logging: false, scrollX: 0, scrollY: 0, windowWidth: PDF_EXPORT_WIDTH });
+    const rect = page.getBoundingClientRect();
+    if (!page.isConnected || rect.width <= 0 || rect.height <= 0) throw new Error(`Página PDF con dimensiones inválidas: ${rect.width}x${rect.height}`);
+    const canvas = await window.html2canvas(page, { scale, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", logging: PDF_DEBUG, scrollX: 0, scrollY: 0, windowWidth: PDF_EXPORT_WIDTH });
+    if (!canvas.width || !canvas.height) throw new Error("html2canvas produjo un canvas vacío");
     if (index > 0) pdf.addPage();
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297, undefined, "FAST");
+    let imageData;
+    try { imageData = canvas.toDataURL("image/jpeg", 0.92); }
+    catch (error) { throw new Error(`No fue posible convertir la página a imagen: ${error.message}`); }
+    pdf.addImage(imageData, "JPEG", 0, 0, 210, 297, undefined, "FAST");
     addPDFHeaderAndFooter(pdf, index + 1, pageElements.length);
   }
   return pdf;
 }
 
 function cleanupPDFExport(stage) {
-  stage?.remove();
+  try {
+    stage?.remove();
+    document.querySelectorAll(".pdf-export-stage").forEach(element => element.remove());
+    pdfInfo("15 Limpieza terminada");
+  } catch (error) {
+    console.warn("[GeoNOXA PDF] Error durante la limpieza:", error);
+  }
 }
 
 async function exportGeoQueryToPDF(event) {
@@ -343,30 +418,34 @@ async function exportGeoQueryToPDF(event) {
   const button = event?.currentTarget || getPDFButtons()[0];
   const originalText = button?.textContent || "Exportar PDF";
   let stage = null;
+  isGeneratingPDF = true;
   try {
-    if (!geoQueryReady || !window.geoQueryState?.exportState?.pdfEnabled) {
-      alert("El reporte GeoQuery aún no está listo para exportar.");
-      return;
-    }
-    if (typeof window.html2canvas !== "function" || !(window.jspdf?.jsPDF || window.jsPDF)) throw new Error("Las bibliotecas PDF no están disponibles.");
-    isGeneratingPDF = true;
+    pdfInfo("01 Inicio");
     getPDFButtons().forEach(pdfButton => { pdfButton.disabled = true; pdfButton.textContent = "Generando PDF…"; });
-    const reportElement = getGeoQueryReportElement();
-    if (!reportElement) throw new Error("No se encontró el contenedor principal #geoquery-report.");
-    stage = createPDFExportStage();
-    const clone = createNormalizedReportClone(reportElement);
+    await runPDFStep("Verificación de dependencias", async () => assertPDFDependencies());
+    const reportElement = await runPDFStep("Localización del reporte", async () => getGeoQueryReportElement());
+    if (!window.geoQueryState?.exportState?.pdfEnabled && !reportElement.querySelector("#geoquery-groups")?.children.length) {
+      throw new Error("El reporte GeoQuery aún no está listo para exportar");
+    }
+    stage = await runPDFStep("Creación del stage", async () => createPDFExportStage());
+    await nextAnimationFrames(2);
+    const clone = await runPDFStep("Clonación del reporte", async () => createNormalizedReportClone(reportElement));
     stage.appendChild(clone);
-    await replaceCanvasWithImages(reportElement, clone);
-    await replaceMapWithSnapshot(reportElement, clone);
-    await waitForImages(clone);
-    const blocks = collectPDFBlocks(clone);
-    const pages = paginatePDFBlocks(blocks, stage);
+    await runPDFStep("Conversión de canvas", async () => replaceCanvasWithImages(reportElement, clone));
+    await runPDFStep("Captura del mapa", async () => replaceMapWithSnapshot(reportElement, clone));
+    await runPDFStep("Espera de imágenes", async () => waitForImages(clone));
+    const blocks = await runPDFStep("Recolección de bloques", async () => collectPDFBlocks(clone));
+    const pages = await runPDFStep("Paginación", async () => paginatePDFBlocks(blocks, stage));
     clone.remove();
-    await nextFrame();
-    const pdf = await renderPDFPages(pages);
-    pdf.save(buildPDFFileName());
+    await nextAnimationFrames(2);
+    const pdf = await runPDFStep("Renderizado de páginas", async () => renderPDFPages(pages));
+    const fileName = buildPDFFileName();
+    if (!fileName) throw new Error("No se pudo construir el nombre del PDF");
+    await runPDFStep("Guardado del PDF", async () => { pdf.save(fileName); console.info("[GeoNOXA PDF] Descarga solicitada:", fileName); });
   } catch (error) {
-    console.error("[GeoQuery PDF]", error);
+    console.error("[GeoNOXA PDF] Error completo:", error);
+    console.error("[GeoNOXA PDF] Mensaje:", error?.message);
+    console.error("[GeoNOXA PDF] Stack:", error?.stack);
     alert("No fue posible generar el PDF. Intente nuevamente.");
   } finally {
     cleanupPDFExport(stage);
@@ -375,7 +454,6 @@ async function exportGeoQueryToPDF(event) {
     setPDFButtonsReady(geoQueryReady);
   }
 }
-
 document.addEventListener("DOMContentLoaded", installGeoQueryPDFButtons);
 
 function parseViewport(params) { const west=num(params,"viewWest"), south=num(params,"viewSouth"), east=num(params,"viewEast"), north=num(params,"viewNorth"); if ([west,south,east,north].every(Number.isFinite) && west < east && south < north) return { west,south,east,north,bbox:[west,south,east,north], polygon:turf.bboxPolygon([west,south,east,north]), source:"url_bbox"}; const lat=num(params,"viewLat")??num(params,"mapCenterLat")??num(params,"lat"), lon=num(params,"viewLon")??num(params,"mapCenterLon")??num(params,"lon"), z=num(params,"zoom")??num(params,"mapZoom")??14; if(!validLatLon(lat,lon)) return null; const scale=256*2**Math.max(0,Math.min(20,z)), lonPx=360/scale, latPx=lonPx/Math.max(.15,Math.cos(lat*Math.PI/180)); return {west:lon-640*lonPx,east:lon+640*lonPx,south:lat-360*latPx,north:lat+360*latPx,source:"fallback_center_zoom"}; }
