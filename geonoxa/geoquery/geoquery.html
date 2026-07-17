@@ -834,14 +834,13 @@
     }
 
     .pdf-export-stage {
-      position: fixed;
-      left: 0;
+      position: absolute;
+      left: 100vw;
       top: 0;
       width: 794px;
       min-height: 1123px;
       background: #ffffff;
-      z-index: -1;
-      opacity: 0;
+      z-index: 0;
       pointer-events: none;
       overflow: visible;
       transform: none !important;
@@ -1145,7 +1144,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="../../shared/geoquery-kml-exporter.js"></script>
   <script src="geoquery.js"></script>
 </body>
