@@ -90,13 +90,22 @@ function buildPDFFileName() {
   return `${sanitizePDFFileName(parts.join("_"))}.pdf`;
 }
 
-const PDF_EXPORT_WIDTH = 794;
-const PDF_EXPORT_HEIGHT = 1123;
-const PDF_PAGE_MARGIN = 45;
-const PDF_HEADER_HEIGHT = 42;
-const PDF_FOOTER_HEIGHT = 38;
-const PDF_CONTENT_WIDTH = PDF_EXPORT_WIDTH - PDF_PAGE_MARGIN * 2;
-const PDF_CONTENT_HEIGHT = PDF_EXPORT_HEIGHT - PDF_HEADER_HEIGHT - PDF_FOOTER_HEIGHT;
+const PDF_DESKTOP_WIDTH_PX = 1024;
+const LETTER_WIDTH_MM = 215.9;
+const LETTER_HEIGHT_MM = 279.4;
+const PDF_MARGIN_LEFT_MM = 10;
+const PDF_MARGIN_RIGHT_MM = 10;
+const PDF_MARGIN_TOP_MM = 8;
+const PDF_MARGIN_BOTTOM_MM = 8;
+const PDF_HEADER_HEIGHT_MM = 9;
+const PDF_FOOTER_HEIGHT_MM = 8;
+const PDF_CONTENT_TOP_MM = PDF_MARGIN_TOP_MM + PDF_HEADER_HEIGHT_MM;
+const PDF_CONTENT_WIDTH_MM = LETTER_WIDTH_MM - PDF_MARGIN_LEFT_MM - PDF_MARGIN_RIGHT_MM;
+const PDF_CONTENT_HEIGHT_MM = LETTER_HEIGHT_MM - PDF_MARGIN_TOP_MM - PDF_MARGIN_BOTTOM_MM - PDF_HEADER_HEIGHT_MM - PDF_FOOTER_HEIGHT_MM;
+const SOURCE_PX_TO_MM = PDF_CONTENT_WIDTH_MM / PDF_DESKTOP_WIDTH_PX;
+const SOURCE_PAGE_HEIGHT_PX = PDF_CONTENT_HEIGHT_MM / SOURCE_PX_TO_MM;
+const PDF_EXPORT_WIDTH = PDF_DESKTOP_WIDTH_PX;
+const PDF_CONTENT_HEIGHT = SOURCE_PAGE_HEIGHT_PX;
 
 function nextFrame() {
   return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -127,13 +136,16 @@ function createPDFExportStage() {
   const stage = document.createElement("div");
   stage.id = "pdf-export-stage";
   stage.className = "pdf-export-stage";
+  stage.style.setProperty("--pdf-desktop-width", `${PDF_DESKTOP_WIDTH_PX}px`);
+  stage.style.setProperty("--pdf-source-page-height", `${SOURCE_PAGE_HEIGHT_PX}px`);
   document.body.appendChild(stage);
   return stage;
 }
 
 function expandPDFSections(container) {
-  container.querySelectorAll("[hidden]").forEach(element => element.removeAttribute("hidden"));
-  container.querySelectorAll(".collapsed, .collapse, .hidden, [aria-expanded]").forEach(element => {
+  container.querySelectorAll('[data-pdf-expand="true"], details').forEach(element => {
+    if (element.tagName === "DETAILS") element.open = true;
+    element.removeAttribute("hidden");
     element.classList.remove("collapsed", "collapse", "hidden");
     if (element.hasAttribute("aria-expanded")) element.setAttribute("aria-expanded", "true");
     element.style.display = "";
@@ -156,13 +168,14 @@ function removePDFExcludedElements(container) {
 }
 
 function normalizePDFLayout(container) {
+  container.style.width = `${PDF_DESKTOP_WIDTH_PX}px`;
+  container.style.minWidth = `${PDF_DESKTOP_WIDTH_PX}px`;
+  container.style.maxWidth = `${PDF_DESKTOP_WIDTH_PX}px`;
   container.querySelectorAll("*").forEach(element => {
     element.style.transform = "none";
     element.style.transition = "none";
     element.style.animation = "none";
     if (["fixed", "sticky"].includes(getComputedStyle(element).position)) element.style.position = "relative";
-    element.style.maxWidth = "100%";
-    element.style.minWidth = "0";
   });
 }
 
@@ -261,7 +274,7 @@ async function createLeafletMapSnapshot(mapInstance, mapElement) {
       logging: PDF_DEBUG,
       scrollX: 0,
       scrollY: 0,
-      windowWidth: PDF_EXPORT_WIDTH
+      windowWidth: PDF_DESKTOP_WIDTH_PX
     });
     const image = document.createElement("img");
     image.className = "pdf-map-snapshot";
@@ -305,8 +318,15 @@ function collectPDFBlocks(container) {
 function createPDFPage() {
   const page = document.createElement("div");
   page.className = "pdf-page";
+  page.style.width = `${PDF_DESKTOP_WIDTH_PX}px`;
+  page.style.minWidth = `${PDF_DESKTOP_WIDTH_PX}px`;
+  page.style.maxWidth = `${PDF_DESKTOP_WIDTH_PX}px`;
   const content = document.createElement("div");
   content.className = "pdf-page-content";
+  content.style.width = `${PDF_DESKTOP_WIDTH_PX}px`;
+  content.style.minWidth = `${PDF_DESKTOP_WIDTH_PX}px`;
+  content.style.maxWidth = `${PDF_DESKTOP_WIDTH_PX}px`;
+  content.style.height = `${SOURCE_PAGE_HEIGHT_PX}px`;
   page.appendChild(content);
   return { page, content };
 }
@@ -367,7 +387,9 @@ function paginatePDFBlocks(blocks, stage) {
     current.content.appendChild(block);
   });
   const filtered = pages.filter(page => page.querySelector(".pdf-page-content")?.children.length);
-  pdfLog("Paginación", { blocks: blocks.length, pages: filtered.length });
+  const insertedBlockCount = filtered.reduce((total, page) => total + page.querySelector(".pdf-page-content").children.length, 0);
+  if (insertedBlockCount !== blocks.length) console.warn("[GeoNOXA PDF] Diferencia de bloques:", { sourceBlockCount: blocks.length, insertedBlockCount });
+  pdfLog("Paginación", { blocks: blocks.length, pages: filtered.length, insertedBlockCount });
   if (!filtered.length) throw new Error("La paginación no generó páginas");
   return filtered;
 }
@@ -376,28 +398,31 @@ function addPDFHeaderAndFooter(pdf, pageIndex, totalPages) {
   const date = new Date().toLocaleDateString("es-CL");
   pdf.setFontSize(8);
   pdf.setTextColor(75, 85, 99);
-  pdf.text("GeoNOXA | Reporte del punto consultado", 12, 8);
-  pdf.text(`Fecha de generación: ${date}`, 12, 292);
-  pdf.text(`Página ${pageIndex} de ${totalPages}`, 182, 292);
+  pdf.text("GeoNOXA | Reporte del punto consultado", PDF_MARGIN_LEFT_MM, PDF_MARGIN_TOP_MM);
+  pdf.text(`Fecha de generación: ${date}`, PDF_MARGIN_LEFT_MM, LETTER_HEIGHT_MM - PDF_MARGIN_BOTTOM_MM + 1);
+  pdf.text(`Página ${pageIndex} de ${totalPages}`, LETTER_WIDTH_MM - PDF_MARGIN_RIGHT_MM - 30, LETTER_HEIGHT_MM - PDF_MARGIN_BOTTOM_MM + 1);
 }
 
 async function renderPDFPages(pageElements) {
   assertPDFDependencies();
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter", compress: true });
   const scale = window.innerWidth < 768 ? 1.5 : Math.min(2, window.devicePixelRatio || 1.5);
   for (let index = 0; index < pageElements.length; index += 1) {
     const page = pageElements[index];
     await waitForImages(page);
     const rect = page.getBoundingClientRect();
     if (!page.isConnected || rect.width <= 0 || rect.height <= 0) throw new Error(`Página PDF con dimensiones inválidas: ${rect.width}x${rect.height}`);
-    const canvas = await window.html2canvas(page, { scale, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", logging: PDF_DEBUG, scrollX: 0, scrollY: 0, windowWidth: PDF_EXPORT_WIDTH });
+    console.debug("[GeoNOXA PDF] Página:", { width: rect.width, height: rect.height });
+    const canvas = await window.html2canvas(page, { scale, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", logging: PDF_DEBUG, scrollX: 0, scrollY: 0, windowWidth: PDF_DESKTOP_WIDTH_PX });
     if (!canvas.width || !canvas.height) throw new Error("html2canvas produjo un canvas vacío");
     if (index > 0) pdf.addPage();
     let imageData;
     try { imageData = canvas.toDataURL("image/jpeg", 0.92); }
     catch (error) { throw new Error(`No fue posible convertir la página a imagen: ${error.message}`); }
-    pdf.addImage(imageData, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+    const renderedWidthMM = PDF_CONTENT_WIDTH_MM;
+    const renderedHeightMM = canvas.height * (renderedWidthMM / canvas.width);
+    pdf.addImage(imageData, "JPEG", PDF_MARGIN_LEFT_MM, PDF_CONTENT_TOP_MM, renderedWidthMM, renderedHeightMM, undefined, "FAST");
     addPDFHeaderAndFooter(pdf, index + 1, pageElements.length);
   }
   return pdf;
