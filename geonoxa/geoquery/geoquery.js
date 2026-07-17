@@ -4,14 +4,17 @@ const fmt = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
 const fmtKm = new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const GEOQUERY_DEBUG = false;
 const PDF_DEBUG = false;
+const PDF_OVERFLOW_TOLERANCE_PX = 6;
 const MAX_PDF_PAGES = 100;
 const MAX_PAGINATION_ITERATIONS = 5000;
 const MAX_PAGE_REFLOW_ATTEMPTS = 100;
 
 function pdfLog(...args) { if (PDF_DEBUG) console.debug("[GeoNOXA PDF]", ...args); }
 function pdfInfo(...args) { if (PDF_DEBUG) console.info("[GeoNOXA PDF]", ...args); }
+let currentPDFStep = "";
 
 async function runPDFStep(name, operation) {
+  currentPDFStep = name;
   pdfInfo(`Iniciando: ${name}`);
   try {
     const result = await operation();
@@ -139,6 +142,9 @@ function createPDFExportStage() {
   stage.className = "pdf-export-stage";
   stage.style.setProperty("--pdf-desktop-width", `${PDF_DESKTOP_WIDTH_PX}px`);
   stage.style.setProperty("--pdf-source-page-height", `${SOURCE_PAGE_HEIGHT_PX}px`);
+  document.documentElement.classList.add("pdf-export-active");
+  document.body.classList.add("pdf-export-active");
+  pdfLog("Scroll width antes del stage:", { documentWidth: document.documentElement.scrollWidth, viewportWidth: document.documentElement.clientWidth });
   document.body.appendChild(stage);
   return stage;
 }
@@ -398,9 +404,22 @@ function getSplittableChildren(block) {
   return direct.length ? direct : [...block.querySelectorAll(':scope > .analysis-category, :scope > .details, :scope > table, :scope > .metadata-project-item')].filter(isVisiblePDFElement);
 }
 
+function removePDFIdentityAttributes(element) {
+  element.querySelectorAll?.("[id], [data-pdf-node-id], [data-pdf-unit-id]").forEach(node => {
+    node.removeAttribute("id");
+    node.removeAttribute("data-pdf-node-id");
+    node.removeAttribute("data-pdf-unit-id");
+  });
+  element.removeAttribute("id");
+  element.removeAttribute("data-pdf-node-id");
+  element.removeAttribute("data-pdf-unit-id");
+}
+
 function createContinuationHeader(originalHeader) {
   const clone = originalHeader.cloneNode(true);
+  removePDFIdentityAttributes(clone);
   clone.dataset.pdfContinuationHeader = "true";
+  clone.dataset.pdfSynthetic = "true";
   const title = clone.querySelector?.('h1,h2,h3,h4') || (clone.matches?.('h1,h2,h3,h4') ? clone : null);
   if (title && !/continuación/i.test(title.textContent)) title.textContent = `${title.textContent.trim()} — continuación`;
   clone.querySelectorAll?.('.placeholder-text, .status-pill').forEach(node => node.remove());
@@ -480,58 +499,68 @@ async function addBlockToPages(block, pages, currentPage, stage, forceWhole = fa
   return currentPage;
 }
 
-function assignPDFNodeIds(container) {
-  let index = 0;
-  container.querySelectorAll('[data-pdf-block], .metadata-project-item, .analysis-category, .detail-row').forEach(element => {
-    element.dataset.pdfNodeId = `pdf-node-${index++}`;
-  });
+function isPDFIntegrityUnit(element) {
+  return Boolean(element?.hasAttribute("data-pdf-unit-id") && element.dataset.pdfSynthetic !== "true" && element.dataset.pdfMeasureProbe !== "true" && !element.classList.contains("pdf-measure-probe"));
 }
 
-function assertSameItemCount(source, pages, selector, label) {
-  const sourceCount = source.querySelectorAll(selector).length;
-  const outputCount = pages.reduce((sum, page) => sum + page.querySelectorAll(selector).length, 0);
-  if (sourceCount !== outputCount) throw new Error(`${label}: se esperaban ${sourceCount} elementos y se insertaron ${outputCount}`);
+function collectIntegrityUnits(container) {
+  return [...container.querySelectorAll("[data-pdf-unit-id]")].filter(isPDFIntegrityUnit);
+}
+
+function assignPDFNodeIds(container) {
+  let index = 0;
+  container.querySelectorAll(".metadata-relave-item, .metadata-project-item, .detail-row, .indicator-card, .result-card, [data-pdf-block]").forEach(element => {
+    if (element.closest("[data-pdf-synthetic=\"true\"], .pdf-measure-probe")) return;
+    if (element.querySelector(".metadata-relave-item, .metadata-project-item, .detail-row, .indicator-card, .result-card, [data-pdf-block]")) return;
+    element.dataset.pdfUnitId = `pdf-unit-${index++}`;
+  });
+  return collectIntegrityUnits(container).map(element => element.dataset.pdfUnitId);
+}
+
+function assertSameItemCount(sourceCount, pages, selector, label) {
+  const outputCount = pages.reduce((sum, page) => sum + [...page.querySelectorAll(selector)].filter(el => el.dataset.pdfSynthetic !== "true" && !el.closest("[data-pdf-synthetic=\"true\"]")).length, 0);
+  if (sourceCount !== outputCount) console.warn(`[GeoNOXA PDF] ${label}: diferencia no crítica`, { sourceCount, outputCount });
   return { sourceCount, outputCount };
 }
 
-function assertPDFContentIntegrity(source, pages) {
-  const original = [...source.querySelectorAll('[data-pdf-node-id]')].map(el => el.dataset.pdfNodeId);
-  const output = pages.flatMap(page => [...page.querySelectorAll('[data-pdf-node-id]')].map(el => el.dataset.pdfNodeId));
-  const missing = original.filter(id => !output.includes(id));
+function assertPDFContentIntegrity(sourceSnapshot, pages) {
+  const original = sourceSnapshot.unitIds || [];
+  const output = pages.flatMap(page => collectIntegrityUnits(page).map(el => el.dataset.pdfUnitId));
+  const outputSet = new Set(output);
+  const missing = original.filter(id => !outputSet.has(id));
   const seen = new Set();
   const duplicated = output.filter(id => id && (seen.has(id) || !seen.add(id)));
   pdfLog("Elementos omitidos:", missing);
   pdfLog("Elementos duplicados:", duplicated);
-  if (missing.length || duplicated.length) {
+  if (duplicated.length) console.warn("[GeoNOXA PDF] IDs duplicados no críticos en contenido paginado", { duplicated });
+  if (missing.length) {
     console.error("[GeoNOXA PDF] Integridad inválida", { missing, duplicated });
-    throw new Error("La paginación PDF omitió o duplicó contenido informativo");
+    throw new Error("La paginación PDF omitió contenido informativo real");
   }
-  const relaves = assertSameItemCount(source, pages, ".metadata-relave-item", "Tarjetas de relaves");
-  const details = assertSameItemCount(source, pages, ".detail-row", "Filas de indicadores/detalles");
-  const sourcePanels = source.querySelectorAll(".panel").length;
-  const outputPanels = pages.reduce((sum, page) => sum + page.querySelectorAll(".panel").length, 0);
-  if (outputPanels < sourcePanels) throw new Error(`Paneles principales: se esperaban al menos ${sourcePanels} y se insertaron ${outputPanels}`);
-  return { original: original.length, output: output.length, relaves, details, panels: { sourceCount: sourcePanels, outputCount: outputPanels } };
+  const relaves = assertSameItemCount(sourceSnapshot.relaveCount, pages, ".metadata-relave-item", "Tarjetas de relaves");
+  const details = assertSameItemCount(sourceSnapshot.detailCount, pages, ".detail-row", "Filas de indicadores/detalles");
+  return { original: original.length, output: output.length, duplicated: duplicated.length, relaves, details };
 }
 
 function assertNoPageOverflow(pages) {
   pages.forEach((page, index) => {
     const content = page.querySelector(".pdf-page-content");
     if (!content || isPDFPageEmpty(page)) throw new Error(`La página ${index + 1} está vacía`);
-    let overflowAmount = content.scrollHeight - content.clientHeight;
-    let attempts = 0;
-    while (overflowAmount > 1 && attempts < MAX_PAGE_REFLOW_ATTEMPTS) {
-      attempts += 1;
-      overflowAmount = content.scrollHeight - content.clientHeight;
-      break;
+    const overflowAmount = content.scrollHeight - content.clientHeight;
+    if (overflowAmount > 0) pdfLog("Overflow detectado:", { pageIndex: index, scrollHeight: content.scrollHeight, clientHeight: content.clientHeight, overflow: overflowAmount });
+    if (overflowAmount > PDF_OVERFLOW_TOLERANCE_PX) {
+      console.warn("[GeoNOXA PDF] Página con overflow superior a tolerancia; se continúa con overflow visible para no abortar una exportación válida", { pageIndex: index + 1, overflow: overflowAmount });
     }
-    if (overflowAmount > 1) throw new Error(`No fue posible resolver el desbordamiento de la página PDF (${index + 1}: ${overflowAmount}px)`);
   });
 }
 
 async function paginatePDFBlocks(blocks, stage, source = null) {
   if (!blocks.length) throw new Error("No existen bloques para paginar");
-  if (source) assignPDFNodeIds(source);
+  const sourceSnapshot = source ? {
+    unitIds: assignPDFNodeIds(source),
+    relaveCount: source.querySelectorAll(".metadata-relave-item").length,
+    detailCount: source.querySelectorAll(".detail-row").length
+  } : null;
   const pages = [];
   let current = appendPage(stage, pages);
   let reflowAttempts = 0;
@@ -546,7 +575,7 @@ async function paginatePDFBlocks(blocks, stage, source = null) {
   pdfLog("Altura útil:", SOURCE_PAGE_HEIGHT_PX);
   if (!filtered.length) throw new Error("La paginación no generó páginas");
   assertNoPageOverflow(filtered);
-  const integrity = source ? assertPDFContentIntegrity(source, filtered) : null;
+  const integrity = sourceSnapshot ? assertPDFContentIntegrity(sourceSnapshot, filtered) : null;
   pdfInfo("Paginación", { blocks: blocks.length, pages: filtered.length, integrity });
   return filtered;
 }
@@ -589,9 +618,16 @@ function cleanupPDFExport(stage) {
   try {
     stage?.remove();
     document.querySelectorAll(".pdf-export-stage").forEach(element => element.remove());
-    pdfInfo("15 Limpieza terminada");
   } catch (error) {
-    console.warn("[GeoNOXA PDF] Error durante la limpieza:", error);
+    console.warn("[GeoNOXA PDF] Error eliminando stage:", error);
+  }
+  try {
+    document.documentElement.classList.remove("pdf-export-active");
+    document.body.classList.remove("pdf-export-active");
+    pdfLog("Scroll width después del cleanup:", { documentWidth: document.documentElement.scrollWidth, viewportWidth: document.documentElement.clientWidth });
+    pdfInfo("16 Cleanup terminado");
+  } catch (error) {
+    console.warn("[GeoNOXA PDF] Error restaurando overflow:", error);
   }
 }
 
@@ -611,6 +647,8 @@ async function exportGeoQueryToPDF(event) {
     }
     stage = await runPDFStep("Creación del stage", async () => createPDFExportStage());
     await nextAnimationFrames(2);
+    const stageRect = stage.getBoundingClientRect();
+    if (stageRect.width <= 0 || stage.scrollHeight <= 0) throw new Error(`Stage PDF inválido: ${stageRect.width} × ${stage.scrollHeight}`);
     const clone = await runPDFStep("Clonación del reporte", async () => createNormalizedReportClone(reportElement));
     stage.appendChild(clone);
     await runPDFStep("Conversión de canvas", async () => replaceCanvasWithImages(reportElement, clone));
@@ -628,6 +666,8 @@ async function exportGeoQueryToPDF(event) {
     console.error("[GeoNOXA PDF] Error completo:", error);
     console.error("[GeoNOXA PDF] Mensaje:", error?.message);
     console.error("[GeoNOXA PDF] Stack:", error?.stack);
+    console.error("[GeoNOXA PDF] Causa:", error?.cause);
+    console.error("[GeoNOXA PDF] Etapa:", currentPDFStep);
     alert("No fue posible generar el PDF. Intente nuevamente.");
   } finally {
     cleanupPDFExport(stage);

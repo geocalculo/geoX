@@ -833,19 +833,25 @@
       /* Hidden only in the temporary PDF clone by JS/CSS scope. */
     }
 
+    html.pdf-export-active,
+    body.pdf-export-active {
+      overflow-x: hidden !important;
+    }
+
     .pdf-export-stage {
-      position: absolute;
-      left: 100vw;
+      position: fixed;
+      left: 0;
       top: 0;
       width: 1024px;
       min-width: 1024px;
       max-width: 1024px;
       min-height: 1288.1px;
       background: #ffffff;
-      z-index: 0;
+      z-index: -1;
       pointer-events: none;
       overflow: visible;
-      transform: none !important;
+      transform: translateX(-110%) !important;
+      contain: layout style paint;
     }
 
     .pdf-export-mode,
