@@ -47,7 +47,11 @@
   function setColor(doc, key) { doc.setTextColor(...COLORS[key]); }
   function drawRoundedPanel(doc, x, y, w, h, fill = COLORS.soft) { doc.setFillColor(...fill); doc.setDrawColor(...COLORS.line); doc.roundedRect(x, y, w, h, 2.2, 2.2, "FD"); }
   function addPdfPage(doc, context) { doc.addPage(); context.y = context.contentTop; }
-  function ensurePdfSpace(doc, context, requiredHeight) { if (context.y + requiredHeight > context.pageBottom) addPdfPage(doc, context); }
+  function ensurePdfSpace(doc, context, requiredHeight) {
+    const availableHeight = context.pageBottom - context.contentTop;
+    const safeHeight = Math.min(requiredHeight, availableHeight);
+    if (context.y + safeHeight > context.pageBottom) addPdfPage(doc, context);
+  }
   function drawSectionTitle(doc, title, context) {
     if (!title) return;
     ensurePdfSpace(doc, context, 8);
@@ -146,7 +150,16 @@
     if (!mapPng && context.mapElement) { try { mapPng = await captureGeoNoxaMapPng({ map: context.map, mapElement: context.mapElement }); } catch (error) { console.warn("[GeoNOXA PDF] No fue posible capturar el mapa", error); } }
     const mx = context.contentLeft + pointWidth + gap + 3, my = y + 8, mw = mapWidth - 6, mh = h - 12;
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); setColor(doc, "accent"); doc.text("Mapa de ubicación", context.contentLeft + pointWidth + gap + 4, y + 6);
-    if (mapPng) doc.addImage(mapPng, "PNG", mx, my, mw, mh, undefined, "FAST");
+    if (mapPng) {
+      const props = doc.getImageProperties(mapPng);
+      const ratio = props.width && props.height ? props.width / props.height : mw / mh;
+      let drawW = mw;
+      let drawH = drawW / ratio;
+      if (drawH > mh) { drawH = mh; drawW = drawH * ratio; }
+      const drawX = mx + (mw - drawW) / 2;
+      const drawY = my + (mh - drawH) / 2;
+      doc.addImage(mapPng, "PNG", drawX, drawY, drawW, drawH, undefined, "FAST");
+    }
     else { doc.setFont("helvetica", "normal"); doc.setFontSize(7.8); setColor(doc, "warning"); doc.text(splitPdfText(doc, `No fue posible incorporar la imagen del mapa durante esta exportación. Coordenadas: ${fmtNumber(context.model.query?.lat)} / ${fmtNumber(context.model.query?.lon)}. Mapa base: ${present(context.model.query?.basemap) || "N/D"}.`, mw - 4), mx + 2, my + 7); }
     context.y += h + context.sectionGap;
   }
@@ -162,7 +175,9 @@
   async function captureGeoNoxaMapPng({ map, mapElement }) {
     if (typeof window.domtoimage?.toPng !== "function") throw new Error("dom-to-image no disponible");
     if (!map || !mapElement) throw new Error("Mapa Leaflet no disponible");
-    const hidden = [...mapElement.querySelectorAll(".leaflet-control-container, .map-toggle, .map-touch-hint, [role='tooltip']")].map(el => [el, el.style.visibility]);
+    const center = typeof map.getCenter === "function" ? map.getCenter() : null;
+    const zoom = typeof map.getZoom === "function" ? map.getZoom() : null;
+    const hidden = [...mapElement.querySelectorAll(".leaflet-control-container, .leaflet-control, .map-toggle, .map-touch-hint, [role='tooltip'], .leaflet-tooltip")].map(el => [el, el.style.visibility]);
     try {
       hidden.forEach(([el]) => { el.style.visibility = "hidden"; });
       map.invalidateSize({ pan: false, animate: false });
@@ -170,7 +185,11 @@
       const rect = mapElement.getBoundingClientRect(); const width = Math.round(rect.width); const height = Math.round(rect.height);
       if (width <= 0 || height <= 0) throw new Error("Contenedor de mapa sin dimensiones");
       return await window.domtoimage.toPng(mapElement, { width, height, style: { transform: "scale(1)", transformOrigin: "top left" } });
-    } finally { hidden.forEach(([el, visibility]) => { el.style.visibility = visibility; }); map.invalidateSize({ pan: false, animate: false }); }
+    } finally {
+      hidden.forEach(([el, visibility]) => { el.style.visibility = visibility; });
+      if (center && Number.isFinite(zoom) && typeof map.setView === "function") map.setView(center, zoom, { animate: false });
+      map.invalidateSize({ pan: false, animate: false });
+    }
   }
   function nextFrames(count) { return new Promise(resolve => { const step = n => n <= 0 ? resolve() : requestAnimationFrame(() => step(n - 1)); step(count); }); }
   async function waitForGeoNoxaMapTiles(mapElement, timeout = 6000) {
@@ -221,9 +240,27 @@
 
   function collectGeoNoxaPdfSections(model, context) {
     const base = Array.isArray(model.sections) ? [...model.sections] : [];
-    if (context.capturedCharts.length) base.splice(8, 0, { id: "charts", type: "image-grid", title: "Gráficos", data: { images: context.capturedCharts } });
+    const modelIds = new Set(base.map(section => section?.id).filter(Boolean));
+    const domSections = collectGeoNoxaDomPdfSections(modelIds);
+    base.push(...domSections);
+    base.sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0));
+    if (context.capturedCharts.length) base.splice(Math.min(8, base.length), 0, { id: "charts", type: "image-grid", title: "Gráficos", data: { images: context.capturedCharts }, order: 850 });
     return base;
   }
 
-  window.GeoNoxaPdfExport = { exportGeoNoxaPDFDirect, assertGeoNoxaPDFDependencies, createGeoNoxaPdfDocument, collectGeoNoxaPdfSections, captureGeoNoxaMapPng, captureGeoNoxaCharts, waitForGeoNoxaMapTiles, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT };
+  function collectGeoNoxaDomPdfSections(excludedIds = new Set()) {
+    return [...document.querySelectorAll("[data-pdf-section]")]
+      .map((node, index) => {
+        const id = present(node.dataset.pdfSection) || `dom-section-${index + 1}`;
+        if (excludedIds.has(id) || node.matches('[data-pdf-export="false"], .pdf-no-export')) return null;
+        const type = present(node.dataset.pdfType) || "text-panel";
+        const order = Number(node.dataset.pdfOrder || 9000 + index);
+        const title = present(node.dataset.pdfTitle) || present(node.querySelector("h1,h2,h3,h4")?.textContent) || null;
+        const text = present(node.dataset.pdfText) || present(node.textContent);
+        return text ? { id, type, title, order, data: { text } } : null;
+      })
+      .filter(Boolean);
+  }
+
+  window.GeoNoxaPdfExport = { exportGeoNoxaPDFDirect, assertGeoNoxaPDFDependencies, createGeoNoxaPdfDocument, collectGeoNoxaPdfSections, captureGeoNoxaMapPng, captureGeoNoxaCharts, waitForGeoNoxaMapTiles, collectGeoNoxaDomPdfSections, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT };
 })();
