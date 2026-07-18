@@ -4,6 +4,7 @@ const fmt = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
 const fmtKm = new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const GEOQUERY_DEBUG = false;
 const PDF_DEBUG = false;
+const GEO_NOXA_PDF_ENGINE = "geolib-with-legacy-fallback";
 const PDF_OVERFLOW_TOLERANCE_PX = 6;
 const MAX_PDF_PAGES = 100;
 const MAX_PAGINATION_ITERATIONS = 5000;
@@ -67,7 +68,7 @@ function setPDFButtonsReady(ready) {
 function installGeoQueryPDFButtons() {
   getPDFButtons().forEach(button => {
     if (button.dataset.pdfBound === "1") return;
-    button.addEventListener("click", exportGeoQueryToPDF);
+    button.addEventListener("click", handleGeoNoxaPDFClick);
     button.dataset.pdfBound = "1";
   });
   setPDFButtonsReady(Boolean(window.geoQueryState?.exportState?.pdfEnabled));
@@ -631,8 +632,7 @@ function cleanupPDFExport(stage) {
   }
 }
 
-async function exportGeoQueryToPDF(event) {
-  if (isGeneratingPDF) return;
+async function exportGeoNoxaPDFLegacy(event) {
   const button = event?.currentTarget || getPDFButtons()[0];
   const originalText = button?.textContent || "Exportar PDF";
   let stage = null;
@@ -676,6 +676,42 @@ async function exportGeoQueryToPDF(event) {
     setPDFButtonsReady(geoQueryReady);
   }
 }
+
+async function exportGeoNoxaPDF(event) {
+  if (GEO_NOXA_PDF_ENGINE === "legacy") return exportGeoNoxaPDFLegacy(event);
+  try {
+    return await window.GeoNoxaPdfExport.exportGeoNoxaPDFDirect({
+      reportModel: window.__geonoxaReportModel,
+      map: window.geoQueryLeafletMap,
+      mapElement: document.getElementById("geoquery-map"),
+      filename: buildPDFFileName()
+    });
+  } catch (error) {
+    console.error("[GeoNOXA PDF] Falló motor directo", error);
+    if (GEO_NOXA_PDF_ENGINE === "geolib-with-legacy-fallback") return exportGeoNoxaPDFLegacy(event);
+    throw error;
+  }
+}
+
+async function handleGeoNoxaPDFClick(event) {
+  if (isGeneratingPDF) return;
+  const button = event?.currentTarget || getPDFButtons()[0];
+  const originalText = button?.textContent || "Exportar PDF";
+  isGeneratingPDF = true;
+  try {
+    getPDFButtons().forEach(pdfButton => { pdfButton.disabled = true; pdfButton.textContent = "Generando PDF…"; });
+    if (!window.geoQueryState?.exportState?.pdfEnabled) throw new Error("El reporte GeoQuery aún no está listo para exportar");
+    await exportGeoNoxaPDF(event);
+  } catch (error) {
+    console.error("[GeoNOXA PDF] Error completo:", error);
+    alert("No fue posible generar el PDF. Intente nuevamente.");
+  } finally {
+    isGeneratingPDF = false;
+    getPDFButtons().forEach(pdfButton => restorePDFButton(pdfButton, originalText));
+    setPDFButtonsReady(geoQueryReady);
+  }
+}
+
 document.addEventListener("DOMContentLoaded", installGeoQueryPDFButtons);
 
 function parseViewport(params) { const west=num(params,"viewWest"), south=num(params,"viewSouth"), east=num(params,"viewEast"), north=num(params,"viewNorth"); if ([west,south,east,north].every(Number.isFinite) && west < east && south < north) return { west,south,east,north,bbox:[west,south,east,north], polygon:turf.bboxPolygon([west,south,east,north]), source:"url_bbox"}; const lat=num(params,"viewLat")??num(params,"mapCenterLat")??num(params,"lat"), lon=num(params,"viewLon")??num(params,"mapCenterLon")??num(params,"lon"), z=num(params,"zoom")??num(params,"mapZoom")??14; if(!validLatLon(lat,lon)) return null; const scale=256*2**Math.max(0,Math.min(20,z)), lonPx=360/scale, latPx=lonPx/Math.max(.15,Math.cos(lat*Math.PI/180)); return {west:lon-640*lonPx,east:lon+640*lonPx,south:lat-360*latPx,north:lat+360*latPx,source:"fallback_center_zoom"}; }
@@ -847,6 +883,73 @@ function buildExecutiveSummary({ relavesResult, zonasResult }){
   if(fragments.length===0) return "No se identificaron elementos territoriales dentro del viewport consultado.";
   return fragments.filter(Boolean).join(" ");
 }
+
+function objectToPdfItems(object) {
+  return Object.entries(object || {}).filter(([, value]) => isPresentValue(value)).map(([label, value]) => ({ label, value }));
+}
+function relavePdfFields(relave) {
+  return [
+    { label: "Empresa", value: relave.company },
+    { label: "Recurso", value: relave.resourceOriginal },
+    { label: "Estado", value: relave.status || relave.originalProperties?.estado },
+    { label: "Comuna", value: relave.commune },
+    { label: "Tipo depósito", value: relave.depositType },
+    { label: "Distancia", value: formatDistanceKm(relave.distanceKm) }
+  ].filter(item => isPresentValue(item.value));
+}
+function buildGeoNoxaReportModel({ lat, lon, from, currentBasemap, relavesResult, zonasResult, relavesGroup, zonasGroup, executiveSummary, overallStatus, viewport }) {
+  const selectedRelaves = Array.isArray(relavesResult?.selectedRelaves) ? relavesResult.selectedRelaves : (relavesResult?.items || []);
+  const selectedStats = pointDistanceStats(selectedRelaves);
+  const selectedPairStats = pairDistanceStats(selectedRelaves);
+  const dominantRelaves = relaveContext(relavesResult || {}).dominantRelaves || [];
+  const dominantPairStats = pairDistanceStats(dominantRelaves);
+  const dominantPointStats = pointDistanceStats(dominantRelaves);
+  const zone = zonasResult?.items?.[0] || null;
+  const zoneDistance = zonasResult?.relation === "intersects" ? "Dentro de zona" : formatDistanceKm(zonasResult?.distanceKm);
+  const relaveCards = selectedRelaves.slice(0, 10).map((relave, index) => ({ title: `${index + 1}. ${relaveTitle(relave)}`, fields: relavePdfFields(relave) }));
+  const relaveRows = selectedRelaves.slice(0, 10).map((relave, index) => [index + 1, relaveTitle(relave), cleanText(relave.resourceOriginal) || "N/D", cleanText(relave.status || relave.originalProperties?.estado) || "N/D", cleanText(relave.commune) || "N/D", formatDistanceKm(relave.distanceKm)]);
+  const sources = [relavesResult?.sourceFile, zonasResult?.items?.[0]?.sourceFile, relavesGroup?.entry?.nombre, zonasGroup?.entry?.nombre].filter(Boolean);
+  const model = {
+    identity: { site: "GeoNOXA", title: "Reporte del punto consultado", generatedAt: new Date() },
+    query: { lat, lon, region: null, commune: null, originSite: (from || "geonoxa").toUpperCase(), status: overallStatus?.label, basemap: currentBasemap },
+    summary: { executiveText: executiveSummary },
+    relaves: {
+      related: selectedRelaves.slice(0, 10),
+      resourceDominant: relavesResult?.dominantResource,
+      descriptors: { "Radio del clúster": formatDistanceKm(relavesResult?.clusterRadiusKm ?? relavesResult?.radiusKm), "Distancia media entre relaves": formatDistanceKm(selectedPairStats.meanKm), "Distancia mínima entre relaves": formatDistanceKm(selectedPairStats.minKm), "Distancia media recurso dominante": formatDistanceKm(dominantPairStats.meanKm), "Distancia mínima recurso dominante": formatDistanceKm(dominantPairStats.minKm) },
+      spatialIndicators: { "Tipo de relación": selectedRelaves.length ? "Cercanía al punto consultado" : "Sin relaves seleccionados", "Relaves analizados": selectedRelaves.length, "Distancia media al punto": formatDistanceKm(selectedStats.meanKm), "Distancia mínima al punto": formatDistanceKm(selectedStats.minKm), "Recurso dominante": relavesResult?.dominantResource, "Relaves del recurso dominante": relavesResult?.dominantResourceCount, "Participación recurso dominante": formatPercent(relavesResult?.dominantResourcePercentage), "Distancia media al punto del recurso dominante": formatDistanceKm(dominantPointStats.meanKm) },
+      metadata: relaveRows
+    },
+    zones: {
+      nearest: zone,
+      spatialIndicators: { "Tipo de relación": zonasResult?.status === "resolved" ? relationLabel(zonasResult) : "Sin zona relacionada", "Distancia": zoneDistance },
+      metadata: zone ? { "Nombre": zone.name, "Condición": zone.condition, "Contaminante": zone.pollutant, "Saturado": zone.saturatedValue, "Latente": zone.latentValue, "Decreto": zone.decree, "Región CUT": zone.regionCode, "Superficie oficial": zone.officialArea, "Fuente": zone.sourceFile, "Enlace": zone.link } : {}
+    },
+    technicalMetadata: { "Fecha de consulta": new Date().toLocaleString("es-CL"), "Coordenadas": `${lat?.toFixed?.(6) || lat}, ${lon?.toFixed?.(6) || lon}`, "CRS": "WGS84 / EPSG:4326", "Regla territorial": "Análisis limitado al viewport original de consulta", "Fuente viewport": viewport?.source || "sin viewport", "Mapa base": currentBasemap, "Versión reporte": "GeoNOXA GeoQuery" },
+    sources: [...new Set(sources)],
+    disclaimer: "Reporte metodológico generado automáticamente desde los resultados visibles de GeoQuery. La información debe verificarse con las fuentes oficiales antes de decisiones administrativas, ambientales o de inversión.",
+    sections: []
+  };
+  model.sections = [
+    { id: "query-summary", type: "kpi-grid", title: "Resumen de consulta", data: { columns: 4, items: [{ label: "Latitud", value: lat?.toFixed?.(6) || lat }, { label: "Longitud", value: lon?.toFixed?.(6) || lon }, { label: "Sitio origen", value: model.query.originSite }, { label: "Estado", value: overallStatus?.label }] } },
+    { id: "point-map", type: "point-map", title: "Punto consultado y mapa de ubicación", data: { pointItems: [{ label: "Latitud", value: lat?.toFixed?.(6) || lat }, { label: "Longitud", value: lon?.toFixed?.(6) || lon }, { label: "Región", value: model.query.region || "No informada" }, { label: "Comuna", value: model.query.commune || "No informada" }, { label: "Tipo de relación", value: overallStatus?.label }, { label: "Mapa base", value: currentBasemap }] } },
+    { id: "executive-summary", type: "text-panel", title: "Resumen ejecutivo", data: { text: executiveSummary } },
+    { id: "relaves-group", type: "notice", title: "Grupo Relaves", data: { text: relavesResult?.status === "resolved" ? `Se exportan ${selectedRelaves.slice(0, 10).length} relaves relacionados usados por GeoQuery.` : "No se identificaron relaves relacionados para esta consulta." } },
+    { id: "related-relaves", type: "card-list", title: "Relaves relacionados", data: { columns: 2, items: relaveCards } },
+    { id: "relave-descriptors", type: "metadata", title: "Descriptores geométricos de relaves", data: { items: objectToPdfItems(model.relaves.descriptors) } },
+    { id: "relave-indicators", type: "metadata", title: "Indicadores de relación espacial de relaves", data: { items: objectToPdfItems(model.relaves.spatialIndicators) } },
+    { id: "relave-metadata", type: "table", title: "Metadata de relaves", data: { head: ["#", "Relave", "Recurso", "Estado", "Comuna", "Distancia"], rows: relaveRows } },
+    { id: "zones-group", type: "notice", title: "Grupo Zonas Saturadas o Latentes", data: { text: zone ? "Se informa la zona saturada o latente relacionada más cercana según el resultado GeoQuery." : "No se identificó una zona saturada o latente relacionada para esta consulta." } },
+    { id: "nearest-zone", type: zone ? "metadata" : "notice", title: "Zona más cercana", data: zone ? { items: objectToPdfItems({ "Tipo de zona": zonasGroup?.cfg?.nombre_largo || zonasGroup?.cfg?.nombre, "Nombre": zone.name, "Contaminante": zone.pollutant, "Estado saturada/latente": zone.condition, "Distancia": zoneDistance, "Región/CUT": zone.regionCode, "Fuente": zone.sourceFile }) } : { text: "No se identificó una zona saturada o latente relacionada para esta consulta." } },
+    { id: "zone-indicators", type: "metadata", title: "Indicadores de relación espacial de la zona", data: { items: objectToPdfItems(model.zones.spatialIndicators) } },
+    { id: "zone-metadata", type: "metadata", title: "Metadata de la zona", data: { items: objectToPdfItems(model.zones.metadata) } },
+    { id: "technical-metadata", type: "metadata", title: "Metadata técnica", data: { items: objectToPdfItems(model.technicalMetadata) } },
+    { id: "sources", type: "text-panel", title: "Fuentes", data: { text: model.sources.length ? model.sources.join("\n") : "Fuentes no informadas en el resultado actual." } },
+    { id: "disclaimer", type: "text-panel", title: "Descargo metodológico", data: { text: model.disclaimer } }
+  ];
+  return model;
+}
+
 function deriveOverallStatus(relaves, zonas){
   const results=[relaves,zonas];
   const resolvedCount=results.filter(item=>item?.status==="resolved").length;
@@ -991,4 +1094,4 @@ window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => w
 
 (async function init(){ const params=new URLSearchParams(location.search); const lat=num(params,"lat"), lon=num(params,"lon"); queryLat=lat; queryLon=lon; const viewLat=num(params,"viewLat")??num(params,"mapCenterLat"), viewLon=num(params,"viewLon")??num(params,"mapCenterLon"), zoom=num(params,"zoom")??num(params,"mapZoom")??14, from=params.get("from"), basemap=(params.get("basemap")||"osm").toLowerCase()==="sat"?"sat":"osm"; const els={back:$("back-link"),status:$("card-status"),groups:$("geoquery-groups"),summary:$("executive-summary"),load:$("groups-load-status")}; if(els.back){ els.back.href=validLatLon(lat,lon)?buildReturnUrl(lat,lon,zoom,basemap,viewLat,viewLon):"../index.html"; els.back.addEventListener("click",event=>{ if(history.length>1){ event.preventDefault(); history.back(); } }); } [[$("card-lat"),lat?.toFixed(6)],[$("card-lon"),lon?.toFixed(6)],[$("card-site"),(params.get("site")||"geonoxa").toUpperCase()],[$("lat-decimal"),lat?.toFixed(6)],[$("lon-decimal"),lon?.toFixed(6)],[$("lat-dms"),Number.isFinite(lat)?dms(lat,"lat"):"—"],[$("lon-dms"),Number.isFinite(lon)?dms(lon,"lon"):"—"]].forEach(([e,v])=>{if(e)e.textContent=v||"—"}); if(!validLatLon(lat,lon)){ if(els.status) els.status.textContent="Coordenada inválida"; return; }
  const map=L.map("geoquery-map",{tap:true,scrollWheelZoom:true}); window.geoQueryLeafletMap = map; const mapEl=$("geoquery-map"); const osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap",crossOrigin:true}); const sat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:20,attribution:"Tiles &copy; Esri",crossOrigin:true}); let currentBasemap=basemap; function setBasemapButtonActive(type){$("geoquery-osm-btn")?.classList.toggle("active",type==="osm");$("geoquery-sat-btn")?.classList.toggle("active",type==="sat");} function setBasemap(type){if(map.hasLayer(osm))map.removeLayer(osm);if(map.hasLayer(sat))map.removeLayer(sat);currentBasemap=type==="sat"?"sat":"osm";(currentBasemap==="sat"?sat:osm).addTo(map);setBasemapButtonActive(currentBasemap);if(window.geoQueryState){window.geoQueryState.basemap=currentBasemap;window.geoQueryState.mapState.basemap=currentBasemap;window.geoQueryState.queryContext.originalViewport.basemap=currentBasemap;if(els.back)els.back.href=buildReturnUrl(lat,lon,zoom,currentBasemap,viewLat,viewLon);}} const toggle=L.DomUtil.create("div","map-toggle"); toggle.innerHTML=`<button id="geoquery-osm-btn" class="map-toggle-btn" type="button" data-map="osm">OSM</button><button id="geoquery-sat-btn" class="map-toggle-btn" type="button" data-map="sat">SAT</button>`; mapEl?.appendChild(toggle); L.DomEvent.disableClickPropagation(toggle); L.DomEvent.disableScrollPropagation(toggle); toggle.querySelector('[data-map="osm"]')?.addEventListener("click",()=>setBasemap("osm")); toggle.querySelector('[data-map="sat"]')?.addEventListener("click",()=>setBasemap("sat")); setBasemap(currentBasemap); map.setView([lat,lon],zoom); const layers={results:L.featureGroup().addTo(map)}; L.circleMarker([lat,lon],{radius:7,weight:3,color:"#111827",fillColor:"#facc15",fillOpacity:.95}).bindPopup("Punto consultado").addTo(map); L.control.scale({metric:true,imperial:false}).addTo(map); setupMobileMapGesture(map, mapEl);
- const viewport=parseViewport(params); const registry=await fetchJson(new URL("listado.json",GEOQUERY_BASE_URL)); const entries=(registry.grupos||[]).filter(g=>g.activo).sort((a,b)=>(a.orden||0)-(b.orden||0)); const queryPoint=turf.point([lon,lat]); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] Inicio análisis"); const groups=await Promise.all(entries.map(e=>analyzeGroupSafe(e,queryPoint,viewport))); const relavesGroup=groups.find(g=>g.cfg.id==="relaves"); const zonasGroup=groups.find(g=>g.cfg.id==="zonas"); const relavesResult=relavesGroup?.result; const zonasResult=zonasGroup?.result; if(GEOQUERY_DEBUG) console.log("[GeoNOXA] Resultado relaves calculado", relavesResult); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] Resultado zonas calculado", zonasResult); window.geoQueryState={site:"geonoxa",queryContext:{site:"geonoxa",queryPoint:{lat,lon},originalViewport:{centerLat:viewLat,centerLon:viewLon,zoom,west:viewport?.west,south:viewport?.south,east:viewport?.east,north:viewport?.north,basemap:currentBasemap},from},status:"loading",executiveSummary:"",groupResults:{relaves:relavesResult,zonas:zonasResult},mapState:{basemap:currentBasemap,viewportSource:viewport?.source||"sin viewport"},exportState:{pdfEnabled:false,kmlEnabled:false},lat,lon,basemap:currentBasemap,originalViewport:viewport,groups}; if(GEOQUERY_DEBUG) console.log("[GeoNOXA] relavesResult:", relavesResult); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] zonasResult:", zonasResult); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] groupResults:", window.geoQueryState?.groupResults); groups.forEach(g=>drawResult(map,layers,g)); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] antes de renderAnalysisResults"); if(els.groups) { els.groups.replaceChildren(); const html=[]; if(GEOQUERY_DEBUG) console.log("[GeoNOXA] antes de renderRelavesPanels"); if(relavesGroup) { try { html.push(renderRelaves(relavesResult,relavesGroup.cfg,relavesGroup.meta)); } catch(error) { console.error("[GeoNOXA][relaves][render]", error); if(relavesResult) relavesResult.renderError = error; } } if(GEOQUERY_DEBUG) console.log("[GeoNOXA] antes de renderZonasPanels"); if(zonasGroup) { try { html.push(renderZonas(zonasResult,zonasGroup.cfg,zonasGroup.meta)); } catch(error) { console.error("[GeoNOXA][zonas][render]", error); if(zonasResult) zonasResult.renderError = error; } } els.groups.innerHTML=html.filter(Boolean).join(""); } if(GEOQUERY_DEBUG) console.log("[GeoNOXA] Antes de resumen ejecutivo"); const executiveSummary=buildExecutiveSummary({relavesResult,zonasResult}); if(els.summary) els.summary.textContent=executiveSummary; if(GEOQUERY_DEBUG) console.log("[GeoNOXA] antes de deriveOverallStatus"); const overallStatus=deriveOverallStatus(relavesResult,zonasResult); if(GEOQUERY_DEBUG) console.table({relavesStatus:relavesResult?.status,selectedCount:relavesResult?.selectedRelaves?.length,clusterRadiusKm:relavesResult?.clusterRadiusKm,dominantResource:relavesResult?.dominantResource,zonasStatus:zonasResult?.status,overallStatus:overallStatus?.label}); window.geoQueryState.status=overallStatus.code; window.geoQueryState.executiveSummary=executiveSummary; window.geoQueryState.exportState={pdfEnabled:groups.some(g=>g.result.status==="resolved"),kmlEnabled:groups.some(g=>g.result.status==="resolved")}; geoQueryReady=window.geoQueryState.exportState.pdfEnabled; setPDFButtonsReady(geoQueryReady); window.geoQueryState.mapExport=buildGeoNoxaMapExport(relavesResult,zonasResult); window.geoQueryKmlRefresh?.(); if(els.status){ els.status.textContent=overallStatus.label; els.status.classList.toggle("status-ok", overallStatus.code==="resolved"); els.status.classList.toggle("status-warning", overallStatus.code==="partial" || overallStatus.code==="empty"); els.status.classList.toggle("status-error", overallStatus.code==="error"); } if($("detail-status")) $("detail-status").textContent=overallStatus.label; if(layers.results.getLayers().length){ const b=layers.results.getBounds(); if(b.isValid()) map.fitBounds(b.pad(0.2),{maxZoom:14}); } if(els.load) els.load.textContent=GEOQUERY_DEBUG?`${groups.length} grupos cargados desde listado.json; análisis limitado al viewport original (${viewport?.source || "sin viewport"}).`:""; const tech=$("geoquery-technical-metadata"); if(tech) tech.hidden=!GEOQUERY_DEBUG; const downloads=$("geoquery-downloads-panel"); if(downloads) downloads.hidden=!groups.some(g=>g.result.status==="resolved"); setTimeout(()=>map.invalidateSize(),150); })().catch(err=>{ console.error("[GeoNOXA][init]", err); const s=$("card-status"); if(s){s.textContent="Error de análisis";s.classList.add("status-error");} const g=$("geoquery-groups"); if(g) g.innerHTML=`<section class="panel"><p class="placeholder-text">${escapeHtml(err.message)}</p></section>`; });
+ const viewport=parseViewport(params); const registry=await fetchJson(new URL("listado.json",GEOQUERY_BASE_URL)); const entries=(registry.grupos||[]).filter(g=>g.activo).sort((a,b)=>(a.orden||0)-(b.orden||0)); const queryPoint=turf.point([lon,lat]); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] Inicio análisis"); const groups=await Promise.all(entries.map(e=>analyzeGroupSafe(e,queryPoint,viewport))); const relavesGroup=groups.find(g=>g.cfg.id==="relaves"); const zonasGroup=groups.find(g=>g.cfg.id==="zonas"); const relavesResult=relavesGroup?.result; const zonasResult=zonasGroup?.result; if(GEOQUERY_DEBUG) console.log("[GeoNOXA] Resultado relaves calculado", relavesResult); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] Resultado zonas calculado", zonasResult); window.geoQueryState={site:"geonoxa",queryContext:{site:"geonoxa",queryPoint:{lat,lon},originalViewport:{centerLat:viewLat,centerLon:viewLon,zoom,west:viewport?.west,south:viewport?.south,east:viewport?.east,north:viewport?.north,basemap:currentBasemap},from},status:"loading",executiveSummary:"",groupResults:{relaves:relavesResult,zonas:zonasResult},mapState:{basemap:currentBasemap,viewportSource:viewport?.source||"sin viewport"},exportState:{pdfEnabled:false,kmlEnabled:false},lat,lon,basemap:currentBasemap,originalViewport:viewport,groups}; if(GEOQUERY_DEBUG) console.log("[GeoNOXA] relavesResult:", relavesResult); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] zonasResult:", zonasResult); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] groupResults:", window.geoQueryState?.groupResults); groups.forEach(g=>drawResult(map,layers,g)); if(GEOQUERY_DEBUG) console.log("[GeoNOXA] antes de renderAnalysisResults"); if(els.groups) { els.groups.replaceChildren(); const html=[]; if(GEOQUERY_DEBUG) console.log("[GeoNOXA] antes de renderRelavesPanels"); if(relavesGroup) { try { html.push(renderRelaves(relavesResult,relavesGroup.cfg,relavesGroup.meta)); } catch(error) { console.error("[GeoNOXA][relaves][render]", error); if(relavesResult) relavesResult.renderError = error; } } if(GEOQUERY_DEBUG) console.log("[GeoNOXA] antes de renderZonasPanels"); if(zonasGroup) { try { html.push(renderZonas(zonasResult,zonasGroup.cfg,zonasGroup.meta)); } catch(error) { console.error("[GeoNOXA][zonas][render]", error); if(zonasResult) zonasResult.renderError = error; } } els.groups.innerHTML=html.filter(Boolean).join(""); } if(GEOQUERY_DEBUG) console.log("[GeoNOXA] Antes de resumen ejecutivo"); const executiveSummary=buildExecutiveSummary({relavesResult,zonasResult}); if(els.summary) els.summary.textContent=executiveSummary; if(GEOQUERY_DEBUG) console.log("[GeoNOXA] antes de deriveOverallStatus"); const overallStatus=deriveOverallStatus(relavesResult,zonasResult); window.__geonoxaReportModel=buildGeoNoxaReportModel({ lat, lon, from, currentBasemap, relavesResult, zonasResult, relavesGroup, zonasGroup, executiveSummary, overallStatus, viewport }); if(GEOQUERY_DEBUG) console.table({relavesStatus:relavesResult?.status,selectedCount:relavesResult?.selectedRelaves?.length,clusterRadiusKm:relavesResult?.clusterRadiusKm,dominantResource:relavesResult?.dominantResource,zonasStatus:zonasResult?.status,overallStatus:overallStatus?.label}); window.geoQueryState.status=overallStatus.code; window.geoQueryState.executiveSummary=executiveSummary; window.geoQueryState.exportState={pdfEnabled:groups.some(g=>g.result.status==="resolved"),kmlEnabled:groups.some(g=>g.result.status==="resolved")}; geoQueryReady=window.geoQueryState.exportState.pdfEnabled; setPDFButtonsReady(geoQueryReady); window.geoQueryState.mapExport=buildGeoNoxaMapExport(relavesResult,zonasResult); window.geoQueryKmlRefresh?.(); if(els.status){ els.status.textContent=overallStatus.label; els.status.classList.toggle("status-ok", overallStatus.code==="resolved"); els.status.classList.toggle("status-warning", overallStatus.code==="partial" || overallStatus.code==="empty"); els.status.classList.toggle("status-error", overallStatus.code==="error"); } if($("detail-status")) $("detail-status").textContent=overallStatus.label; if(layers.results.getLayers().length){ const b=layers.results.getBounds(); if(b.isValid()) map.fitBounds(b.pad(0.2),{maxZoom:14}); } if(els.load) els.load.textContent=GEOQUERY_DEBUG?`${groups.length} grupos cargados desde listado.json; análisis limitado al viewport original (${viewport?.source || "sin viewport"}).`:""; const tech=$("geoquery-technical-metadata"); if(tech) tech.hidden=!GEOQUERY_DEBUG; const downloads=$("geoquery-downloads-panel"); if(downloads) downloads.hidden=!groups.some(g=>g.result.status==="resolved"); setTimeout(()=>map.invalidateSize(),150); })().catch(err=>{ console.error("[GeoNOXA][init]", err); const s=$("card-status"); if(s){s.textContent="Error de análisis";s.classList.add("status-error");} const g=$("geoquery-groups"); if(g) g.innerHTML=`<section class="panel"><p class="placeholder-text">${escapeHtml(err.message)}</p></section>`; });
