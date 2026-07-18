@@ -21,6 +21,18 @@
   function fmtNumber(value, digits = 6) { const n = Number(value); return Number.isFinite(n) ? n.toFixed(digits) : ""; }
   function fmtKm(value) { const n = Number(value); return Number.isFinite(n) ? `${n.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km` : "N/D"; }
   function cleanItems(items) { return (items || []).filter(item => present(item?.label) || present(item?.value)); }
+  function deduplicateLabelValueRows(rows) {
+    const seen = new Set();
+    return (rows || []).filter(row => {
+      const key = `${row.label}::${row.value}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+  function relationLabel(value) { return value === "intersects" ? "Intersección con zona normativa" : value === "nearest" ? "Cercanía a zona normativa" : present(value) || "No informada"; }
+  function statusLabel(value) { return value === "resolved" ? "Resuelto" : value === "loading" ? "Analizando" : value === "empty" ? "Sin resultados" : value === "error" ? "Error de análisis" : present(value) || "No informado"; }
+  function fmtMeters(value) { const n = Number(value); if (!Number.isFinite(n)) return "No informada"; return n < 1000 ? `${Math.round(n).toLocaleString("es-CL")} m` : `${(n/1000).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`; }
   function splitPdfText(doc, text, maxWidth) { return doc.splitTextToSize(String(text ?? ""), maxWidth); }
   function sanitizePdfFilenamePart(value) { return String(value ?? "").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80); }
   function normalizePdfUrl(value) { const raw = String(value ?? "").trim(); return /^https?:\/\//i.test(raw) ? raw : ""; }
@@ -228,7 +240,7 @@
     let currentPdfStep = "initialization";
     try {
       currentPdfStep = "dependencies"; assertGeoIptPDFDependencies();
-      currentPdfStep = "building_model"; const state = window.geoQueryState || {}; const qp = state.queryContext?.queryPoint || {}; const model = reportModel || window.__geoiptReportModel || { identity: { site: "geoipt", title: "GeoIPT | Reporte del punto consultado", generatedAt: new Date().toISOString() }, query: { lat: qp.lat ?? state.lat ?? state.lat_decimal, lon: qp.lon ?? state.lon ?? state.lon_decimal, basemap: state.basemap || state.mapState?.basemap }, state }; window.__geoiptReportModel = model;
+      currentPdfStep = "building_model"; const state = window.geoQueryState || {}; const qp = state.queryContext?.queryPoint || {}; const model = reportModel || (typeof window.buildGeoIptReportModelFromResolvedState === "function" ? window.buildGeoIptReportModelFromResolvedState() : window.__geoiptReportModel) || { identity: { site: "geoipt", title: "GeoIPT | Reporte del punto consultado", generatedAt: new Date().toISOString() }, query: { lat: qp.lat ?? state.lat ?? state.lat_decimal, lon: qp.lon ?? state.lon ?? state.lon_decimal, basemap: state.basemap || state.mapState?.basemap }, state }; window.__geoiptReportModel = model;
       currentPdfStep = "document"; const doc = createGeoIptPdfDocument(); const context = createContext(doc, model, map || window.geoQueryLeafletMap, mapElement || document.getElementById("geoquery-map"));
       currentPdfStep = "capturing_charts"; context.capturedCharts = await captureGeoIptCharts();
       currentPdfStep = "drawing_sections"; drawDocumentIntro(doc, context); const sections = collectGeoIptPdfSections(model, context); for (const section of sections) await renderGeoIptPdfSection(doc, section, context);
@@ -239,19 +251,87 @@
 
   function detailItemsFromPanel(selector) { return [...document.querySelectorAll(`${selector} .detail-row`)].map(row => ({ label: row.querySelector("dt")?.textContent, value: row.querySelector("dd")?.textContent })); }
 
+  const GEOIPT_HTML_PDF_COVERAGE = [
+    { htmlId: "geoquery-summary-cards", pdfSectionId: "query-summary", modelPath: "query" },
+    { htmlId: "geoquery-point-panel", pdfSectionId: "point-map", modelPath: "query" },
+    { htmlId: "geoquery-map-panel", pdfSectionId: "point-map", modelPath: "relation" },
+    { htmlId: "geoquery-related-features-panel", pdfSectionId: "territorial-result", modelPath: "relation" },
+    { htmlId: "geoquery-related-features-panel", pdfSectionId: "prc-related", modelPath: "prc" },
+    { htmlId: "geoquery-related-features-panel", pdfSectionId: "normative-zone", modelPath: "normativeZone" },
+    { htmlId: "geoquery-metadata-panel", pdfSectionId: "normative-result", modelPath: "normativeResult" },
+    { htmlId: "geoquery-metadata-panel", pdfSectionId: "permitted-uses", modelPath: "normativeResult.permittedUses" },
+    { htmlId: "geoquery-metadata-panel", pdfSectionId: "restrictions", modelPath: "normativeResult.restrictions" },
+    { htmlId: "geoquery-relation-indicators-panel", pdfSectionId: "spatial-indicators", modelPath: "spatialIndicators" },
+    { htmlId: "geoquery-geometry-panel", pdfSectionId: "geometry-descriptors", modelPath: "geometryDescriptors" },
+    { htmlId: "geoquery-metadata-panel", pdfSectionId: "feature-metadata", modelPath: "featureMetadata" }
+  ];
+
+  function hasModelData(model, path) {
+    const value = String(path).split(".").reduce((acc, key) => acc && acc[key], model);
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === "object") return Object.values(value).some(v => Array.isArray(v) ? v.length : present(v));
+    return Boolean(present(value));
+  }
+
+  function auditGeoIptPdfCoverage(model, sections) {
+    const sectionIds = new Set((sections || []).map(s => s.id));
+    GEOIPT_HTML_PDF_COVERAGE.forEach(item => {
+      const panel = document.getElementById(item.htmlId);
+      const panelResolved = Boolean(panel && !panel.hidden && !/Estado: fuente actual|No se encontró|No hay geometría/i.test(panel.textContent || ""));
+      const dataFound = hasModelData(model, item.modelPath);
+      const registered = sectionIds.has(item.pdfSectionId);
+      const payload = { htmlId: item.htmlId, pdfSectionId: item.pdfSectionId, panelResolved, dataFound, registered, status: registered || !panelResolved ? "covered" : "omitted" };
+      if (panelResolved && dataFound && !registered) console.error("[GeoIPT PDF] Sección informativa omitida", payload);
+      else console.debug("[GeoIPT PDF] Cobertura HTML → PDF", payload);
+    });
+  }
+
+  function rows(items) { return deduplicateLabelValueRows((items || []).filter(i => present(i.value)).map(i => ({ label: i.label, value: i.value }))); }
+  function listText(items, empty) { return (items || []).length ? items.map((v, i) => `${i + 1}. ${v}`).join("\n") : empty; }
+
   function collectGeoIptPdfSections(model, context) {
     const state = model.state || window.geoQueryState || {};
-    const pointItems = detailItemsFromPanel("#geoquery-point-panel,#details-panel");
+    const q = model.query || {};
+    const rel = model.relation || {};
+    const prc = model.prc || {};
+    const zone = model.normativeZone || {};
+    const norm = model.normativeResult || {};
+    const geom = model.geometryDescriptors || {};
+    const spatial = model.spatialIndicators || {};
+    const pointItems = rows([
+      { label: "Latitud decimal", value: fmtNumber(q.lat) || state.lat_decimal },
+      { label: "Longitud decimal", value: fmtNumber(q.lon) || state.lon_decimal },
+      { label: "Latitud GMS", value: q.latDms || state.lat_dms },
+      { label: "Longitud GMS", value: q.lonDms || state.lon_dms },
+      { label: "CRS", value: q.crs || state.crs },
+      { label: "Región", value: q.region || prc.region || "No informada" },
+      { label: "Comuna", value: q.commune || prc.commune || "No informada" },
+      { label: "Fuente", value: q.source === "url_params" ? "Parámetro URL" : q.source },
+      { label: "Estado", value: statusLabel(q.state || state.status) }
+    ]);
     const sections = [
-      { id: "query-summary", type: "kpi-grid", title: "Resumen de consulta", order: 10, data: { columns: 4, items: [{ label: "Latitud", value: fmtNumber(model.query?.lat) || "N/D" }, { label: "Longitud", value: fmtNumber(model.query?.lon) || "N/D" }, { label: "Relación", value: state.geoIptResult?.relationType || state.groupResults?.[0]?.relationType || "nearest" }, { label: "Estado", value: state.status || "N/D" }] } },
+      { id: "query-summary", type: "kpi-grid", title: "Resumen de consulta", order: 10, data: { columns: 4, items: [{ label: "Latitud", value: fmtNumber(q.lat) || "N/D" }, { label: "Longitud", value: fmtNumber(q.lon) || "N/D" }, { label: "Relación", value: rel.label || relationLabel(rel.type) }, { label: "Estado", value: statusLabel(q.state || state.status) }] } },
       { id: "point-map", type: "point-map", title: "Punto consultado y mapa de ubicación", order: 20, data: { pointItems } },
-      { id: "executive-summary", type: "text-panel", title: "Resumen ejecutivo", order: 30, data: { text: state.executiveSummary || document.getElementById("executive-summary")?.textContent || "Sin resumen ejecutivo disponible." } },
-      { id: "technical-metadata", type: "table", title: "Metadata técnica", order: 900, data: { head: ["Campo", "Valor"], rows: [...pointItems, { label: "Mapa base", value: model.query?.basemap }, { label: "Fecha generación", value: fmtDateCL(model.identity?.generatedAt) }].filter(i => present(i.label) || present(i.value)).map(i => [i.label, i.value]) } },
-      { id: "sources", type: "notice", title: "Fuentes", order: 990, data: { text: state.source_geojson || state.source || "Resultados y capas cargados por GeoQuery en el navegador." } },
-      { id: "disclaimer", type: "notice", title: "Descargo", order: 1000, data: { text: "Reporte documental generado automáticamente desde GeoQuery. La información mantiene el carácter referencial del visor y debe contrastarse con las fuentes oficiales correspondientes." } }
+      { id: "executive-summary", type: "text-panel", title: "Resumen ejecutivo", order: 30, data: { text: model.executiveSummary || (present(state.executiveSummary) && !/Análisis territorial PRC resuelto/i.test(state.executiveSummary) ? state.executiveSummary : "Sin resumen ejecutivo disponible.") } },
+      { id: "territorial-result", type: "metadata", title: "Resultado territorial", order: 40, data: { items: rows([{ label: "Tipo de relación", value: rel.label || relationLabel(rel.type) }, { label: "PRC relacionado", value: prc.name }, { label: "Zona normativa", value: zone.name || zone.code }, { label: "Localidad", value: prc.locality }, { label: "Comuna", value: prc.commune }, { label: "Región", value: prc.region }, { label: "Distancia", value: rel.distanceFormatted || fmtMeters(rel.distanceMeters) }, { label: "Fuente PRC", value: prc.sourceName || prc.sourceFile }, { label: "Estado del análisis", value: statusLabel(q.state || state.status) }]) } },
+      { id: "prc-related", type: prc.found ? "metadata" : "notice", title: "PRC relacionado", order: 50, data: prc.found ? { items: rows([{ label: "Nombre oficial", value: prc.name }, { label: "Localidad", value: prc.locality }, { label: "Comuna", value: prc.commune }, { label: "Región", value: prc.region }, { label: "Instrumento", value: prc.properties?.tipo }, { label: "Fuente", value: prc.sourceName }, { label: "Archivo de origen", value: prc.sourceFile }]) } : { text: "No se identificó PRC relacionado." } },
+      { id: "normative-zone", type: zone.found ? "metadata" : "notice", title: "Zona normativa relacionada", order: 60, data: zone.found ? { items: rows([{ label: "Nombre", value: zone.name }, { label: "Código", value: zone.code }, { label: "Categoría", value: zone.category }, { label: "Descripción", value: zone.description }, { label: "Tipo de zona", value: rel.featureType }, { label: "Uso predominante", value: norm.permittedUses?.[0] }, { label: "Relación espacial", value: rel.label || relationLabel(rel.type) }, { label: "Distancia", value: rel.distanceFormatted }]) } : { text: "No se identificó zona normativa relacionada." } },
+      { id: "normative-result", type: "text-panel", title: "Resultado normativo", order: 70, data: { text: norm.summary || norm.status || "No se encontró información normativa estructurada para esta zona." } },
+      { id: "permitted-uses", type: "text-panel", title: "Usos permitidos", order: 80, data: { text: listText(norm.permittedUses, "No se identificaron usos permitidos explícitos en la fuente consultada.") } },
+      { id: "restrictions", type: "text-panel", title: "Restricciones y condiciones", order: 90, data: { text: listText([...(norm.restrictions || []), ...(norm.restrictedUses || []), ...(norm.prohibitedUses || []), ...(norm.observations || [])], "No se identificaron restricciones, prohibiciones u observaciones explícitas en la fuente consultada.") } },
+      { id: "spatial-indicators", type: "metadata", title: "Indicadores de relación espacial", order: 100, data: { items: rows([{ label: "Tipo de relación", value: spatial.relationLabel || rel.label }, { label: "Punto dentro de zona", value: spatial.pointInside ? "Sí" : "No" }, { label: "Distancia mínima", value: spatial.minimumDistance || rel.distanceFormatted }, { label: rel.type === "nearest" ? "Zona más cercana" : "Zona relacionada", value: spatial.nearestFeature || zone.name || zone.code }, ...(spatial.additionalIndicators || [])]) } },
+      { id: "geometry-descriptors", type: "metadata", title: "Descriptores geométricos", order: 110, data: { items: rows([{ label: "Área", value: Number.isFinite(geom.areaM2) ? `${Math.round(geom.areaM2).toLocaleString("es-CL")} m²` : "" }, { label: "Área", value: Number.isFinite(geom.areaHa) ? `${geom.areaHa.toLocaleString("es-CL", { maximumFractionDigits: 2 })} ha` : "" }, { label: "Perímetro", value: fmtMeters(geom.perimeterM) }, { label: "Distancia al punto", value: geom.distanceToPointM !== null ? fmtMeters(geom.distanceToPointM) : "" }, { label: "Relación espacial", value: geom.relationType }, ...(geom.otherMetrics || [])]) } },
+      { id: "feature-metadata", type: "table", title: "Metadata de la zona relacionada", order: 120, data: { head: ["Campo", "Valor"], rows: (model.featureMetadata || []).map(i => [i.label, i.value]) } },
+      { id: "normative-table", type: "table", title: "Tabla normativa", order: 130, data: { head: model.normativeTable?.columns || ["Campo", "Valor"], rows: model.normativeTable?.rows || [] } },
+      { id: "technical-metadata", type: "table", title: "Metadata técnica", order: 900, data: { head: ["Campo", "Valor"], rows: rows([...pointItems, { label: "Fecha de consulta", value: fmtDateCL(model.identity?.generatedAt) }, { label: "Mapa base", value: q.basemap }, { label: "Tipo de relación", value: rel.label || relationLabel(rel.type) }, { label: "Fuente territorial", value: prc.sourceName }, { label: "Archivo PRC", value: prc.sourceFile }, { label: "Zona normativa", value: zone.name || zone.code }, { label: "Método espacial", value: state.geoIptResult?.relation_method }, { label: "Estado de carga", value: statusLabel(q.state || state.status) }, { label: "Versión del reporte", value: model.identity?.version }]).map(i => [i.label, i.value]) } },
+      { id: "sources", type: "notice", title: "Fuentes", order: 990, data: { text: (model.sources || []).filter(present).join("\n") || "Resultados y capas cargados por GeoQuery en el navegador." } },
+      { id: "disclaimer", type: "notice", title: "Descargo metodológico", order: 1000, data: { text: model.disclaimer || "Reporte documental generado automáticamente desde GeoQuery. La información mantiene el carácter referencial del visor y debe contrastarse con las fuentes oficiales correspondientes." } }
     ];
-    sections.push(...collectGeoIptDomPdfSections(new Set(sections.map(section => section.id))));
-    return sections.sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+    const filtered = sections.filter(section => section.id === "normative-table" ? section.data.rows.length : true);
+    filtered.push(...collectGeoIptDomPdfSections(new Set(filtered.map(section => section.id))));
+    const sorted = filtered.sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+    auditGeoIptPdfCoverage(model, sorted);
+    return sorted;
   }
 
   function collectGeoIptDomPdfSections(excludedIds = new Set()) {
@@ -274,5 +354,5 @@
   function setGeoIptPdfButtonsReady() { const ready = Boolean(window.geoQueryState?.exportState?.pdfEnabled || window.geoQueryState?.status === "resolved"); getGeoIptPdfButtons().forEach(button => { button.disabled = !ready || isGeneratingGeoIptPDF; button.title = ready ? "Descargar PDF" : "Disponible cuando exista análisis territorial."; button.dataset.pdfButton = "true"; }); }
   function bindGeoIptPdfButtonOnce() { getGeoIptPdfButtons().forEach(button => { if (button.dataset.pdfBound === "1") return; button.dataset.pdfBound = "1"; button.addEventListener("click", async event => { event.preventDefault(); if (isGeneratingGeoIptPDF) return; isGeneratingGeoIptPDF = true; const buttons = getGeoIptPdfButtons(); const original = new Map(buttons.map(b => [b, b.textContent])); buttons.forEach(b => { b.disabled = true; b.textContent = "Generando PDF…"; }); try { await exportGeoIptPDFDirect(); } finally { isGeneratingGeoIptPDF = false; buttons.forEach(b => b.textContent = original.get(b) || "Exportar PDF"); setGeoIptPdfButtonsReady(); } }); }); setGeoIptPdfButtonsReady(); }
   document.addEventListener("DOMContentLoaded", bindGeoIptPdfButtonOnce); const geoIptPdfReadyTimer = window.setInterval(() => { bindGeoIptPdfButtonOnce(); if (window.geoQueryState?.exportState?.pdfEnabled) window.clearInterval(geoIptPdfReadyTimer); }, 500);
-  window.GeoIptPdfExport = { exportGeoIptPDFDirect, bindGeoIptPdfButtonOnce, assertGeoIptPDFDependencies, createGeoIptPdfDocument, collectGeoIptPdfSections, captureGeoIptMapPng, captureGeoIptCharts, waitForGeoIptMapTiles, collectGeoIptDomPdfSections, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT };
+  window.GeoIptPdfExport = { exportGeoIptPDFDirect, bindGeoIptPdfButtonOnce, assertGeoIptPDFDependencies, createGeoIptPdfDocument, collectGeoIptPdfSections, captureGeoIptMapPng, captureGeoIptCharts, waitForGeoIptMapTiles, collectGeoIptDomPdfSections, auditGeoIptPdfCoverage, GEOIPT_HTML_PDF_COVERAGE, deduplicateLabelValueRows, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT };
 })();

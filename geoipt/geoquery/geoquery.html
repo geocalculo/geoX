@@ -747,7 +747,7 @@
           <span class="card-value" id="card-lon">—</span>
         </article>
         <article class="card">
-          <span class="card-label">Sitio origen</span>
+          <span class="card-label">Relación</span>
           <span class="card-value" id="card-site">—</span>
         </article>
         <article class="card">
@@ -784,6 +784,14 @@
             <div class="detail-row">
               <dt>CRS</dt>
               <dd>WGS84 / EPSG:4326</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Región</dt>
+              <dd id="detail-region">—</dd>
+            </div>
+            <div class="detail-row">
+              <dt>Comuna</dt>
+              <dd id="detail-commune">—</dd>
             </div>
             <div class="detail-row">
               <dt>Fuente</dt>
@@ -2178,6 +2186,89 @@
 
     window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
 
+
+    function splitGeoIptTextList(value) {
+      const text = cleanLongText(value);
+      if (!text) return [];
+      return text.split(/\n|;|•|\u2022/g).map(cleanText).filter(Boolean);
+    }
+
+    function geoIptRelationLabel(type) {
+      return type === "intersects" ? "Intersección con zona normativa" : type === "nearest" ? "Cercanía a zona normativa" : cleanText(type) || "No informada";
+    }
+
+    function geoIptStatusLabel(status) {
+      return status === "resolved" ? "Resuelto" : status === "loading" ? "Analizando" : status === "empty" ? "Sin resultados" : status === "error" ? "Error de análisis" : cleanText(status) || "No informado";
+    }
+
+    function geoIptFeatureGeometryType(feature) {
+      return cleanText(feature?.geometry?.type);
+    }
+
+    function countGeoIptGeometryParts(feature) {
+      const geom = feature?.geometry;
+      if (!geom) return null;
+      if (geom.type === "MultiPolygon" || geom.type === "MultiLineString") return Array.isArray(geom.coordinates) ? geom.coordinates.length : null;
+      if (geom.type === "Polygon" || geom.type === "LineString" || geom.type === "Point") return 1;
+      return null;
+    }
+
+    function metadataRowsFromProperties(properties) {
+      const blocked = new Set(["geometry", "coordinates"]);
+      return Object.entries(properties || {})
+        .filter(([key, value]) => !blocked.has(String(key).toLowerCase()) && cleanText(value) && String(value).length < 1200)
+        .map(([key, value]) => ({ label: key, value: cleanLongText(value) }));
+    }
+
+    function buildGeoIptReportModelFromResolvedState() {
+      const state = window.geoQueryState || {};
+      const result = state.geoIptResult || window.geoQuerySelectedFeatureResult || state.groupResults?.[0] || null;
+      const feature = result?.relatedFeature || result?.spatialRelation?.relatedFeature || result?.feature || null;
+      const metadata = result?.metadata || (feature ? normalizeGeoIptFeatureMetadata(feature) : {});
+      const descriptors = feature ? calculateGeometryDescriptors(feature) : null;
+      const relationType = result?.relation_type || result?.spatialRelation?.relationType || "";
+      const distanceMeters = Number.isFinite(result?.distance_meters) ? result.distance_meters : (Number.isFinite(result?.minimumDistanceKm) ? result.minimumDistanceKm * 1000 : null);
+      const distanceFormatted = relationType === "intersects" ? "0 m" : (Number.isFinite(distanceMeters) ? formatLength(distanceMeters) : "No informada");
+      const permittedUses = splitGeoIptTextList(metadata.permittedUses);
+      const prohibitedUses = splitGeoIptTextList(metadata.prohibitedUses);
+      const observations = splitGeoIptTextList(metadata.observations);
+      const prcName = cleanText(metadata.prcName || result?.source?.nombre || feature?.properties?.Capa || result?.source?.archivo_geojson);
+      const zoneName = cleanText(metadata.zoneName || metadata.zoneCode || feature?.properties?.ZONA);
+      const normativeRows = [
+        ["Usos permitidos", metadata.permittedUses],
+        ["Usos prohibidos", metadata.prohibitedUses],
+        ["Observaciones", metadata.observations],
+        ["Tipo de documento", metadata.documentType],
+        ["Número de documento", metadata.documentNumber],
+        ["Fecha", metadata.documentDate]
+      ].filter(row => cleanText(row[1]));
+      const executiveParts = [];
+      if (relationType === "intersects") executiveParts.push(`El punto consultado se encuentra dentro del PRC ${prcName || "relacionado"}${metadata.commune ? `, comuna de ${metadata.commune}` : ""}${zoneName ? `, y se relaciona directamente con la zona normativa ${zoneName}` : ""}. La relación espacial corresponde a intersección.`);
+      else if (relationType === "nearest") executiveParts.push(`El punto consultado no intersecta una zona PRC. La zona urbana regulada más cercana corresponde a ${zoneName || "la zona relacionada"}${prcName ? `, perteneciente al PRC ${prcName}` : ""}, ubicada a ${distanceFormatted} del punto consultado.`);
+      else executiveParts.push(state.executiveSummary || "No se identificó información territorial resuelta.");
+      if (metadata.permittedUses) executiveParts.push(`Uso principal informado: ${permittedUses[0] || metadata.permittedUses}.`);
+      if (metadata.prohibitedUses || metadata.observations) executiveParts.push(`Restricción u observación relevante: ${(prohibitedUses[0] || observations[0] || metadata.prohibitedUses || metadata.observations)}.`);
+      return {
+        identity: { site: "GeoIPT", title: "Reporte del punto consultado", generatedAt: state.timestamp || new Date().toISOString(), version: "GeoIPT PDF 1.1" },
+        query: { lat: state.lat, lon: state.lon, latDms: state.lat_dms, lonDms: state.lon_dms, crs: state.crs, source: state.source, originSite: state.site, state: state.status, basemap: state.basemap, region: metadata.region || "No informada", commune: metadata.commune || "No informada" },
+        relation: { type: relationType, label: geoIptRelationLabel(relationType), distanceMeters, distanceFormatted, featureType: geoIptFeatureGeometryType(feature), featureName: zoneName },
+        prc: { found: Boolean(prcName), name: prcName, locality: metadata.locality, commune: metadata.commune, region: metadata.region, sourceFile: metadata.sourceFile || result?.source?.archivo_geojson, sourceName: result?.source?.listado_url || "listado.json", properties: result?.source || {} },
+        normativeZone: { found: Boolean(zoneName || feature), name: zoneName, code: metadata.zoneCode, category: metadata.zoneCode, description: metadata.zoneName, properties: feature?.properties || {} },
+        executiveSummary: executiveParts.filter(cleanText).join(" "),
+        normativeResult: { status: metadata.permittedUses || metadata.prohibitedUses || metadata.observations ? "Información normativa estructurada encontrada" : "No se encontró información normativa estructurada para esta zona.", summary: metadata.permittedUses || metadata.prohibitedUses || metadata.observations || "No se encontró información normativa estructurada para esta zona.", permittedUses, restrictedUses: [], prohibitedUses, restrictions: prohibitedUses, observations },
+        geometryDescriptors: { areaM2: descriptors?.area_m2 ?? null, areaHa: descriptors?.area_ha ?? null, perimeterM: descriptors?.perimeter_m ?? null, distanceToPointM: distanceMeters, relationType: geoIptRelationLabel(relationType), otherMetrics: [{ label: "Diámetro equivalente", value: descriptors ? formatLength(descriptors.equivalent_diameter_m) : "" }, { label: "Perímetro equivalente", value: descriptors ? formatLength(descriptors.equivalent_perimeter_m) : "" }, { label: "Tipo de geometría", value: geoIptFeatureGeometryType(feature) }, { label: "Número de partes", value: countGeoIptGeometryParts(feature) }] },
+        spatialIndicators: { relationLabel: geoIptRelationLabel(relationType), pointInside: relationType === "intersects", minimumDistance: distanceFormatted, nearestFeature: zoneName, additionalIndicators: [{ label: "PRC relacionado", value: prcName }, { label: "Método espacial", value: result?.relation_method }] },
+        featureMetadata: metadataRowsFromProperties(feature?.properties),
+        normativeTable: { columns: ["Campo", "Valor"], rows: normativeRows },
+        technicalMetadata: [],
+        sources: [result?.source?.listado_url, metadata.sourceFile || result?.source?.archivo_geojson, result?.source?.geojson_url, GEOQUERY_REGIONS_URL].filter(cleanText),
+        disclaimer: "Reporte documental generado automáticamente desde GeoQuery. La información mantiene el carácter referencial del visor y debe contrastarse con las fuentes oficiales correspondientes.",
+        sections: []
+      };
+    }
+
+    window.buildGeoIptReportModelFromResolvedState = buildGeoIptReportModelFromResolvedState;
+
     (async function initGeoQuery() {
       const params = new URLSearchParams(window.location.search);
       const lat = Number.parseFloat(params.get("lat"));
@@ -2206,10 +2297,12 @@
         invalidMessage: document.getElementById("invalid-message"),
         detailsPanel: document.getElementById("details-panel"),
         backLink: document.getElementById("back-link"),
-        visualCaption: document.getElementById("visual-caption")
+        visualCaption: document.getElementById("visual-caption"),
+        detailRegion: document.getElementById("detail-region"),
+        detailCommune: document.getElementById("detail-commune")
       };
 
-      elements.cardSite.textContent = site;
+      elements.cardSite.textContent = "Pendiente";
 
       if (!valid) {
         window.geoQueryState = {
@@ -2385,6 +2478,12 @@
           window.geoQueryState.groupResults = [selectedFeatureResult].filter(Boolean);
           window.geoQueryState.status = selectedFeatureResult ? "resolved" : "empty";
           window.geoQueryState.executiveSummary = selectedFeatureResult ? "Análisis territorial PRC resuelto." : "No se identificó una zona PRC relacionada para la coordenada consultada.";
+          window.__geoiptReportModel = buildGeoIptReportModelFromResolvedState();
+          window.geoQueryState.executiveSummary = window.__geoiptReportModel?.executiveSummary || window.geoQueryState.executiveSummary;
+          elements.cardSite.textContent = window.__geoiptReportModel?.relation?.label || "No informada";
+          elements.detailRegion.textContent = window.__geoiptReportModel?.query?.region || "No informada";
+          elements.detailCommune.textContent = window.__geoiptReportModel?.query?.commune || "No informada";
+          elements.detailStatus.textContent = geoIptStatusLabel(window.geoQueryState.status);
           window.geoQueryState.exportState = { pdfEnabled: Boolean(selectedFeatureResult), kmlEnabled: Boolean(selectedFeatureResult) };
           setGeoQueryKmlExport(buildGeoIptMapExport(selectedFeatureResult));
           elements.cardStatus.textContent = selectedFeatureResult ? "Resuelto" : "Sin resultados";
