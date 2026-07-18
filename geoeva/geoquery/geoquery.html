@@ -1876,6 +1876,8 @@
         window.geoQueryState.exportState = { pdfEnabled: baseApprovedCluster.length > 0, kmlEnabled: baseApprovedCluster.length > 0 };
         window.geoQueryState.mapExport = buildGeoEvaMapExport(baseApprovedCluster, projectsInsideRadius, radiusMeters, territorialGroup);
         window.geoQueryKmlRefresh?.();
+        window.__geoevaReportModel = window.GeoEvaPdfExport?.buildGeoEvaPdfModel?.({ state: window.geoQueryState }) || window.__geoevaReportModel;
+        elements.detailStatus.textContent = baseApprovedCluster.length ? "Análisis del clúster resuelto." : "Sin proyectos aprobados disponibles.";
         elements.cardStatus.textContent = baseApprovedCluster.length ? "Resuelto" : "Sin resultados";
 
         if (analysisCircle) {
