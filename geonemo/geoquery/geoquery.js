@@ -781,6 +781,7 @@ window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => w
   elements.cardLat.textContent = latDecimal; elements.cardLon.textContent = lonDecimal; elements.cardStatus.textContent = "Analizando"; elements.cardStatus.classList.add("status-ok"); elements.latDecimal.textContent = latDecimal; elements.lonDecimal.textContent = lonDecimal; elements.latDms.textContent = latDms; elements.lonDms.textContent = lonDms; elements.detailStatus.textContent = "analizando grupos temáticos"; elements.visualCaption.textContent = `Punto consultado: ${latDecimal}, ${lonDecimal}`;
 
   const geoQueryMap = L.map("geoquery-map", { zoomControl: true, zoomSnap: 0.25, zoomDelta: 0.25 });
+  window.geoQueryLeafletMap = geoQueryMap;
   const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 20, attribution: "&copy; OpenStreetMap" });
   const satLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, attribution: "Tiles &copy; Esri" });
   const toggle = L.DomUtil.create("div", "map-toggle");

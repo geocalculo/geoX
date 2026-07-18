@@ -996,7 +996,12 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="../../shared/geoquery-kml-exporter.js"></script>
+  <script src="pdf/geoEvaPdfConfig.js"></script>
+  <script src="pdf/geoEvaPdfExport.js"></script>
   <script>
     const GEOEVA_GEOQUERY_PROJECTS_URL = "../capas_geoquery/geoeva_geoquery_proyectos.geojson";
 
@@ -1680,6 +1685,7 @@
         zoomSnap: 0.25,
         zoomDelta: 0.25
       });
+      window.geoQueryLeafletMap = geoQueryMap;
 
       function enableTwoFingerPanOnTouchDevices(map, container) {
         if (!isTouchDevice || !container) return;
