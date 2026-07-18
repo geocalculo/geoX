@@ -117,7 +117,7 @@
     context.y += h + context.sectionGap;
   }
   function drawNoticePanel(doc, section, context) { drawTextPanel(doc, { title: section.title, data: { text: section.data?.text || section.data || "Sin información disponible." } }, context); }
-  function drawMetricGrid(doc, section, context) { drawLabelValueGrid(doc, { title: section.title, data: { items: (section.data?.groups || []).flatMap(g => [{ label: g.title, value: "" }, ...(g.items || [])]).filter(i => i.value !== "") } }, context); }
+  function drawMetricGrid(doc, section, context) { drawLabelValueGrid(doc, { title: section.title, data: { columns: 2, items: (section.data?.groups || []).flatMap(g => [{ label: "Subgrupo", value: g.title }, ...(g.items || [])]) } }, context); }
 
   function drawCardGrid(doc, section, context) {
     const cards = section.data?.items || section.data || [];
@@ -222,16 +222,119 @@
   function addGeoEvaPdfFooter(doc, context, pageNumber, totalPages) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setColor(doc, "muted"); doc.text(`Fecha de generación: ${fmtDateCL(context.model.identity?.generatedAt || new Date())}`, PDF_LAYOUT.marginLeft, context.pageHeight - PDF_LAYOUT.marginBottom + 2); doc.text(`Página ${pageNumber} de ${totalPages}`, context.pageWidth - PDF_LAYOUT.marginRight - 25, context.pageHeight - PDF_LAYOUT.marginBottom + 2); }
   function addPdfHeaderFooterToAllPages(doc, context) { const total = doc.getNumberOfPages(); for (let p = 1; p <= total; p += 1) { doc.setPage(p); addGeoEvaPdfHeader(doc, context, p, total); addGeoEvaPdfFooter(doc, context, p, total); } }
 
+
+
+  const GEOEVA_HTML_PDF_COVERAGE = [
+    { htmlId: "geoquery-related-features-panel", pdfSectionId: "related-projects" },
+    { htmlId: "geoquery-related-features-panel", pdfSectionId: "cluster-base" },
+    { htmlId: "geoquery-related-features-panel", pdfSectionId: "dominant-sector" },
+    { htmlId: "geoquery-metadata-panel", pdfSectionId: "project-cards" },
+    { htmlId: "geoquery-metadata-panel", pdfSectionId: "project-metadata" },
+    { htmlId: "geoquery-geometry-panel", pdfSectionId: "geometry-descriptors" },
+    { htmlId: "geoquery-relation-indicators-panel", pdfSectionId: "spatial-indicators" }
+  ];
+
+  function deduplicateLabelValueRows(rows) {
+    const seen = new Set();
+    return (rows || []).filter(row => {
+      const label = String(row?.label ?? row?.[0] ?? "").trim();
+      if (!label || seen.has(label)) return false;
+      seen.add(label);
+      return true;
+    });
+  }
+  function normalizeStatusLabel(value) { const raw = String(value ?? "").trim().toLowerCase(); if (/aprob/.test(raw) || raw === "approved") return "Aprobado"; if (/rechaz/.test(raw) || raw === "rejected") return "Rechazado"; if (/calific/.test(raw)) return "En calificación"; return present(value) || "Sin información"; }
+  function isApprovedStatus(value) { return normalizeStatusLabel(value) === "Aprobado"; }
+  function kmToMeters(value) { const n = Number(value); return Number.isFinite(n) ? n * 1000 : null; }
+  function fmtMeters(value) { const n = Number(value); return Number.isFinite(n) ? fmtKm(n / 1000) : "N/D"; }
+  function percentText(value) { const n = Number(value); return Number.isFinite(n) ? `${n.toLocaleString("es-CL", { maximumFractionDigits: 1 })} %` : "N/D"; }
+  function firstPresent(...values) { for (const value of values) { const text = present(value); if (text) return text; } return ""; }
+
+  function projectToPdfRow(item, index) {
+    const props = item?.feature?.properties || item?.properties || {};
+    const investment = Number(props.inversion_mmusd);
+    return {
+      order: Number.isFinite(Number(item?.rank)) ? Number(item.rank) : index + 1,
+      id: firstPresent(props.id, props.expediente, props.codigo, props.objectid, props.fid, props.web),
+      name: firstPresent(props.nombre_proyecto, props.nombre_busq, props.nombre, "Proyecto sin nombre"),
+      owner: firstPresent(props.titular, props.razon_social, "Sin información"),
+      sector: firstPresent(props.sector, "Sin sector informado"),
+      status: normalizeStatusLabel(props.estado),
+      investment: Number.isFinite(investment) ? investment : null,
+      investmentFormatted: Number.isFinite(investment) ? `US$ ${investment.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MM` : "No informada",
+      region: firstPresent(props.region),
+      commune: firstPresent(props.comuna),
+      typology: firstPresent(props.tipo_presentacion, props.tipologia, props.tipo),
+      distanceMeters: kmToMeters(item?.distance_km),
+      distanceFormatted: fmtKm(item?.distance_km),
+      sourceUrl: normalizePdfUrl(props.web),
+      properties: props
+    };
+  }
+
+  function buildGeoEvaPdfModel(reportModel) {
+    if (reportModel?.relatedProjects || reportModel?.cluster) return reportModel;
+    const state = reportModel?.state || window.geoQueryState || {};
+    const qp = state.queryContext?.queryPoint || {};
+    const clusterItems = Array.isArray(state.base_approved_cluster) ? state.base_approved_cluster : (state.groupResults?.[0]?.selectedFeatures || []);
+    const relatedProjects = clusterItems.map(projectToPdfRow);
+    const territorial = state.territorial_group || state.groupResults?.[0]?.normalizedProperties || {};
+    const limiting = relatedProjects.length ? relatedProjects[relatedProjects.length - 1] : null;
+    const radiusMeters = Number.isFinite(Number(state.analysis_radius_m)) ? Number(state.analysis_radius_m) : limiting?.distanceMeters;
+    const domCount = Number(territorial.dominantSectorCount ?? territorial.dominantSectorProjects?.length);
+    const dominantSector = { name: firstPresent(territorial.dominantSector, relatedProjects.length ? "Sin sector informado" : "Sin proyectos aprobados disponibles"), count: Number.isFinite(domCount) ? domCount : 0, participationPercent: Number.isFinite(Number(territorial.dominantSectorShare)) ? Number(territorial.dominantSectorShare) : null, participationFormatted: percentText(territorial.dominantSectorShare) };
+    const query = { lat: qp.lat ?? state.lat ?? state.lat_decimal, lon: qp.lon ?? state.lon ?? state.lon_decimal, latDms: state.lat_dms, lonDms: state.lon_dms, crs: state.crs || "WGS84 / EPSG:4326", source: state.source || "Parámetro URL", originSite: state.site || state.queryContext?.site || "geoeva", state: state.status === "resolved" ? "Análisis del clúster resuelto." : state.status === "empty" ? "Sin proyectos aprobados disponibles." : state.status || "N/D", basemap: state.basemap || state.mapState?.basemap, region: state.region, commune: state.commune };
+    const pointItems = deduplicateLabelValueRows([
+      { label: "Latitud decimal", value: fmtNumber(query.lat) }, { label: "Longitud decimal", value: fmtNumber(query.lon) }, { label: "Latitud GMS", value: query.latDms }, { label: "Longitud GMS", value: query.lonDms }, { label: "CRS", value: query.crs }, { label: "Región", value: query.region || "No informada" }, { label: "Comuna", value: query.commune || "No informada" }, { label: "Fuente", value: query.source === "url_params" ? "Parámetro URL" : query.source }, { label: "Estado", value: query.state }
+    ]);
+    const projectMetadata = { columns: ["#", "Proyecto", "Titular", "Sector", "Estado", "Inversión", "Comuna", "Distancia"], rows: relatedProjects.map(p => [p.order, p.name, p.owner, p.sector, p.status, p.investmentFormatted, p.commune || "No informada", p.distanceFormatted]) };
+    const model = {
+      identity: { site: "GeoEVA", title: "Reporte del punto consultado", generatedAt: state.timestamp || new Date().toISOString(), version: window.geoEvaPdfConfig?.title || "GeoEVA PDF directo" }, query, relation: { type: "nearest", label: "Cercanía al punto consultado" },
+      cluster: { definition: "10 proyectos aprobados más cercanos", requestedCount: 10, selectedCount: relatedProjects.length, radiusMeters, radiusFormatted: fmtMeters(radiusMeters), limitingProjectId: limiting?.id || "", limitingProjectName: limiting?.name || "", limitingProjectDistanceMeters: limiting?.distanceMeters },
+      dominantSector, relatedProjects,
+      geometryDescriptors: { clusterRadiusMeters: radiusMeters, clusterRadiusFormatted: fmtMeters(radiusMeters), allApproved: { count: relatedProjects.length, meanInterprojectDistanceMeters: kmToMeters(territorial.approvedPairStats?.meanKm), meanInterprojectDistanceFormatted: fmtKm(territorial.approvedPairStats?.meanKm), minimumInterprojectDistanceMeters: kmToMeters(territorial.approvedPairStats?.minKm), minimumInterprojectDistanceFormatted: fmtKm(territorial.approvedPairStats?.minKm) }, dominantSectorApproved: { sector: dominantSector.name, count: dominantSector.count, meanInterprojectDistanceMeters: kmToMeters(territorial.dominantSectorPairStats?.meanKm), meanInterprojectDistanceFormatted: fmtKm(territorial.dominantSectorPairStats?.meanKm), minimumInterprojectDistanceMeters: kmToMeters(territorial.dominantSectorPairStats?.minKm), minimumInterprojectDistanceFormatted: fmtKm(territorial.dominantSectorPairStats?.minKm) } },
+      spatialIndicators: { relationLabel: "Cercanía al punto consultado", allApproved: { count: relatedProjects.length, meanDistanceFromPointMeters: kmToMeters(territorial.approvedPointRelationStats?.meanKm), meanDistanceFromPointFormatted: fmtKm(territorial.approvedPointRelationStats?.meanKm), minimumDistanceFromPointMeters: kmToMeters(territorial.approvedPointRelationStats?.minKm), minimumDistanceFromPointFormatted: fmtKm(territorial.approvedPointRelationStats?.minKm) }, dominantSectorApproved: { sector: dominantSector.name, count: dominantSector.count, meanDistanceFromPointMeters: kmToMeters(territorial.dominantSectorPointRelationStats?.meanKm), meanDistanceFromPointFormatted: fmtKm(territorial.dominantSectorPointRelationStats?.meanKm) } },
+      projectMetadata, pointItems,
+      technicalMetadata: deduplicateLabelValueRows([...pointItems, { label: "Fecha de consulta", value: fmtDateCL(state.timestamp || new Date()) }, { label: "Mapa base", value: query.basemap }, { label: "Regla del clúster", value: "10 proyectos aprobados más cercanos" }, { label: "Cantidad solicitada", value: "10" }, { label: "Cantidad seleccionada", value: String(relatedProjects.length) }, { label: "Radio del clúster", value: fmtMeters(radiusMeters) }, { label: "Sector dominante", value: dominantSector.name }, { label: "Fuente de proyectos", value: "GeoJSON de proyectos GeoEVA" }, { label: "Archivo GeoJSON", value: state.source_geojson }, { label: "Método espacial", value: "Cercanía al punto consultado" }, { label: "Viewport original", value: state.queryContext?.originalViewport ? JSON.stringify(state.queryContext.originalViewport) : "No informado" }, { label: "Versión del reporte", value: window.geoEvaPdfConfig?.title }, { label: "Estado de carga", value: query.state }]),
+      sources: ["Archivo de proyectos: GeoJSON de proyectos GeoEVA", state.source_geojson, "Fuente de mapa base: OpenStreetMap / Esri World Imagery según mapa activo", "Configuración de capas cargada por GeoQuery"].filter(present),
+      methodology: ["Se seleccionan los 10 proyectos aprobados más cercanos al punto consultado.", "El radio corresponde a la distancia del último proyecto aprobado seleccionado.", "El sector dominante se determina dentro del grupo seleccionado.", "Los descriptores geométricos miden distancias entre proyectos.", "Los indicadores espaciales miden distancias desde el punto consultado.", "El análisis se limita al conjunto de datos cargado por GeoQuery."],
+      disclaimer: "Reporte documental generado automáticamente desde GeoQuery. La información mantiene carácter referencial y debe contrastarse con las fuentes oficiales correspondientes.", state
+    };
+    const invalidProjects = model.relatedProjects.filter(project => !isApprovedStatus(project.status));
+    if (invalidProjects.length) console.error("[GeoEVA PDF] El clúster contiene proyectos no aprobados", invalidProjects);
+    window.__geoevaReportModel = model;
+    return model;
+  }
+
+  function buildExecutiveSummary(model) {
+    const n = model.relatedProjects?.length || 0;
+    if (!n) return "No se identificaron proyectos aprobados disponibles para construir el clúster base.";
+    const nearest = model.relatedProjects[0];
+    return `Se analizaron los ${n} proyectos aprobados más cercanos al punto consultado. El radio del clúster es de ${model.cluster.radiusFormatted}. El sector dominante es ${model.dominantSector.name}, con ${model.dominantSector.count} proyectos y una participación del ${model.dominantSector.participationFormatted}. El proyecto aprobado más cercano es ${nearest.name}, ubicado a ${nearest.distanceFormatted} del punto consultado.`;
+  }
+
+  function auditGeoEvaPdfCoverage(model, sections) {
+    const sectionIds = new Set(sections.map(section => section.id));
+    GEOEVA_HTML_PDF_COVERAGE.forEach(({ htmlId, pdfSectionId }) => {
+      const node = document.getElementById(htmlId);
+      const resolved = node && !/pendiente|cargando/i.test(node.textContent || "");
+      if (resolved && !sectionIds.has(pdfSectionId)) console.error("[GeoEVA PDF] Sección informativa omitida", { htmlId, expectedPdfSection: pdfSectionId });
+    });
+    const invalidProjects = (model.relatedProjects || []).filter(project => !isApprovedStatus(project.status));
+    if (invalidProjects.length) console.error("[GeoEVA PDF] El clúster contiene proyectos no aprobados", invalidProjects);
+    if ((model.projectMetadata?.rows || []).length !== (model.relatedProjects || []).length) console.error("[GeoEVA PDF] Metadata de proyectos no coincide con el modelo", { rows: model.projectMetadata?.rows?.length, projects: model.relatedProjects?.length });
+  }
+
   const PDF_SECTION_RENDERERS = { "kpi-grid": drawKpiGrid, "point-map": drawPointAndMapBlock, "text-panel": drawTextPanel, "metric-grid": drawMetricGrid, "card-list": drawCardGrid, "table": drawMetadataTable, "metadata": drawLabelValueGrid, "notice": drawNoticePanel, "image-grid": drawImageGrid };
   async function renderGeoEvaPdfSection(doc, section, context) { const renderer = PDF_SECTION_RENDERERS[section.type]; if (!renderer) return console.warn("[GeoEVA PDF] Renderizador no disponible", section.type); await renderer(doc, section, context); }
   async function exportGeoEvaPDFDirect({ reportModel, map, mapElement, filename } = {}) {
     let currentPdfStep = "initialization";
     try {
       currentPdfStep = "dependencies"; assertGeoEvaPDFDependencies();
-      currentPdfStep = "building_model"; const state = window.geoQueryState || {}; const qp = state.queryContext?.queryPoint || {}; const model = reportModel || window.__geoevaReportModel || { identity: { site: "geoeva", title: "GeoEVA | Reporte del punto consultado", generatedAt: new Date().toISOString() }, query: { lat: qp.lat ?? state.lat ?? state.lat_decimal, lon: qp.lon ?? state.lon ?? state.lon_decimal, basemap: state.basemap || state.mapState?.basemap }, state }; window.__geoevaReportModel = model;
+      currentPdfStep = "building_model"; const model = buildGeoEvaPdfModel(reportModel || window.__geoevaReportModel || { state: window.geoQueryState || {} });
       currentPdfStep = "document"; const doc = createGeoEvaPdfDocument(); const context = createContext(doc, model, map || window.geoQueryLeafletMap, mapElement || document.getElementById("geoquery-map"));
       currentPdfStep = "capturing_charts"; context.capturedCharts = await captureGeoEvaCharts();
-      currentPdfStep = "drawing_sections"; drawDocumentIntro(doc, context); const sections = collectGeoEvaPdfSections(model, context); for (const section of sections) await renderGeoEvaPdfSection(doc, section, context);
+      currentPdfStep = "drawing_sections"; drawDocumentIntro(doc, context); const sections = collectGeoEvaPdfSections(model, context); auditGeoEvaPdfCoverage(model, sections); for (const section of sections) await renderGeoEvaPdfSection(doc, section, context);
       currentPdfStep = "adding_footer"; addPdfHeaderFooterToAllPages(doc, context);
       currentPdfStep = "saving"; const safeFilename = buildFilename(model, filename); doc.save(safeFilename); console.info("[GeoEVA PDF] Descarga solicitada:", safeFilename, { pages: doc.getNumberOfPages() }); return { filename: safeFilename, pages: doc.getNumberOfPages() };
     } catch (error) { console.error("[GeoEVA PDF]", { step: currentPdfStep, message: error?.message, stack: error?.stack, error }); throw error; }
@@ -239,19 +342,52 @@
 
   function detailItemsFromPanel(selector) { return [...document.querySelectorAll(`${selector} .detail-row`)].map(row => ({ label: row.querySelector("dt")?.textContent, value: row.querySelector("dd")?.textContent })); }
 
-  function collectGeoEvaPdfSections(model, context) {
-    const state = model.state || window.geoQueryState || {};
-    const pointItems = detailItemsFromPanel("#geoquery-point-panel,#details-panel");
+  function collectGeoEvaPdfSections(rawModel, context) {
+    const model = buildGeoEvaPdfModel(rawModel);
+    const pointItems = deduplicateLabelValueRows(model.pointItems || []);
+    const selectedText = model.cluster.selectedCount
+      ? `${model.cluster.selectedCount} aprobados`
+      : "Sin aprobados";
+    const relatedIntro = model.cluster.selectedCount
+      ? `El clúster base está conformado por los ${model.cluster.selectedCount} proyectos aprobados más cercanos al punto consultado. Badge documental: ${model.cluster.selectedCount} proyectos aprobados más cercanos.`
+      : "No se identificaron proyectos aprobados disponibles para construir el clúster base.";
+    const dominantProjects = (model.relatedProjects || []).filter(project => project.sector === model.dominantSector.name).map(project => `${project.order}. ${project.name}`).join("; ");
     const sections = [
-      { id: "query-summary", type: "kpi-grid", title: "Resumen de consulta", order: 10, data: { columns: 4, items: [{ label: "Latitud", value: fmtNumber(model.query?.lat) || "N/D" }, { label: "Longitud", value: fmtNumber(model.query?.lon) || "N/D" }, { label: "Relación", value: state.geoIptResult?.relationType || state.groupResults?.[0]?.relationType || "nearest" }, { label: "Estado", value: state.status || "N/D" }] } },
+      { id: "query-summary", type: "kpi-grid", title: "Resumen de consulta", order: 10, data: { columns: 4, items: [{ label: "Latitud", value: fmtNumber(model.query?.lat) || "N/D" }, { label: "Longitud", value: fmtNumber(model.query?.lon) || "N/D" }, { label: "Proyectos aprobados analizados", value: selectedText }, { label: "Estado", value: model.cluster.selectedCount ? "Resuelto" : "Sin aprobados" }] } },
       { id: "point-map", type: "point-map", title: "Punto consultado y mapa de ubicación", order: 20, data: { pointItems } },
-      { id: "executive-summary", type: "text-panel", title: "Resumen ejecutivo", order: 30, data: { text: state.executiveSummary || document.getElementById("executive-summary")?.textContent || "Sin resumen ejecutivo disponible." } },
-      { id: "technical-metadata", type: "table", title: "Metadata técnica", order: 900, data: { head: ["Campo", "Valor"], rows: [...pointItems, { label: "Mapa base", value: model.query?.basemap }, { label: "Fecha generación", value: fmtDateCL(model.identity?.generatedAt) }].filter(i => present(i.label) || present(i.value)).map(i => [i.label, i.value]) } },
-      { id: "sources", type: "notice", title: "Fuentes", order: 990, data: { text: state.source_geojson || state.source || "Resultados y capas cargados por GeoQuery en el navegador." } },
-      { id: "disclaimer", type: "notice", title: "Descargo", order: 1000, data: { text: "Reporte documental generado automáticamente desde GeoQuery. La información mantiene el carácter referencial del visor y debe contrastarse con las fuentes oficiales correspondientes." } }
+      { id: "executive-summary", type: "text-panel", title: "Resumen ejecutivo", order: 30, data: { text: buildExecutiveSummary(model) } },
+      { id: "related-projects", type: "notice", title: "Proyectos relacionados", order: 40, data: { text: relatedIntro } },
+      { id: "cluster-base", type: "metadata", title: "Clúster base", order: 50, data: { columns: 2, items: [
+        { label: "Regla", value: model.cluster.definition }, { label: "Cantidad seleccionada", value: String(model.cluster.selectedCount) }, { label: "Radio del clúster", value: model.cluster.radiusFormatted }, { label: "Proyecto que define el radio", value: model.cluster.limitingProjectName || "N/D" }, { label: "Distancia del proyecto limitante", value: fmtMeters(model.cluster.limitingProjectDistanceMeters) }, { label: "Estado considerado", value: "Aprobados" }, { label: "Sector dominante", value: model.dominantSector.name }, { label: "Participación del sector dominante", value: model.dominantSector.participationFormatted }
+      ] } },
+      { id: "dominant-sector", type: "metadata", title: "Sector dominante", order: 60, data: { columns: 2, items: [
+        { label: "Sector", value: model.dominantSector.name }, { label: "Proyectos del sector", value: String(model.dominantSector.count) }, { label: "Total de aprobados analizados", value: String(model.cluster.selectedCount) }, { label: "Participación", value: model.dominantSector.participationFormatted }, { label: "Proyectos", value: dominantProjects || "N/D" }
+      ] } }
     ];
+    if ((model.relatedProjects || []).length) sections.push({ id: "project-cards", type: "card-list", title: "10 proyectos aprobados más cercanos", order: 70, data: { columns: 2, items: model.relatedProjects.map(project => ({ title: `${project.order}. ${project.name}`, fields: [
+      { label: "Titular", value: project.owner }, { label: "Sector", value: project.sector }, { label: "Estado", value: project.status }, { label: "Inversión", value: project.investmentFormatted }, { label: "Comuna", value: project.commune }, { label: "Región", value: project.region }, { label: "Tipología", value: project.typology }, { label: "Distancia al punto", value: project.distanceFormatted }, { label: "ID / expediente", value: project.id }, { label: "Enlace oficial", value: project.sourceUrl }
+    ].filter(field => present(field.value)) })) } });
+    sections.push(
+      { id: "geometry-descriptors", type: "metric-grid", title: "Descriptores geométricos", order: 80, data: { groups: [
+        { title: "Proyectos aprobados — total", items: [{ label: "Radio del clúster", value: model.geometryDescriptors.clusterRadiusFormatted }, { label: "Proyectos analizados", value: String(model.geometryDescriptors.allApproved.count) }, { label: "Distancia media entre proyectos aprobados", value: model.geometryDescriptors.allApproved.meanInterprojectDistanceFormatted }, { label: "Distancia mínima entre proyectos aprobados", value: model.geometryDescriptors.allApproved.minimumInterprojectDistanceFormatted }] },
+        { title: `Proyectos aprobados — sector dominante: ${model.geometryDescriptors.dominantSectorApproved.sector}`, items: [{ label: "Cantidad de proyectos del sector", value: String(model.geometryDescriptors.dominantSectorApproved.count) }, { label: "Distancia media entre proyectos aprobados del sector dominante", value: model.geometryDescriptors.dominantSectorApproved.meanInterprojectDistanceFormatted }, { label: "Distancia mínima entre proyectos aprobados del sector dominante", value: model.geometryDescriptors.dominantSectorApproved.minimumInterprojectDistanceFormatted }] }
+      ] } },
+      { id: "spatial-indicators", type: "metric-grid", title: "Indicadores de relación espacial", order: 90, data: { groups: [
+        { title: "Tipo de relación", items: [{ label: "Relación", value: model.spatialIndicators.relationLabel }] },
+        { title: "Proyectos aprobados — total", items: [{ label: "Cantidad analizada", value: String(model.spatialIndicators.allApproved.count) }, { label: "Distancia media desde el punto consultado", value: model.spatialIndicators.allApproved.meanDistanceFromPointFormatted }, { label: "Distancia mínima al punto consultado", value: model.spatialIndicators.allApproved.minimumDistanceFromPointFormatted }] },
+        { title: `Proyectos aprobados — sector dominante: ${model.spatialIndicators.dominantSectorApproved.sector}`, items: [{ label: "Cantidad de proyectos del sector", value: String(model.spatialIndicators.dominantSectorApproved.count) }, { label: "Distancia media desde el punto consultado", value: model.spatialIndicators.dominantSectorApproved.meanDistanceFromPointFormatted }] }
+      ] } }
+    );
+    if ((model.projectMetadata?.rows || []).length) sections.push({ id: "project-metadata", type: "table", title: "Metadata de proyectos", order: 100, data: { head: model.projectMetadata.columns, rows: model.projectMetadata.rows } });
+    sections.push(
+      { id: "technical-metadata", type: "table", title: "Metadata técnica", order: 900, data: { head: ["Campo", "Valor"], rows: deduplicateLabelValueRows(model.technicalMetadata || []).map(i => [i.label, i.value]) } },
+      { id: "methodology", type: "notice", title: "Metodología", order: 950, data: { text: (model.methodology || []).join(" ") } },
+      { id: "sources", type: "notice", title: "Fuentes", order: 990, data: { text: (model.sources || []).join(". ") } },
+      { id: "disclaimer", type: "notice", title: "Descargo", order: 1000, data: { text: model.disclaimer } }
+    );
     sections.push(...collectGeoEvaDomPdfSections(new Set(sections.map(section => section.id))));
-    return sections.sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+    model.sections = sections.map(section => section.id);
+    return sections.filter(section => section.type === "notice" || section.type === "point-map" || section.type === "kpi-grid" || (section.data && Object.keys(section.data).length)).sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
   }
 
   function collectGeoEvaDomPdfSections(excludedIds = new Set()) {
@@ -274,5 +410,5 @@
   function setGeoEvaPdfButtonsReady() { const ready = Boolean(window.geoQueryState?.exportState?.pdfEnabled || window.geoQueryState?.status === "resolved"); getGeoEvaPdfButtons().forEach(button => { button.disabled = !ready || isGeneratingGeoEvaPDF; button.title = ready ? "Descargar PDF" : "Disponible cuando exista análisis territorial."; button.dataset.pdfButton = "true"; }); }
   function bindGeoEvaPdfButtonOnce() { getGeoEvaPdfButtons().forEach(button => { if (button.dataset.pdfBound === "1") return; button.dataset.pdfBound = "1"; button.addEventListener("click", async event => { event.preventDefault(); if (isGeneratingGeoEvaPDF) return; isGeneratingGeoEvaPDF = true; const buttons = getGeoEvaPdfButtons(); const original = new Map(buttons.map(b => [b, b.textContent])); buttons.forEach(b => { b.disabled = true; b.textContent = "Generando PDF…"; }); try { await exportGeoEvaPDFDirect(); } finally { isGeneratingGeoEvaPDF = false; buttons.forEach(b => b.textContent = original.get(b) || "Exportar PDF"); setGeoEvaPdfButtonsReady(); } }); }); setGeoEvaPdfButtonsReady(); }
   document.addEventListener("DOMContentLoaded", bindGeoEvaPdfButtonOnce); const geoEvaPdfReadyTimer = window.setInterval(() => { bindGeoEvaPdfButtonOnce(); if (window.geoQueryState?.exportState?.pdfEnabled) window.clearInterval(geoEvaPdfReadyTimer); }, 500);
-  window.GeoEvaPdfExport = { exportGeoEvaPDFDirect, bindGeoEvaPdfButtonOnce, assertGeoEvaPDFDependencies, createGeoEvaPdfDocument, collectGeoEvaPdfSections, captureGeoEvaMapPng, captureGeoEvaCharts, waitForGeoEvaMapTiles, collectGeoEvaDomPdfSections, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT };
+  window.GeoEvaPdfExport = { exportGeoEvaPDFDirect, bindGeoEvaPdfButtonOnce, assertGeoEvaPDFDependencies, createGeoEvaPdfDocument, collectGeoEvaPdfSections, captureGeoEvaMapPng, captureGeoEvaCharts, waitForGeoEvaMapTiles, collectGeoEvaDomPdfSections, buildGeoEvaPdfModel, deduplicateLabelValueRows, auditGeoEvaPdfCoverage, GEOEVA_HTML_PDF_COVERAGE, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT };
 })();
