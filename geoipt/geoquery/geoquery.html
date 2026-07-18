@@ -867,7 +867,12 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="../../shared/geoquery-kml-exporter.js"></script>
+  <script src="pdf/geoIptPdfConfig.js"></script>
+  <script src="pdf/geoIptPdfExport.js"></script>
   <script>
     function decimalToDMS(value, type) {
       const absolute = Math.abs(value);
@@ -2288,6 +2293,7 @@
         zoomSnap: 0.25,
         zoomDelta: 0.25
       });
+      window.geoQueryLeafletMap = geoQueryMap;
 
       const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 20,
