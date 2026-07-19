@@ -21,6 +21,9 @@
   function fmtNumber(value, digits = 6) { const n = Number(value); return Number.isFinite(n) ? n.toFixed(digits) : ""; }
   function fmtKm(value) { const n = Number(value); return Number.isFinite(n) ? `${n.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km` : "N/D"; }
   function cleanItems(items) { return (items || []).filter(item => present(item?.label) || present(item?.value)); }
+  function deduplicateLabelValueRows(rows) { const seen = new Set(); return (rows || []).filter((row) => { const key = String(row?.label ?? row?.[0] ?? "").trim().toLowerCase(); if (!key || seen.has(key)) return false; seen.add(key); return true; }); }
+  function normalizeGeoNemoRelationLabel(value) { const raw = String(value || "none").toLowerCase(); return raw === "intersects" ? "Intersección" : raw === "nearest" ? "Cercanía" : raw === "intersección" || raw === "cercanía" || raw === "sin resultado" ? value : "Sin resultado"; }
+  function fmtMeters(value) { const n = Number(value); if (!Number.isFinite(n)) return "N/D"; return n < 1000 ? `${Math.round(n).toLocaleString("es-CL")} m` : `${(n / 1000).toLocaleString("es-CL", { maximumFractionDigits: 2 })} km`; }
   function splitPdfText(doc, text, maxWidth) { return doc.splitTextToSize(String(text ?? ""), maxWidth); }
   function sanitizePdfFilenamePart(value) { return String(value ?? "").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80); }
   function normalizePdfUrl(value) { const raw = String(value ?? "").trim(); return /^https?:\/\//i.test(raw) ? raw : ""; }
@@ -237,21 +240,67 @@
     } catch (error) { console.error("[GeoNEMO PDF]", { step: currentPdfStep, message: error?.message, stack: error?.stack, error }); throw error; }
   }
 
+
+  const GEONEMO_HTML_PDF_COVERAGE = [
+    { htmlId: "geoquery-summary-cards", groupId: "general", pdfSectionId: "query-summary" },
+    { htmlId: "geoquery-point-panel", groupId: "general", pdfSectionId: "point-map" },
+    { htmlId: "geoquery-map-panel", groupId: "general", pdfSectionId: "point-map" },
+    { htmlId: "geoquery-executive-summary", groupId: "general", pdfSectionId: "executive-summary" },
+    { htmlId: "group-snaspe", groupId: "snaspe", pdfSectionId: "snaspe-result" },
+    { htmlId: "group-snaspe", groupId: "snaspe", pdfSectionId: "snaspe-descriptors" },
+    { htmlId: "group-snaspe", groupId: "snaspe", pdfSectionId: "snaspe-indicators" },
+    { htmlId: "group-snaspe", groupId: "snaspe", pdfSectionId: "snaspe-metadata" },
+    { htmlId: "group-ramsar", groupId: "ramsar", pdfSectionId: "ramsar-result" },
+    { htmlId: "group-ramsar", groupId: "ramsar", pdfSectionId: "ramsar-descriptors" },
+    { htmlId: "group-ramsar", groupId: "ramsar", pdfSectionId: "ramsar-indicators" },
+    { htmlId: "group-ramsar", groupId: "ramsar", pdfSectionId: "ramsar-metadata" },
+    { htmlId: "geoquery-technical-metadata", groupId: "general", pdfSectionId: "technical-metadata" }
+  ];
+
+  function nonEmptyItems(items) { return deduplicateLabelValueRows(items).filter((i) => present(i.label) && present(i.value)); }
+  function buildGroupHeaderSection(group) { return { id: `${group.id}-header`, type: "notice", title: `Grupo ${group.title}`, order: 100, data: { text: normalizeGeoNemoRelationLabel(group.relation?.type) } }; }
+  function buildGroupResultSection(group) {
+    if (!group.hasResult) return { id: `${group.id}-result`, type: "notice", title: `Resultado territorial — ${group.title}`, order: 110, data: { text: group.emptyMessage || `Sin resultado para ${group.title}.` } };
+    return { id: `${group.id}-result`, type: "metadata", title: `Resultado territorial — ${group.title}`, order: 110, data: { columns: 2, items: nonEmptyItems([{ label: "Grupo", value: group.title }, { label: "Feature relacionada", value: group.feature?.name }, { label: "Categoría", value: group.feature?.category }, { label: "Tipo de relación", value: group.relation?.label }, { label: "Distancia", value: group.relation?.distanceFormatted }, { label: "Punto dentro", value: group.relation?.pointInside ? "Sí" : "No" }, { label: "Región", value: group.feature?.region }, { label: "Comuna", value: group.feature?.commune }, { label: "Superficie", value: group.feature?.surfaceFormatted }, { label: "Territorio", value: group.feature?.territory }, { label: "Fuente", value: group.source?.displayName }]) } };
+  }
+  function buildGroupRelationSection(group) { return { id: `${group.id}-relation`, type: "metadata", title: `Relación espacial — ${group.title}`, order: 120, data: { columns: 2, items: nonEmptyItems([{ label: "Tipo de relación", value: group.relation?.label }, { label: "Distancia mínima", value: group.relation?.distanceFormatted || fmtMeters(group.relation?.distanceMeters) }, { label: "Punto dentro", value: group.relation?.pointInside ? "Sí" : "No" }, { label: group.relation?.type === "nearest" ? "Feature más cercana" : "Feature relacionada", value: group.feature?.name }]) } }; }
+  function buildGroupGeometrySection(group) {
+    if (!group.hasResult) return null;
+    const gd = group.geometryDescriptors || {};
+    return { id: `${group.id}-descriptors`, type: "metadata", title: `Descriptores geométricos — ${group.title}`, order: 130, data: { columns: 2, items: nonEmptyItems([{ label: "Superficie", value: group.feature?.surfaceFormatted }, { label: "Superficie calculada", value: Number.isFinite(Number(gd.areaHa)) ? `${Number(gd.areaHa).toLocaleString("es-CL", { maximumFractionDigits: 2 })} ha` : "" }, { label: "Perímetro", value: gd.perimeterFormatted }, { label: "Tipo de geometría", value: gd.geometryType }, { label: "Número de partes", value: gd.partsCount }, { label: "Distancia al punto", value: gd.distanceToPointFormatted }]) } };
+  }
+  function buildGroupSpatialIndicatorsSection(group) { const si = group.spatialIndicators || {}; return { id: `${group.id}-indicators`, type: "metadata", title: `Indicadores de relación espacial — ${group.title}`, order: 140, data: { columns: 2, items: nonEmptyItems([{ label: "Tipo de relación", value: si.relationLabel || group.relation?.label }, { label: "Punto dentro", value: si.pointInside ? "Sí" : "No" }, { label: "Distancia mínima", value: si.minimumDistance }, { label: "Feature relacionada", value: si.nearestFeature || group.feature?.name }, { label: "Categoría", value: si.featureCategory || group.feature?.category }]) } }; }
+  function buildGroupMetadataSection(group) { if (!group.hasResult || !(group.metadata || []).length) return null; return { id: `${group.id}-metadata`, type: "table", title: `Metadata — ${group.title}`, order: 150, data: { head: ["Campo", "Valor"], rows: deduplicateLabelValueRows(group.metadata).map((r) => [r.label, r.value]) } }; }
+  function buildGroupSourcesSection(group) { return { id: `${group.id}-sources`, type: "metadata", title: `Fuentes — ${group.title}`, order: 160, data: { columns: 2, items: nonEmptyItems(group.sources || []) } }; }
+  function buildGeoNemoGroupSections(group) { return [buildGroupHeaderSection(group), buildGroupResultSection(group), buildGroupRelationSection(group), buildGroupGeometrySection(group), buildGroupSpatialIndicatorsSection(group), buildGroupMetadataSection(group), buildGroupSourcesSection(group)].filter(Boolean); }
+  function auditGeoNemoHtmlPdfCoverage(model, sections) {
+    const ids = new Set(sections.map((s) => s.id));
+    GEONEMO_HTML_PDF_COVERAGE.forEach((entry) => { const node = document.getElementById(entry.htmlId); const groupOk = entry.groupId === "general" || (model.groups || []).some((g) => g.id === entry.groupId); if (node && groupOk && !ids.has(entry.pdfSectionId)) console.error("[GeoNEMO PDF] Sección informativa omitida", { htmlId: entry.htmlId, groupId: entry.groupId, expectedPdfSection: entry.pdfSectionId }); });
+  }
+
   function detailItemsFromPanel(selector) { return [...document.querySelectorAll(`${selector} .detail-row`)].map(row => ({ label: row.querySelector("dt")?.textContent, value: row.querySelector("dd")?.textContent })); }
 
   function collectGeoNemoPdfSections(model, context) {
-    const state = model.state || window.geoQueryState || {};
-    const pointItems = detailItemsFromPanel("#geoquery-point-panel,#details-panel");
+    if ((!model || !Array.isArray(model.groups)) && typeof window.buildGeoNemoReportModelFromResolvedState === "function") model = window.buildGeoNemoReportModelFromResolvedState();
+    context.model = model;
+    const q = model.query || {};
+    const pointItems = nonEmptyItems([
+      { label: "Latitud decimal", value: fmtNumber(q.lat) }, { label: "Longitud decimal", value: fmtNumber(q.lon) }, { label: "Latitud GMS", value: q.latDms }, { label: "Longitud GMS", value: q.lonDms }, { label: "CRS", value: q.crs }, { label: "Región", value: q.region }, { label: "Comuna", value: q.commune }, { label: "Fuente", value: q.source }, { label: "Estado", value: "Análisis territorial resuelto por grupos." }
+    ]);
     const sections = [
-      { id: "query-summary", type: "kpi-grid", title: "Resumen de consulta", order: 10, data: { columns: 4, items: [{ label: "Latitud", value: fmtNumber(model.query?.lat) || "N/D" }, { label: "Longitud", value: fmtNumber(model.query?.lon) || "N/D" }, { label: "Relación", value: state.geoIptResult?.relationType || state.groupResults?.[0]?.relationType || "nearest" }, { label: "Estado", value: state.status || "N/D" }] } },
+      { id: "query-summary", type: "kpi-grid", title: "Resumen de consulta", order: 10, data: { columns: 4, items: [{ label: "Latitud", value: fmtNumber(q.lat) || "N/D" }, { label: "Longitud", value: fmtNumber(q.lon) || "N/D" }, { label: "Grupos analizados", value: `${model.summary?.totalGroups ?? (model.groups || []).length}` }, { label: "Estado", value: q.state === "resolved" ? "Resuelto" : (q.state || "Resuelto") }] } },
       { id: "point-map", type: "point-map", title: "Punto consultado y mapa de ubicación", order: 20, data: { pointItems } },
-      { id: "executive-summary", type: "text-panel", title: "Resumen ejecutivo", order: 30, data: { text: state.executiveSummary || document.getElementById("executive-summary")?.textContent || "Sin resumen ejecutivo disponible." } },
-      { id: "technical-metadata", type: "table", title: "Metadata técnica", order: 900, data: { head: ["Campo", "Valor"], rows: [...pointItems, { label: "Mapa base", value: model.query?.basemap }, { label: "Fecha generación", value: fmtDateCL(model.identity?.generatedAt) }].filter(i => present(i.label) || present(i.value)).map(i => [i.label, i.value]) } },
-      { id: "sources", type: "notice", title: "Fuentes", order: 990, data: { text: state.source_geojson || state.source || "Resultados y capas cargados por GeoQuery en el navegador." } },
-      { id: "disclaimer", type: "notice", title: "Descargo", order: 1000, data: { text: "Reporte documental generado automáticamente desde GeoQuery. La información mantiene el carácter referencial del visor y debe contrastarse con las fuentes oficiales correspondientes." } }
+      { id: "executive-summary", type: "text-panel", title: "Resumen ejecutivo", order: 30, data: { text: model.summary?.executiveText || "Sin resumen ejecutivo disponible." } }
     ];
-    sections.push(...collectGeoNemoDomPdfSections(new Set(sections.map(section => section.id))));
-    return sections.sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+    (model.groups || []).forEach((group, index) => { buildGeoNemoGroupSections(group).forEach((section) => sections.push({ ...section, order: 100 + index * 100 + (section.order || 0) / 10 })); });
+    sections.push(
+      { id: "technical-metadata", type: "table", title: "Metadata técnica general", order: 900, data: { head: ["Campo", "Valor"], rows: deduplicateLabelValueRows(model.technicalMetadata || []).map((i) => [i.label, i.value]) } },
+      { id: "methodology", type: "table", title: "Metodología", order: 940, data: { head: ["Criterio"], rows: (model.methodology || []).filter(present).map((item) => [item]) } },
+      { id: "sources", type: "table", title: "Fuentes generales", order: 990, data: { head: ["Fuente", "Detalle"], rows: deduplicateLabelValueRows(model.sources || []).map((i) => [i.label, i.value]) } },
+      { id: "disclaimer", type: "notice", title: "Descargo", order: 1000, data: { text: model.disclaimer || "Reporte referencial generado automáticamente desde GeoQuery." } }
+    );
+    auditGeoNemoHtmlPdfCoverage(model, sections);
+    return sections.filter((section) => section && (section.type === "notice" || section.type === "point-map" || section.type === "kpi-grid" || (section.data && Object.keys(section.data).length))).sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
   }
 
   function collectGeoNemoDomPdfSections(excludedIds = new Set()) {
@@ -274,5 +323,5 @@
   function setGeoNemoPdfButtonsReady() { const ready = Boolean(window.geoQueryState?.exportState?.pdfEnabled || window.geoQueryState?.status === "resolved"); getGeoNemoPdfButtons().forEach(button => { button.disabled = !ready || isGeneratingGeoNemoPDF; button.title = ready ? "Descargar PDF" : "Disponible cuando exista análisis territorial."; button.dataset.pdfButton = "true"; }); }
   function bindGeoNemoPdfButtonOnce() { getGeoNemoPdfButtons().forEach(button => { if (button.dataset.pdfBound === "1") return; button.dataset.pdfBound = "1"; button.addEventListener("click", async event => { event.preventDefault(); if (isGeneratingGeoNemoPDF) return; isGeneratingGeoNemoPDF = true; const buttons = getGeoNemoPdfButtons(); const original = new Map(buttons.map(b => [b, b.textContent])); buttons.forEach(b => { b.disabled = true; b.textContent = "Generando PDF…"; }); try { await exportGeoNemoPDFDirect(); } finally { isGeneratingGeoNemoPDF = false; buttons.forEach(b => b.textContent = original.get(b) || "Exportar PDF"); setGeoNemoPdfButtonsReady(); } }); }); setGeoNemoPdfButtonsReady(); }
   document.addEventListener("DOMContentLoaded", bindGeoNemoPdfButtonOnce); const geoNemoPdfReadyTimer = window.setInterval(() => { bindGeoNemoPdfButtonOnce(); if (window.geoQueryState?.exportState?.pdfEnabled) window.clearInterval(geoNemoPdfReadyTimer); }, 500);
-  window.GeoNemoPdfExport = { exportGeoNemoPDFDirect, bindGeoNemoPdfButtonOnce, assertGeoNemoPDFDependencies, createGeoNemoPdfDocument, collectGeoNemoPdfSections, captureGeoNemoMapPng, captureGeoNemoCharts, waitForGeoNemoMapTiles, collectGeoNemoDomPdfSections, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT };
+  window.GeoNemoPdfExport = { exportGeoNemoPDFDirect, bindGeoNemoPdfButtonOnce, assertGeoNemoPDFDependencies, createGeoNemoPdfDocument, collectGeoNemoPdfSections, captureGeoNemoMapPng, captureGeoNemoCharts, waitForGeoNemoMapTiles, collectGeoNemoDomPdfSections, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT, buildGeoNemoGroupSections, normalizeGeoNemoRelationLabel, GEONEMO_HTML_PDF_COVERAGE };
 })();

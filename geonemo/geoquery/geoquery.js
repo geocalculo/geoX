@@ -461,6 +461,107 @@ async function processGroup(entry, queryPoint, originalViewport) {
 }
 
 
+
+
+function formatGeoNemoPdfMeters(km) {
+  if (!Number.isFinite(Number(km))) return "N/D";
+  const meters = Number(km) * 1000;
+  return meters < 1000 ? `${Math.round(meters).toLocaleString("es-CL")} m` : `${Number(km).toLocaleString("es-CL", { maximumFractionDigits: 2 })} km`;
+}
+
+function geoNemoPdfRelationType(result) {
+  if (result?.status !== "resolved") return "none";
+  return result.relation === "intersects" ? "intersects" : "nearest";
+}
+
+function geoNemoPdfRelationLabel(type) {
+  return type === "intersects" ? "Intersección" : type === "nearest" ? "Cercanía" : "Sin resultado";
+}
+
+function geoNemoPdfPartsCount(geometry) {
+  if (!geometry) return null;
+  if (geometry.type === "MultiPolygon" || geometry.type === "MultiLineString" || geometry.type === "GeometryCollection") return Array.isArray(geometry.coordinates) ? geometry.coordinates.length : Array.isArray(geometry.geometries) ? geometry.geometries.length : null;
+  return 1;
+}
+
+function geoNemoPdfMetadataRows(properties) {
+  const ignored = new Set(["geometry", "coordinates"]);
+  const seen = new Set();
+  return Object.entries(properties || {}).filter(([key, value]) => {
+    const label = String(key || "").trim();
+    const text = String(value ?? "").trim();
+    const lower = label.toLowerCase();
+    if (!label || ignored.has(lower) || !text || /^(undefined|null|nan)$/i.test(text)) return false;
+    if (typeof value === "object") return false;
+    if (seen.has(lower)) return false;
+    seen.add(lower);
+    return true;
+  }).map(([label, value]) => ({ label, value: String(value) }));
+}
+
+function buildGeoNemoReportGroup(result) {
+  const cfg = result.groupConfig || {};
+  const f = result.feature || {};
+  const props = f.originalProperties || result.relatedFeature?.properties || {};
+  const relationType = geoNemoPdfRelationType(result);
+  const hasResult = result.status === "resolved" && !!f;
+  const distanceMeters = relationType === "intersects" ? 0 : Number.isFinite(Number(result.distanceKm)) ? Number(result.distanceKm) * 1000 : null;
+  const areaHa = f.areaHa?.value ?? (Number.isFinite(Number(result.metrics?.areaHaCalc)) ? result.metrics.areaHaCalc : null);
+  const surfaceFormatted = f.areaHa?.value === null && f.areaHa?.original ? String(f.areaHa.original) : Number.isFinite(Number(areaHa)) ? `${formatNumber(Number(areaHa))} ha` : "N/D";
+  const title = cfg.id === "ramsar" ? "Ramsar" : (cfg.nombre || cfg.id || "Grupo");
+  const source = {
+    registryPath: result.metadata?.queryRulesFile || "",
+    layerName: result.layerId || result.metadata?.selectedLayerId || f.layerId || "",
+    fileName: result.sourceFile || result.metadata?.selectedSourceFile || f.sourceFile || "",
+    displayName: cfg.nombre_largo || cfg.nombre || title,
+    organization: cfg.nombre_largo || "GeoNEMO"
+  };
+  const metadata = geoNemoPdfMetadataRows(props);
+  return {
+    id: cfg.id || result.groupId || "grupo",
+    title,
+    enabled: true,
+    resolved: result.status === "resolved",
+    hasResult,
+    source,
+    relation: { type: relationType, label: geoNemoPdfRelationLabel(relationType), pointInside: relationType === "intersects", distanceMeters, distanceFormatted: relationType === "intersects" ? "Intersección directa" : formatGeoNemoPdfMeters(result.distanceKm) },
+    feature: { found: hasResult, id: f.featureId || "", name: f.name || "", category: f.category || f.type || "", territory: f.territory || result.territory || "", surfaceM2: Number.isFinite(Number(areaHa)) ? Number(areaHa) * 10000 : null, surfaceHa: Number.isFinite(Number(areaHa)) ? Number(areaHa) : null, surfaceFormatted, commune: f.commune || "", region: f.region || "", properties: props },
+    geometryDescriptors: { areaM2: Number.isFinite(Number(result.metrics?.areaHaCalc)) ? result.metrics.areaHaCalc * 10000 : null, areaHa: Number.isFinite(Number(result.metrics?.areaHaCalc)) ? result.metrics.areaHaCalc : areaHa, perimeterM: Number.isFinite(Number(result.metrics?.perimeterKm)) ? result.metrics.perimeterKm * 1000 : null, perimeterFormatted: Number.isFinite(Number(result.metrics?.perimeterKm)) ? `${formatNumber(result.metrics.perimeterKm)} km` : "N/D", distanceToPointMeters: distanceMeters, distanceToPointFormatted: relationType === "intersects" ? "0 m" : formatGeoNemoPdfMeters(result.distanceKm), geometryType: result.relatedFeature?.geometry?.type || f.geometry?.type || "", partsCount: geoNemoPdfPartsCount(result.relatedFeature?.geometry || f.geometry), additionalMetrics: [] },
+    spatialIndicators: { relationLabel: geoNemoPdfRelationLabel(relationType), pointInside: relationType === "intersects", minimumDistance: relationType === "intersects" ? "0 m" : formatGeoNemoPdfMeters(result.distanceKm), nearestFeature: f.name || "", featureCategory: f.category || f.type || "", additionalIndicators: [] },
+    metadata,
+    sources: [["Registro de grupo", source.registryPath], ["Archivo GeoJSON", source.fileName], ["Fuente institucional", source.displayName], ["Nombre de capa", source.layerName]].filter(([,v]) => v).map(([label, value]) => ({ label, value })),
+    emptyMessage: cfg.id === "snaspe" ? "No se identificó una figura SNASPE relacionada para esta consulta." : cfg.id === "ramsar" ? "No se identificó un sitio Ramsar relacionado para esta consulta." : `No se identificó una figura relacionada para el grupo ${title}.`
+  };
+}
+
+function buildGeoNemoReportModelFromResolvedState() {
+  const state = window.geoQueryState || {};
+  const groups = (state.groupResults || []).map(buildGeoNemoReportGroup);
+  const resolvedGroups = groups.filter((g) => g.resolved && g.hasResult).length;
+  const files = groups.flatMap((g) => g.source?.fileName ? [g.source.fileName] : []);
+  const executiveParts = groups.map((g) => {
+    if (!g.hasResult) return `Para ${g.title}, ${g.emptyMessage}`;
+    if (g.relation.type === "intersects") return `El punto consultado intersecta ${g.feature.name || "la figura relacionada"} del grupo ${g.title}.`;
+    return `La figura más cercana del grupo ${g.title} es ${g.feature.name || "sin nombre"}, ubicada a ${g.relation.distanceFormatted}.`;
+  });
+  const technicalMetadata = [
+    { label: "Fecha de consulta", value: state.timestamp }, { label: "Latitud decimal", value: state.lat_decimal }, { label: "Longitud decimal", value: state.lon_decimal }, { label: "Latitud GMS", value: state.lat_dms }, { label: "Longitud GMS", value: state.lon_dms }, { label: "CRS", value: state.crs }, { label: "Basemap", value: state.basemap }, { label: "Grupos activos", value: groups.length }, { label: "Grupos resueltos", value: resolvedGroups }, { label: "Registro de grupos", value: "capas_geoquery/listado.json" }, { label: "Regla espacial", value: "intersects + nearest al perímetro real por grupo" }, { label: "Restricción al viewport original", value: state.original_viewport ? "Sí" : "No" }, { label: "Archivos usados", value: files.join(", ") }, { label: "Versión del reporte", value: "geonemo-pdf-v2" }, { label: "Estado de carga", value: state.overallStatus || state.status }
+  ];
+  return {
+    identity: { site: "GeoNEMO", title: "Reporte del punto consultado", generatedAt: new Date().toISOString(), version: "geonemo-pdf-v2" },
+    query: { lat: state.lat, lon: state.lon, latDms: state.lat_dms, lonDms: state.lon_dms, crs: state.crs, source: state.source === "url_params" ? "parámetro URL" : state.source, originSite: state.site, state: state.overallStatus || state.status, basemap: state.basemap, region: "No informado", commune: "No informado" },
+    summary: { executiveText: `Se analizaron de manera independiente ${groups.length} grupos temáticos. ${executiveParts.join(" ")}`, resolvedGroups, totalGroups: groups.length },
+    groups,
+    technicalMetadata,
+    sources: groups.flatMap((g) => g.sources || []),
+    methodology: ["Los grupos se analizan de manera independiente.", "Se evalúa intersección con el punto consultado.", "Cuando no existe intersección, se obtiene la figura más cercana al perímetro real.", "La búsqueda utiliza las capas registradas para cada grupo y los elementos cargados para el viewport original.", "Las distancias se expresan desde el punto consultado hacia la feature relacionada.", "Los resultados de distintos grupos no se fusionan."],
+    disclaimer: "Reporte documental generado automáticamente desde GeoQuery. La información mantiene carácter referencial y debe contrastarse con fuentes oficiales.",
+    sections: []
+  };
+}
+
+window.buildGeoNemoReportModelFromResolvedState = buildGeoNemoReportModelFromResolvedState;
+
 function hasKmlValue(value) {
   if (value === null || value === undefined) return false;
   if (typeof value === "number") return Number.isFinite(value);
@@ -828,6 +929,7 @@ window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => w
     window.geoQueryState.executiveSummary = executiveSummary;
     window.geoQueryState.exportState = { pdfEnabled: results.some((r) => r.status === "resolved"), kmlEnabled: results.some((r) => r.status === "resolved") };
     window.geoQueryState.mapExport = buildGeoNemoMapExport(results);
+    window.__geonemoReportModel = buildGeoNemoReportModelFromResolvedState();
     window.geoQueryKmlRefresh?.();
     const boundsParts = [queryMarker];
     results.forEach((result) => addGroupResultToMap(result, layers, [lat, lon], boundsParts));
