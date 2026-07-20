@@ -610,7 +610,7 @@ async function initGeoXInitialLocation(mapInstance) {
     const gpsLocation = await getLocationByGps();
 
     if (gpsLocation) {
-      applyUserLocation(mapInstance, gpsLocation, 14);
+      applyUserLocation(mapInstance, gpsLocation, window.GeoXLocationZoom || 11);
       return;
     }
   } catch (error) {
@@ -620,7 +620,7 @@ async function initGeoXInitialLocation(mapInstance) {
   const ipLocation = await getLocationByIp();
 
   if (ipLocation) {
-    applyUserLocation(mapInstance, ipLocation, 10);
+    applyUserLocation(mapInstance, ipLocation, window.GeoXLocationZoom || 11);
     return;
   }
 
@@ -646,7 +646,7 @@ function initGeoXMyLocationButton(mapInstance) {
       const gpsLocation = await getLocationByGps();
 
       if (gpsLocation) {
-        applyUserLocation(mapInstance, gpsLocation, 14);
+        applyUserLocation(mapInstance, gpsLocation, window.GeoXLocationZoom || 11);
         return;
       }
     } catch (error) {
@@ -656,7 +656,7 @@ function initGeoXMyLocationButton(mapInstance) {
     const ipLocation = await getLocationByIp();
 
     if (ipLocation) {
-      applyUserLocation(mapInstance, ipLocation, 10);
+      applyUserLocation(mapInstance, ipLocation, window.GeoXLocationZoom || 11);
       return;
     }
 
@@ -977,14 +977,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.addEventListener("resize", scheduleEvaPanelViewportUpdate);
 });
 
-function iniciarMapa() {
-  geoQueryRestoreState = resolveViewportRestoreState(SITE_ID);
-  map = L.map("map").setView([-30.0, -71.0], 5);
-  window.geoxMap = map;
+async function iniciarMapa() {
+  const siteConfig = await GeoXViewport.loadSiteViewportConfig(SITE_ID);
+  window.GeoXLocationZoom = Number(siteConfig.locationViewport?.zoom ?? siteConfig.locationZoom ?? siteConfig.defaultViewport?.zoom ?? 11);
 
-  (geoQueryRestoreState ? Promise.resolve() : initGeoXInitialLocation(map)).finally(() => {
-    initGeoEVASummary(map);
-  });
+  geoQueryRestoreState = null;
+  map = L.map("map");
+  window.geoxMap = map;
 
   osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -996,8 +995,11 @@ function iniciarMapa() {
     attribution: "Tiles © Esri"
   });
 
-  switchBaseMap(geoQueryRestoreState?.map?.basemap || getInitialBasemapFromUrl());
-  if (geoQueryRestoreState) restoreMapViewport(map, geoQueryRestoreState);
+  const initialViewport = await GeoXViewport.resolveInitialViewport({ siteId: SITE_ID, siteConfig, urlSearchParams: new URLSearchParams(window.location.search), getGps: getLocationByGps, getIp: getLocationByIp });
+  GeoXViewport.applyResolvedViewport({ map, viewport: initialViewport, setBasemap: switchBaseMap, restoreConsultedCoordinate: (coord) => { if (!coord) return; if (typeof setSelectedPoint === "function") setSelectedPoint(coord.lat, coord.lon, initialViewport.source); else { selectedPoint = { lat: coord.lat, lon: coord.lon, source: initialViewport.source, site: SITE_ID, timestamp: new Date().toISOString() }; window.selectedPoint = selectedPoint; } } });
+  viewportRestoreApplied = ["cross-access", "memory-preview", "geoquery-return"].includes(initialViewport.source);
+  GeoXViewport.installViewportPreviewPersistence({ siteId: SITE_ID, map, getBasemap: () => currentBasemap, getConsultedCoordinate: () => selectedPoint ? { lat: selectedPoint.lat, lon: selectedPoint.lon } : null });
+  initGeoEVASummary(map);
 
   L.control.scale({
     imperial: false
