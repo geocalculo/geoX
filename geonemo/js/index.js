@@ -805,10 +805,13 @@ async function initGeoNemoSearch() {
 
 async function iniciarMapa() {
   const siteConfig = await GeoXViewport.loadSiteViewportConfig(SITE_ID);
-  window.GeoXLocationZoom = Number(siteConfig.locationViewport?.zoom ?? siteConfig.locationZoom ?? siteConfig.defaultViewport?.zoom ?? 11);
+  window.GeoXLocationZoom = Number(siteConfig.locationViewport?.fallbackZoom ?? siteConfig.locationViewport?.zoom ?? siteConfig.defaultViewport?.fallbackZoom ?? siteConfig.defaultViewport?.zoom ?? 11);
 
   geoQueryRestoreState = null;
-  map = L.map("map");
+  map = L.map("map", {
+    zoomSnap: siteConfig?.zoomLimits?.snap ?? 0.25,
+    zoomDelta: siteConfig?.zoomLimits?.snap ?? 0.25
+  });
   window.geoxMap = map;
 
   osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
