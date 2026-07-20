@@ -3,9 +3,12 @@
   "titulo": "GeoIPT",
   "subtitulo": "Normativa urbana y usos de suelo",
   "pais_default": "CL",
-  "region_default": "03",
-  "centro_mapa": [-27.3668, -70.3323],
-  "zoom_inicial": 7,
+  "region_default": "13",
+  "centro_mapa": [
+    -33.4489,
+    -70.6693
+  ],
+  "zoom_inicial": 14.5,
   "mapa_base": "osm",
   "summary_activo": true,
   "selector_activo": true,
@@ -26,5 +29,24 @@
       "label": "Modo",
       "value": "GeoX"
     }
-  ]
+  ],
+  "defaultViewport": {
+    "center": {
+      "lat": -33.4489,
+      "lon": -70.6693
+    },
+    "scaleDenominator": 20000,
+    "fallbackZoom": 14.5,
+    "basemap": "osm"
+  },
+  "locationViewport": {
+    "scaleDenominator": 20000,
+    "fallbackZoom": 14.5,
+    "basemap": "osm"
+  },
+  "zoomLimits": {
+    "min": 3,
+    "max": 19,
+    "snap": 0.25
+  }
 }
