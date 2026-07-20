@@ -20,7 +20,9 @@ function toFiniteNumber(value) {
 }
 
 function normalizeBasemap(value) {
-  return String(value || "").toLowerCase() === "sat" ? "sat" : "osm";
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["sat", "satellite", "satelital"].includes(normalized)) return "sat";
+  return "osm";
 }
 
 function validLat(value) { return Number.isFinite(value) && value >= -90 && value <= 90; }
@@ -130,7 +132,29 @@ function installGeoQueryViewportRestoreHandlers() {
 
 const PARAMS_PATH = "parametros/parametros_index.json";
 const REGIONES_PATH = "capas_selector/regiones.json";
+const GEOIPT_DEBUG_SKIP_MODAL = false;
+const GEOIPT_EMERGENCY_VIEWPORT = {
+  center: { lat: -33.4489, lon: -70.6693 },
+  scaleDenominator: 20000,
+  fallbackZoom: 14.5,
+  basemap: "osm"
+};
+const GEOIPT_FALLBACK_CONFIG = {
+  sitio: "GeoIPT",
+  titulo: "GeoIPT",
+  subtitulo: "Normativa urbana y usos de suelo",
+  pais_default: "CL",
+  region_default: "13",
+  centro_mapa: [-33.4489, -70.6693],
+  zoom_inicial: 14.5,
+  mapa_base: "osm",
+  defaultViewport: { ...GEOIPT_EMERGENCY_VIEWPORT, center: { ...GEOIPT_EMERGENCY_VIEWPORT.center } },
+  locationViewport: { scaleDenominator: 20000, fallbackZoom: 14.5, basemap: "osm" },
+  zoomLimits: { min: 3, max: 19, snap: 0.25 },
+  configFallbackActive: true
+};
 let regionesSelector = [];
+let currentInitStep = "inicio";
 
 function isCrossAccessNavigationFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -490,10 +514,12 @@ function initGeoXCrossPortalNavigation() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const params = await cargarParametros();
+    currentInitStep = "carga_configuracion";
+    const params = await loadGeoIptConfigSafely();
+
+    currentInitStep = "validacion_configuracion";
     aplicarParametros(params);
 
-    // Cargar configuración y capas summary (si existen) antes de iniciar el mapa
     try {
       await cargarSummaryConfigYCapas();
     } catch (err) {
@@ -501,36 +527,80 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     initSelectedPointFromUrl();
-    iniciarMapa(params);
+
+    currentInitStep = "creacion_mapa";
+    await iniciarMapa(params);
+
+    currentInitStep = "carga_capas";
     initGeoXCrossPortalNavigation();
-    await cargarRegionesSelector();
+    await cargarRegionesSelector(params);
+
+    currentInitStep = "eventos";
     conectarEventos();
     cargarListadoToSearch();
     await cargarLabelDensityConfig();
     await cargarListadoPanelTerritorial();
     iniciarPanelTerritorial();
 
-    // Si hay summary cargado, calcular indicadores y suscribirse a eventos del mapa
     if (summaryConfig && map) {
       calcularYActualizarIndicadores();
       map.on("moveend zoomend", calcularYActualizarIndicadores);
     }
 
+    currentInitStep = "modal";
+    if (!GEOIPT_DEBUG_SKIP_MODAL && window.GeoFactoryIntroModal?.init) {
+      window.GeoFactoryIntroModal.init();
+    }
+
     console.log("GeoX iniciado correctamente:", params);
   } catch (error) {
-    console.error("Error iniciando GeoX:", error);
-    alert("No se pudo iniciar GeoX. Revisa parametros_index.json y la consola.");
+    console.error("[GeoIPT INIT] Error completo:", error);
+    console.error("[GeoIPT INIT] Mensaje:", error?.message);
+    console.error("[GeoIPT INIT] Stack:", error?.stack);
+    console.error("[GeoIPT INIT] Etapa:", currentInitStep);
+    handleGeoIptInitError(error, currentInitStep);
   }
 });
 
-async function cargarParametros() {
-  const response = await fetch(PARAMS_PATH);
+function handleGeoIptInitError(error, stage) {
+  console.error("[GeoIPT INIT]", { stage, message: error?.message, stack: error?.stack, error });
+  const criticalStages = new Set(["leaflet_missing", "map_container_missing", "map_creation_failed", "creacion_mapa"]);
+  if (criticalStages.has(stage)) alert("No fue posible crear el mapa GeoIPT.");
+}
 
-  if (!response.ok) {
-    throw new Error(`No se pudo cargar ${PARAMS_PATH}`);
+function buildGeoIptConfigUrl() {
+  return new URL(PARAMS_PATH, window.location.href).toString();
+}
+
+async function fetchGeoIptConfig() {
+  const configUrl = buildGeoIptConfigUrl();
+  console.info("[GeoIPT CONFIG] URL:", configUrl);
+  const response = await fetch(configUrl, { cache: "no-store" });
+  console.info("[GeoIPT CONFIG] Respuesta:", response.status, response.headers.get("content-type"));
+  if (!response.ok) throw new Error(`No fue posible cargar configuración: ${response.status}`);
+  const text = await response.text();
+  try { return JSON.parse(text); }
+  catch (error) {
+    console.error("[GeoIPT CONFIG] JSON inválido:", error, text.slice(0, 500));
+    throw error;
   }
+}
 
-  return await response.json();
+async function cargarParametros() {
+  return loadGeoIptConfigSafely();
+}
+
+async function loadGeoIptConfigSafely() {
+  try {
+    const rawConfig = await fetchGeoIptConfig();
+    const normalizedConfig = normalizeGeoIptConfig(rawConfig);
+    console.info("[GeoIPT CONFIG] Configuración cargada");
+    return normalizedConfig;
+  } catch (error) {
+    console.error("[GeoIPT CONFIG] Falló configuración:", error);
+    console.warn("[GeoIPT CONFIG] Usando fallback de emergencia");
+    return { ...GEOIPT_FALLBACK_CONFIG, defaultViewport: { ...GEOIPT_EMERGENCY_VIEWPORT, center: { ...GEOIPT_EMERGENCY_VIEWPORT.center } } };
+  }
 }
 
 function aplicarParametros(params) {
@@ -577,16 +647,126 @@ function actualizarSummaryEnDom(items) {
   });
 }
 
+
+function calculateLeafletZoomForScale({ latitude, scaleDenominator, dpi = 96 }) {
+  const lat = Number(latitude);
+  const scale = Number(scaleDenominator);
+  if (!Number.isFinite(lat) || !Number.isFinite(scale) || scale <= 0) return null;
+  const metersPerPixel = scale * 0.0254 / dpi;
+  const latitudeFactor = Math.cos(lat * Math.PI / 180);
+  if (!Number.isFinite(latitudeFactor) || latitudeFactor <= 0) return null;
+  const zoom = Math.log2(156543.03392804097 * latitudeFactor / metersPerPixel);
+  return Number.isFinite(zoom) ? zoom : null;
+}
+
+function normalizeViewportConfig(viewport, fallback = GEOIPT_EMERGENCY_VIEWPORT) {
+  const safe = viewport || {};
+  const fallbackCenter = fallback.center || GEOIPT_EMERGENCY_VIEWPORT.center;
+  const lat = Number(safe.center?.lat ?? safe.lat ?? fallbackCenter.lat);
+  const lon = Number(safe.center?.lon ?? safe.center?.lng ?? safe.lon ?? safe.lng ?? fallbackCenter.lon);
+  const scaleDenominator = Number(safe.scaleDenominator ?? fallback.scaleDenominator);
+  const fallbackZoom = Number(safe.fallbackZoom ?? safe.zoom ?? fallback.fallbackZoom);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) throw new Error("Latitud default inválida");
+  if (!Number.isFinite(lon) || lon < -180 || lon > 180) throw new Error("Longitud default inválida");
+  if (!Number.isFinite(scaleDenominator) || scaleDenominator <= 0) throw new Error("Escala default inválida");
+  if (!Number.isFinite(fallbackZoom)) throw new Error("fallbackZoom inválido");
+  return { center: { lat, lon }, scaleDenominator, fallbackZoom, basemap: normalizeBasemap(safe.basemap ?? fallback.basemap) };
+}
+
+function ensureDefaultViewport(config) {
+  try {
+    return { ...config, defaultViewport: normalizeViewportConfig(config?.defaultViewport, GEOIPT_EMERGENCY_VIEWPORT) };
+  } catch (error) {
+    console.warn("[GeoIPT VIEWPORT] Default inválido; usando fallback", error);
+    return { ...config, defaultViewport: { ...GEOIPT_EMERGENCY_VIEWPORT, center: { ...GEOIPT_EMERGENCY_VIEWPORT.center } } };
+  }
+}
+
+function normalizeGeoIptConfig(rawConfig) {
+  const baseConfig = rawConfig && typeof rawConfig === "object" ? rawConfig : {};
+  const legacyViewport = baseConfig?.map?.initialView ?? baseConfig?.initialView ?? baseConfig?.viewport ?? (
+    Array.isArray(baseConfig?.centro_mapa)
+      ? { center: { lat: baseConfig.centro_mapa[0], lon: baseConfig.centro_mapa[1] }, fallbackZoom: baseConfig.zoom_inicial, basemap: baseConfig.mapa_base }
+      : null
+  );
+  const viewport = baseConfig?.defaultViewport ?? legacyViewport;
+  const merged = {
+    ...GEOIPT_FALLBACK_CONFIG,
+    ...baseConfig,
+    region_default: String(baseConfig.region_default || GEOIPT_FALLBACK_CONFIG.region_default),
+    defaultViewport: normalizeViewportConfig(viewport, GEOIPT_EMERGENCY_VIEWPORT),
+    locationViewport: {
+      scaleDenominator: Number(baseConfig?.locationViewport?.scaleDenominator ?? GEOIPT_EMERGENCY_VIEWPORT.scaleDenominator),
+      fallbackZoom: Number(baseConfig?.locationViewport?.fallbackZoom ?? baseConfig?.locationViewport?.zoom ?? GEOIPT_EMERGENCY_VIEWPORT.fallbackZoom),
+      basemap: normalizeBasemap(baseConfig?.locationViewport?.basemap ?? GEOIPT_EMERGENCY_VIEWPORT.basemap)
+    },
+    zoomLimits: { ...GEOIPT_FALLBACK_CONFIG.zoomLimits, ...(baseConfig.zoomLimits || {}) }
+  };
+  return ensureDefaultViewport(merged);
+}
+
+function isValidViewport(viewport) {
+  const lat = Number(viewport?.center?.lat);
+  const lon = Number(viewport?.center?.lon);
+  const zoom = Number(viewport?.zoom);
+  return Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lon) && lon >= -180 && lon <= 180 && Number.isFinite(zoom);
+}
+
+function buildEmergencyGeoIptViewport() {
+  const calculatedZoom = calculateLeafletZoomForScale({ latitude: GEOIPT_EMERGENCY_VIEWPORT.center.lat, scaleDenominator: GEOIPT_EMERGENCY_VIEWPORT.scaleDenominator });
+  const zoom = Number.isFinite(calculatedZoom) ? calculatedZoom : GEOIPT_EMERGENCY_VIEWPORT.fallbackZoom;
+  return { source: "geoipt-emergency", center: { ...GEOIPT_EMERGENCY_VIEWPORT.center }, zoom, basemap: "osm", consultedCoordinate: null, siteDestination: SITE_ID, scaleDenominator: GEOIPT_EMERGENCY_VIEWPORT.scaleDenominator };
+}
+
+async function resolveGeoIptInitialViewportSafely(options) {
+  try {
+    if (!window.GeoXViewport?.resolveInitialViewport) throw new Error("GeoXViewport no está disponible");
+    const viewport = await GeoXViewport.resolveInitialViewport(options);
+    if (!isValidViewport(viewport)) throw new Error("El resolvedor devolvió un viewport inválido");
+    return { ...viewport, basemap: normalizeBasemap(viewport.basemap) };
+  } catch (error) {
+    console.error("[GeoIPT VIEWPORT] Error en resolución:", error);
+    return buildEmergencyGeoIptViewport();
+  }
+}
+
+function applyResolvedViewport(mapInstance, initialViewport) {
+  const viewport = isValidViewport(initialViewport) ? initialViewport : buildEmergencyGeoIptViewport();
+  const basemap = normalizeBasemap(viewport.basemap);
+  if (typeof switchBaseMap === "function") switchBaseMap(basemap);
+  mapInstance.setView([viewport.center.lat, viewport.center.lon], viewport.zoom, { animate: false });
+  console.info("[GeoIPT VIEWPORT] Aplicado:", { ...viewport, basemap });
+}
+
 async function iniciarMapa(params = {}) {
-  const siteConfig = await GeoXViewport.loadSiteViewportConfig(SITE_ID);
+  if (!window.L) {
+    currentInitStep = "leaflet_missing";
+    throw new Error("Leaflet no está disponible");
+  }
+  if (!document.getElementById("map")) {
+    currentInitStep = "map_container_missing";
+    throw new Error("Contenedor #map no disponible");
+  }
+
+  const siteConfig = normalizeGeoIptConfig(params);
   window.GeoXLocationZoom = Number(siteConfig.locationViewport?.fallbackZoom ?? siteConfig.locationViewport?.zoom ?? siteConfig.defaultViewport?.fallbackZoom ?? siteConfig.defaultViewport?.zoom ?? 11);
 
   geoQueryRestoreState = null;
-  map = L.map("map", {
-    zoomControl: true,
-    zoomSnap: siteConfig?.zoomLimits?.snap ?? 0.25,
-    zoomDelta: siteConfig?.zoomLimits?.snap ?? 0.25
-  });
+  const zoomSnap = Number(siteConfig?.zoomLimits?.snap);
+  const minZoom = Number(siteConfig?.zoomLimits?.min);
+  const maxZoom = Number(siteConfig?.zoomLimits?.max);
+  try {
+    map = L.map("map", {
+      zoomControl: true,
+      zoomSnap: Number.isFinite(zoomSnap) ? zoomSnap : 0.25,
+      zoomDelta: Number.isFinite(zoomSnap) ? zoomSnap : 0.25,
+      minZoom: Number.isFinite(minZoom) ? minZoom : 3,
+      maxZoom: Number.isFinite(maxZoom) ? maxZoom : 19
+    });
+  } catch (error) {
+    currentInitStep = "map_creation_failed";
+    throw error;
+  }
   window.geoxMap = map;
 
   osmLayer = L.tileLayer(
@@ -605,10 +785,15 @@ async function iniciarMapa(params = {}) {
     }
   );
 
-  const initialViewport = await GeoXViewport.resolveInitialViewport({ siteId: SITE_ID, siteConfig, urlSearchParams: new URLSearchParams(window.location.search), getGps: getLocationByGps, getIp: getLocationByIp });
-  GeoXViewport.applyResolvedViewport({ map, viewport: initialViewport, setBasemap: switchBaseMap, restoreConsultedCoordinate: (coord) => { if (!coord) return; if (typeof setSelectedPoint === "function") setSelectedPoint(coord.lat, coord.lon, initialViewport.source); else { selectedPoint = { lat: coord.lat, lon: coord.lon, source: initialViewport.source, site: SITE_ID, timestamp: new Date().toISOString() }; window.selectedPoint = selectedPoint; } } });
+  currentInitStep = "resolucion_viewport";
+  const initialViewport = await resolveGeoIptInitialViewportSafely({ siteId: SITE_ID, siteConfig, urlSearchParams: new URLSearchParams(window.location.search), getGps: getLocationByGps, getIp: getLocationByIp });
+  currentInitStep = "aplicacion_viewport";
+  applyResolvedViewport(map, initialViewport);
+  if (initialViewport.consultedCoordinate) setSelectedPoint(initialViewport.consultedCoordinate.lat, initialViewport.consultedCoordinate.lon, initialViewport.source);
   viewportRestoreApplied = ["cross-access", "memory-preview", "geoquery-return"].includes(initialViewport.source);
-  GeoXViewport.installViewportPreviewPersistence({ siteId: SITE_ID, map, getBasemap: () => currentBasemap, getConsultedCoordinate: () => selectedPoint ? { lat: selectedPoint.lat, lon: selectedPoint.lon } : null });
+  if (window.GeoXViewport?.installViewportPreviewPersistence) {
+    GeoXViewport.installViewportPreviewPersistence({ siteId: SITE_ID, map, getBasemap: () => currentBasemap, getConsultedCoordinate: () => selectedPoint ? { lat: selectedPoint.lat, lon: selectedPoint.lon } : null });
+  }
 
   // GEOFACTORY ESCALA GRÁFICA
   L.control.scale({
@@ -761,7 +946,7 @@ function conectarMobileSummaryDrawer() {
 
 // GEOFACTORY SELECTOR REGIÓN
 // CARGA regiones.json
-async function cargarRegionesSelector() {
+async function cargarRegionesSelector(params = {}) {
   const selector = document.getElementById("region-selector");
   if (!selector) return;
 
@@ -785,10 +970,24 @@ async function cargarRegionesSelector() {
       option.textContent = region.nombre || "Región sin nombre";
       selector.appendChild(option);
     });
+
+    setRegionSelection(params.region_default || "13", { triggerSearch: false, changeViewport: false });
   } catch (error) {
     regionesSelector = [];
     console.warn("GEOFACTORY SELECTOR REGIÓN: regiones.json no disponible. Se mantiene el selector actual como respaldo.", error);
   }
+}
+
+function setRegionSelection(regionCode, { triggerSearch = false, changeViewport = false } = {}) {
+  const selector = document.getElementById("region-selector");
+  if (!selector || !regionCode) return false;
+  const normalizedCode = String(regionCode).padStart(2, "0");
+  const exists = Array.from(selector.options).some((option) => option.value === normalizedCode);
+  if (!exists) return false;
+  selector.value = normalizedCode;
+  if (changeViewport) moverViewportPorRegion(normalizedCode);
+  if (triggerSearch) seleccionarPrimerResultadoToSearch();
+  return true;
 }
 
 // MOVER VIEWPORT POR REGIÓN
