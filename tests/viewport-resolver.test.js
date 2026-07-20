@@ -9,7 +9,7 @@ function createApi({ preview = null, permission = 'prompt' } = {}) {
   vm.runInNewContext(code, context);
   return context.GeoXViewport;
 }
-const cfg = { site: 'geoipt', defaultViewport: { center: { lat: -27.3, lon: -70.3 }, zoom: 7, basemap: 'osm' }, locationViewport: { zoom: 11 }, limits: { minimumZoom: 0, maximumZoom: 19 } };
+const cfg = { site: 'geoipt', defaultViewport: { center: { lat: -33.4489, lon: -70.6693 }, scaleDenominator: 20000, fallbackZoom: 14.5, basemap: 'osm' }, locationViewport: { scaleDenominator: 20000, fallbackZoom: 14.5, basemap: 'osm' }, zoomLimits: { min: 3, max: 19, snap: 0.25 } };
 const preview = { center: { lat: -10, lon: -20 }, zoom: 8, basemap: 'osm', consultedCoordinate: { lat: -11, lon: -21 }, timestamp: Date.now() };
 async function resolve(api, query, opts={}) { return api.resolveInitialViewport({ siteId: 'geoipt', siteConfig: cfg, urlSearchParams: new URLSearchParams(query), ...opts }); }
 (async () => {
@@ -21,19 +21,19 @@ async function resolve(api, query, opts={}) { return api.resolveInitialViewport(
   assert.equal(v.source, 'memory-preview');
   api = createApi({ permission: 'granted' });
   v = await resolve(api, '', { getGps: async () => ({ lat: -33, lon: -70 }) });
-  assert.equal(v.source, 'gps'); assert.equal(v.zoom, 11);
+  assert.equal(v.source, 'gps'); assert.ok(v.zoom > 14 && v.zoom < 15);
   api = createApi({ permission: 'granted' });
   v = await resolve(api, '', { getGps: async () => null, getIp: async () => ({ lat: -34, lon: -71 }) });
   assert.equal(v.source, 'ip');
   api = createApi({ permission: 'granted' });
   v = await resolve(api, '', { getGps: async () => null, getIp: async () => null });
-  assert.equal(v.source, 'site-default');
+  assert.equal(v.source, 'site-default'); assert.equal(v.scaleDenominator, 20000);
   api = createApi({ permission: 'denied' });
   v = await resolve(api, '', { getGps: async () => { throw new Error('popup'); } });
-  assert.equal(v.source, 'site-default');
+  assert.equal(v.source, 'site-default'); assert.equal(v.scaleDenominator, 20000);
   api = createApi({ permission: 'prompt' });
   v = await resolve(api, '', { getGps: async () => { throw new Error('popup'); } });
-  assert.equal(v.source, 'site-default');
+  assert.equal(v.source, 'site-default'); assert.equal(v.scaleDenominator, 20000);
   api = createApi({ preview: { center: { lat: 999, lon: 0 }, zoom: 1, basemap: 'osm' }, permission: 'granted' });
   v = await resolve(api, '', { getGps: async () => ({ lat: -35, lon: -72 }) });
   assert.equal(v.source, 'gps');

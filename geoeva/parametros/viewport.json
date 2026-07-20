@@ -1,6 +1,16 @@
 {
   "site": "geoeva",
-  "defaultViewport": { "center": { "lat": -30.0, "lon": -71.0 }, "zoom": 5, "basemap": "osm" },
-  "locationViewport": { "zoom": 11 },
-  "limits": { "minimumZoom": 0, "maximumZoom": 19 }
+  "defaultLocationLabel": "Antofagasta",
+  "defaultViewport": {
+    "center": { "lat": -23.6509, "lon": -70.3975 },
+    "scaleDenominator": 50000,
+    "fallbackZoom": 13.5,
+    "basemap": "osm"
+  },
+  "locationViewport": {
+    "scaleDenominator": 50000,
+    "fallbackZoom": 13.5,
+    "basemap": "osm"
+  },
+  "zoomLimits": { "min": 3, "max": 19, "snap": 0.25 }
 }
