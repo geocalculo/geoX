@@ -354,7 +354,7 @@ async function initGeoXInitialLocation(mapInstance) {
     const gpsLocation = await getLocationByGps();
 
     if (gpsLocation) {
-      applyUserLocation(mapInstance, gpsLocation, 14);
+      applyUserLocation(mapInstance, gpsLocation, window.GeoXLocationZoom || 11);
       return;
     }
   } catch (error) {
@@ -364,7 +364,7 @@ async function initGeoXInitialLocation(mapInstance) {
   const ipLocation = await getLocationByIp();
 
   if (ipLocation) {
-    applyUserLocation(mapInstance, ipLocation, 10);
+    applyUserLocation(mapInstance, ipLocation, window.GeoXLocationZoom || 11);
     return;
   }
 
@@ -577,17 +577,15 @@ function actualizarSummaryEnDom(items) {
   });
 }
 
-function iniciarMapa(params) {
-  const centro = params.centro_mapa || [-27.3668, -70.3323];
-  const zoom = params.zoom_inicial || 7;
+async function iniciarMapa(params = {}) {
+  const siteConfig = await GeoXViewport.loadSiteViewportConfig(SITE_ID);
+  window.GeoXLocationZoom = Number(siteConfig.locationViewport?.zoom ?? siteConfig.locationZoom ?? siteConfig.defaultViewport?.zoom ?? 11);
 
-  geoQueryRestoreState = resolveViewportRestoreState(SITE_ID);
+  geoQueryRestoreState = null;
   map = L.map("map", {
     zoomControl: true
-  }).setView(centro, zoom);
+  });
   window.geoxMap = map;
-
-  if (!geoQueryRestoreState) initGeoXInitialLocation(map);
 
   osmLayer = L.tileLayer(
     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -605,9 +603,10 @@ function iniciarMapa(params) {
     }
   );
 
-  const initialBasemap = geoQueryRestoreState?.map?.basemap || getInitialBasemapFromUrl() || params.mapa_base || "osm";
-  switchBaseMap(initialBasemap === "sat" ? "sat" : "osm");
-  if (geoQueryRestoreState) restoreMapViewport(map, geoQueryRestoreState);
+  const initialViewport = await GeoXViewport.resolveInitialViewport({ siteId: SITE_ID, siteConfig, urlSearchParams: new URLSearchParams(window.location.search), getGps: getLocationByGps, getIp: getLocationByIp });
+  GeoXViewport.applyResolvedViewport({ map, viewport: initialViewport, setBasemap: switchBaseMap, restoreConsultedCoordinate: (coord) => { if (!coord) return; if (typeof setSelectedPoint === "function") setSelectedPoint(coord.lat, coord.lon, initialViewport.source); else { selectedPoint = { lat: coord.lat, lon: coord.lon, source: initialViewport.source, site: SITE_ID, timestamp: new Date().toISOString() }; window.selectedPoint = selectedPoint; } } });
+  viewportRestoreApplied = ["cross-access", "memory-preview", "geoquery-return"].includes(initialViewport.source);
+  GeoXViewport.installViewportPreviewPersistence({ siteId: SITE_ID, map, getBasemap: () => currentBasemap, getConsultedCoordinate: () => selectedPoint ? { lat: selectedPoint.lat, lon: selectedPoint.lon } : null });
 
   // GEOFACTORY ESCALA GRÁFICA
   L.control.scale({

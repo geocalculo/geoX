@@ -1,0 +1,6 @@
+{
+  "site": "geoipt",
+  "defaultViewport": { "center": { "lat": -27.3668, "lon": -70.3323 }, "zoom": 7, "basemap": "osm" },
+  "locationViewport": { "zoom": 11 },
+  "limits": { "minimumZoom": 0, "maximumZoom": 19 }
+}

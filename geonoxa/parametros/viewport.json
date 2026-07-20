@@ -1,0 +1,6 @@
+{
+  "site": "geonoxa",
+  "defaultViewport": { "center": { "lat": -30.0, "lon": -71.0 }, "zoom": 5, "basemap": "osm" },
+  "locationViewport": { "zoom": 11 },
+  "limits": { "minimumZoom": 0, "maximumZoom": 19 }
+}
