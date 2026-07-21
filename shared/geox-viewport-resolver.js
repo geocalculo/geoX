@@ -8,7 +8,7 @@
     geonoxa: { center: { lat: -30.2303, lon: -71.0858 }, scaleDenominator: 25000, fallbackZoom: 14.25, basemap: "osm" }
   };
   const DEFAULT_CONFIG = { site: "geox", defaultViewport: { center: { lat: -30, lon: -71 }, scaleDenominator: 5000000, fallbackZoom: 5, basemap: "osm" }, locationViewport: { scaleDenominator: 5000000, fallbackZoom: 5, basemap: "osm" }, zoomLimits: { min: 3, max: 19, snap: 0.25 }, limits: { minimumZoom: 0, maximumZoom: 22 } };
-  const finite = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  const finite = (v) => { if (v === null || v === undefined || v === "") return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
   const validLat = (v) => Number.isFinite(v) && v >= -90 && v <= 90;
   const validLon = (v) => Number.isFinite(v) && v >= -180 && v <= 180;
   const getLimit = (cfg, key, fallback) => {
@@ -106,23 +106,93 @@
     const zoom = Number.isFinite(configured.zoom) ? configured.zoom : (Number.isFinite(calculatedZoom) ? calculatedZoom : configured.fallbackZoom);
     return canon({ source: "site-default", center: { ...configured.center }, zoom: clampZoom(zoom, getLimit(cfg, "minimumZoom", 0), getLimit(cfg, "maximumZoom", 22)), basemap: configured.basemap, consultedCoordinate: null, scaleDenominator: configured.scaleDenominator }, siteId, cfg);
   }
-  async function resolveInitialViewport({ siteId, siteConfig, urlSearchParams, getGps, getIp }) { const p = urlSearchParams || new URLSearchParams(location.search); for (const v of [parseCrossAccessViewport(p, siteId, siteConfig), parseGeoQueryReturnViewport(p, siteId, siteConfig), loadSiteViewportPreview(siteId, siteConfig)]) if (isValidViewport(v, siteConfig)) return v; const permission = await getLocationPermissionState(); log(siteId, "Estado del permiso", permission); if (permission === "granted") { const gps = await tryGetGpsViewport(siteId, siteConfig, getGps); if (isValidViewport(gps, siteConfig)) return gps; const ip = await tryGetIpViewport(siteId, siteConfig, getIp); if (isValidViewport(ip, siteConfig)) return ip; } const def = buildDefaultViewport(siteId, siteConfig); log(siteId, "JSON por defecto utilizado", def); return def; }
-  function applyResolvedViewport({ map, viewport, setBasemap, restoreConsultedCoordinate }) {
-    if (map.__geoxInitialViewportApplied) {
-      if (DEBUG_VIEWPORT) console.warn("[Viewport Init] Blocked viewport override", { functionName: "applyResolvedViewport", requestedCenter: viewport.center, requestedZoom: viewport.zoom });
-      return;
+  function getInitialRegion(siteId, cfg) {
+    const defaults = {
+      geoipt: "Región Metropolitana de Santiago",
+      geoeva: "Región de Antofagasta",
+      geonemo: "Región de Los Lagos",
+      geonoxa: "Región de Coquimbo"
+    };
+    return cfg?.initialRegion || defaults[siteId] || "";
+  }
+  function readCrossAccessViewport(params = new URLSearchParams(location.search)) {
+    const isCrossAccess = params.get("from") === "crossaccess" || params.get("crossAccess") === "1";
+    if (!isCrossAccess) return null;
+    const centerLat = finite(params.get("mapCenterLat")) ?? finite(params.get("lat"));
+    const centerLon = finite(params.get("mapCenterLon")) ?? finite(params.get("lon"));
+    const zoom = finite(params.get("mapZoom")) ?? finite(params.get("zoom"));
+    return {
+      centerLat,
+      centerLon,
+      zoom,
+      basemap: normalizeBasemap(params.get("basemap"), "osm"),
+      isValid: validLat(centerLat) && validLon(centerLon) && Number.isFinite(zoom)
+    };
+  }
+  function normalizeRegionName(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/^region metropolitana de santiago$/, "metropolitana")
+      .replace(/^region de /, "")
+      .replace(/^region /, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function findRegionOption(regionSelector, configuredRegion) {
+    const target = normalizeRegionName(configuredRegion);
+    return Array.from(regionSelector?.options || []).find((option) => {
+      return normalizeRegionName(option.textContent) === target || normalizeRegionName(option.value) === target;
+    }) || null;
+  }
+  async function waitForRegionSelector(regionSelector, timeoutMs = 4000) {
+    const started = Date.now();
+    while (regionSelector && regionSelector.options.length === 0 && Date.now() - started < timeoutMs) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
+    return regionSelector;
+  }
+  async function selectAndZoomInitialRegion({ siteId, siteConfig, regionSelector, executeExistingRegionSearch }) {
+    const configuredRegion = getInitialRegion(siteId, siteConfig);
+    await waitForRegionSelector(regionSelector);
+    const matchingOption = findRegionOption(regionSelector, configuredRegion);
+    if (!matchingOption) {
+      console.error("[Initial Viewport] Región predeterminada no encontrada:", configuredRegion);
+      return false;
+    }
+    regionSelector.value = matchingOption.value;
+    await executeExistingRegionSearch(matchingOption.value, { source: "initialization" });
+    return true;
+  }
+  async function initializeInitialViewport({ map, siteId, siteConfig, regionSelector, executeExistingRegionSearch, applyBasemap }) {
+    const crossAccessViewport = readCrossAccessViewport(new URLSearchParams(location.search));
+
+    if (crossAccessViewport?.isValid) {
+      if (typeof applyBasemap === "function") applyBasemap(crossAccessViewport.basemap);
+      map.setView([crossAccessViewport.centerLat, crossAccessViewport.centerLon], crossAccessViewport.zoom, { animate: false });
+      map.__geoxInitialViewportApplied = true;
+      map.__geoxInitialViewport = { source: "cross-access", center: { lat: crossAccessViewport.centerLat, lon: crossAccessViewport.centerLon }, zoom: crossAccessViewport.zoom, basemap: crossAccessViewport.basemap };
+      console.info("[Viewport Init] Source: cross-access");
+      return true;
+    }
+
+    if (typeof applyBasemap === "function") applyBasemap("osm");
+    const selected = await selectAndZoomInitialRegion({ siteId, siteConfig, regionSelector, executeExistingRegionSearch });
+    map.__geoxInitialViewportApplied = selected;
+    map.__geoxInitialViewport = { source: "initial-region", region: getInitialRegion(siteId, siteConfig), basemap: "osm" };
+    return selected;
+  }
+  async function resolveInitialViewport({ siteId, siteConfig, urlSearchParams }) { const p = urlSearchParams || new URLSearchParams(location.search); const cross = readCrossAccessViewport(p); if (cross?.isValid) return canon({ source: "cross-access", center: { lat: cross.centerLat, lon: cross.centerLon }, zoom: cross.zoom, basemap: cross.basemap, consultedCoordinate: null }, siteId, siteConfig); return buildDefaultViewport(siteId, siteConfig); }
+  function applyResolvedViewport({ map, viewport, setBasemap, restoreConsultedCoordinate }) {
+    if (map.__geoxInitialViewportApplied) return;
     if (typeof setBasemap === "function") setBasemap(viewport.basemap);
     map.setView([viewport.center.lat, viewport.center.lon], viewport.zoom, { animate: false });
     map.__geoxInitialViewportApplied = true;
     map.__geoxInitialViewport = viewport;
     if (typeof restoreConsultedCoordinate === "function") restoreConsultedCoordinate(viewport.consultedCoordinate || viewport.queryPoint);
-    console.info("[Viewport Init] Source:", viewport.source);
-    console.info("[Viewport Init] Center:", viewport.center);
-    console.info("[Viewport Init] Zoom:", viewport.zoom);
-    console.info("[Viewport Init] Basemap:", viewport.basemap);
   }
   function debounce(fn, wait) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); }; }
   function installViewportPreviewPersistence({ siteId, map, getBasemap, getConsultedCoordinate }) { const save = debounce(() => { const c = map.getCenter(); saveSiteViewportPreview(siteId, { center: { lat: c.lat, lon: c.lng }, zoom: map.getZoom(), basemap: normalizeBasemap(typeof getBasemap === "function" ? getBasemap() : "osm"), consultedCoordinate: typeof getConsultedCoordinate === "function" ? getConsultedCoordinate() : null }); }, 250); map.on("moveend zoomend", save); global.addEventListener("beforeunload", save); return save; }
-  global.GeoXViewport = { VIEWPORT_PRIORITY, DEBUG_VIEWPORT, normalizeBasemap, calculateLeafletZoomForScale, clampZoom, validateViewportConfig, buildDefaultViewport, loadSiteViewportConfig, resolveInitialViewport, applyResolvedViewport, installViewportPreviewPersistence, saveSiteViewportPreview, loadSiteViewportPreview, isValidViewport };
+  global.GeoXViewport = { VIEWPORT_PRIORITY, DEBUG_VIEWPORT, normalizeBasemap, calculateLeafletZoomForScale, clampZoom, validateViewportConfig, buildDefaultViewport, loadSiteViewportConfig, readCrossAccessViewport, normalizeRegionName, findRegionOption, waitForRegionSelector, selectAndZoomInitialRegion, initializeInitialViewport, resolveInitialViewport, applyResolvedViewport, installViewportPreviewPersistence, saveSiteViewportPreview, loadSiteViewportPreview, isValidViewport };
 })(window);

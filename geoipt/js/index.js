@@ -8,10 +8,12 @@ let selectedPoint = null;
 let geoqueryToastTimeoutId = null;
 let selectedFeatureContext = null;
 const SITE_ID = "geoipt";
+const SITE_CONFIG = { initialRegion: "Región Metropolitana de Santiago" };
 const CROSS_ACCESS_PARAM_NAME = "from";
 const CROSS_ACCESS_PARAM_VALUE = "crossaccess";
 
 let viewportRestoreApplied = false;
+let initialViewportCompleted = false;
 let geoQueryRestoreState = null;
 
 function toFiniteNumber(value) {
@@ -160,7 +162,8 @@ function isCrossAccessNavigationFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return (
     params.get(CROSS_ACCESS_PARAM_NAME) === CROSS_ACCESS_PARAM_VALUE ||
-    params.get("source") === CROSS_ACCESS_PARAM_VALUE
+    params.get("source") === CROSS_ACCESS_PARAM_VALUE ||
+    params.get("crossAccess") === "1"
   );
 }
 
@@ -534,6 +537,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentInitStep = "carga_capas";
     initGeoXCrossPortalNavigation();
     await cargarRegionesSelector(params);
+    await GeoXViewport.initializeInitialViewport({ map, siteId: SITE_ID, siteConfig: window.geoxSiteConfig, regionSelector: document.getElementById("region-selector"), executeExistingRegionSearch: moverViewportPorRegion, applyBasemap: switchBaseMap });
+    initialViewportCompleted = true;
+    viewportRestoreApplied = GeoXViewport.readCrossAccessViewport(new URLSearchParams(window.location.search))?.isValid === true;
 
     currentInitStep = "eventos";
     conectarEventos();
@@ -748,7 +754,7 @@ async function iniciarMapa(params = {}) {
     throw new Error("Contenedor #map no disponible");
   }
 
-  const siteConfig = normalizeGeoIptConfig(params);
+  const siteConfig = { ...normalizeGeoIptConfig(params), ...SITE_CONFIG };
   window.GeoXLocationZoom = Number(siteConfig.locationViewport?.fallbackZoom ?? siteConfig.locationViewport?.zoom ?? siteConfig.defaultViewport?.fallbackZoom ?? siteConfig.defaultViewport?.zoom ?? 11);
 
   geoQueryRestoreState = null;
@@ -786,14 +792,8 @@ async function iniciarMapa(params = {}) {
   );
 
   currentInitStep = "resolucion_viewport";
-  const initialViewport = await resolveGeoIptInitialViewportSafely({ siteId: SITE_ID, siteConfig, urlSearchParams: new URLSearchParams(window.location.search), getGps: getLocationByGps, getIp: getLocationByIp });
   currentInitStep = "aplicacion_viewport";
-  applyResolvedViewport(map, initialViewport);
-  if (initialViewport.consultedCoordinate) setSelectedPoint(initialViewport.consultedCoordinate.lat, initialViewport.consultedCoordinate.lon, initialViewport.source);
-  viewportRestoreApplied = ["cross-access", "memory"].includes(initialViewport.source);
-  if (window.GeoXViewport?.installViewportPreviewPersistence) {
-    GeoXViewport.installViewportPreviewPersistence({ siteId: SITE_ID, map, getBasemap: () => currentBasemap, getConsultedCoordinate: () => selectedPoint ? { lat: selectedPoint.lat, lon: selectedPoint.lon } : null });
-  }
+  window.geoxSiteConfig = siteConfig;
 
   // GEOFACTORY ESCALA GRÁFICA
   L.control.scale({
