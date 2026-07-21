@@ -826,7 +826,7 @@ async function iniciarMapa() {
 
   const initialViewport = await GeoXViewport.resolveInitialViewport({ siteId: SITE_ID, siteConfig, urlSearchParams: new URLSearchParams(window.location.search), getGps: getLocationByGps, getIp: getLocationByIp });
   GeoXViewport.applyResolvedViewport({ map, viewport: initialViewport, setBasemap: switchBaseMap, restoreConsultedCoordinate: (coord) => { if (!coord) return; if (typeof setSelectedPoint === "function") setSelectedPoint(coord.lat, coord.lon, initialViewport.source); else { selectedPoint = { lat: coord.lat, lon: coord.lon, source: initialViewport.source, site: SITE_ID, timestamp: new Date().toISOString() }; window.selectedPoint = selectedPoint; } } });
-  viewportRestoreApplied = ["cross-access", "memory-preview", "geoquery-return"].includes(initialViewport.source);
+  viewportRestoreApplied = ["cross-access", "memory"].includes(initialViewport.source);
   GeoXViewport.installViewportPreviewPersistence({ siteId: SITE_ID, map, getBasemap: () => currentBasemap, getConsultedCoordinate: () => selectedPoint ? { lat: selectedPoint.lat, lon: selectedPoint.lon } : null });
   initGeoNEMOSummary(map);
   initGeoNemoPanelLayers(map);

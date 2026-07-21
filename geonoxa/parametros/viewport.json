@@ -2,7 +2,10 @@
   "site": "geonoxa",
   "defaultLocationLabel": "Andacollo",
   "defaultViewport": {
-    "center": { "lat": -30.2303, "lon": -71.0858 },
+    "center": {
+      "lat": -30.2303,
+      "lon": -71.0858
+    },
     "scaleDenominator": 25000,
     "fallbackZoom": 14.25,
     "basemap": "osm"
@@ -12,5 +15,18 @@
     "fallbackZoom": 14.25,
     "basemap": "osm"
   },
-  "zoomLimits": { "min": 3, "max": 19, "snap": 0.25 }
+  "zoomLimits": {
+    "min": 3,
+    "max": 19,
+    "snap": 0.25
+  },
+  "initialViewport": {
+    "center": {
+      "lat": -30.2303,
+      "lon": -71.0858
+    },
+    "zoom": 14.25,
+    "referenceScale": "1:25.000",
+    "basemap": "osm"
+  }
 }
