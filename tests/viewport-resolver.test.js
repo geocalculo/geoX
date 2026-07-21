@@ -18,7 +18,7 @@ async function resolve(api, query, opts={}) { return api.resolveInitialViewport(
   assert.equal(v.source, 'cross-access'); assert.equal(v.zoom, 9);
   api = createApi({ preview, permission: 'granted' });
   v = await resolve(api, 'from=crossaccess&mapCenterLat=999&mapCenterLon=-2&mapZoom=9');
-  assert.equal(v.source, 'memory-preview');
+  assert.equal(v.source, 'memory');
   api = createApi({ permission: 'granted' });
   v = await resolve(api, '', { getGps: async () => ({ lat: -33, lon: -70 }) });
   assert.equal(v.source, 'gps'); assert.ok(v.zoom > 14 && v.zoom < 15);

@@ -790,7 +790,7 @@ async function iniciarMapa(params = {}) {
   currentInitStep = "aplicacion_viewport";
   applyResolvedViewport(map, initialViewport);
   if (initialViewport.consultedCoordinate) setSelectedPoint(initialViewport.consultedCoordinate.lat, initialViewport.consultedCoordinate.lon, initialViewport.source);
-  viewportRestoreApplied = ["cross-access", "memory-preview", "geoquery-return"].includes(initialViewport.source);
+  viewportRestoreApplied = ["cross-access", "memory"].includes(initialViewport.source);
   if (window.GeoXViewport?.installViewportPreviewPersistence) {
     GeoXViewport.installViewportPreviewPersistence({ siteId: SITE_ID, map, getBasemap: () => currentBasemap, getConsultedCoordinate: () => selectedPoint ? { lat: selectedPoint.lat, lon: selectedPoint.lon } : null });
   }
