@@ -969,9 +969,10 @@ function initGeoXCrossPortalNavigation() {
 document.addEventListener("DOMContentLoaded", async () => {
   await iniciarMapa();
   initGeoQueryClickPropagationGuards();
+  applyBasemap("osm");
   await cargarRegionesSelector();
   conectarRegionSelector();
-  await GeoXViewport.initializeInitialViewport({ map, siteId: SITE_ID, siteConfig: window.geoxSiteConfig, regionSelector: document.getElementById("region-selector"), executeExistingRegionSearch: moverViewportPorRegion, applyBasemap: switchBaseMap });
+  await initializeGeoEVARegionalViewport();
   initialViewportCompleted = true;
   viewportRestoreApplied = GeoXViewport.readCrossAccessViewport(new URLSearchParams(window.location.search))?.isValid === true;
   conectarBaseMapToggle();
@@ -1005,6 +1006,7 @@ async function iniciarMapa() {
   });
 
   window.geoxSiteConfig = siteConfig;
+  applyBasemap("osm");
   initGeoEVASummary(map);
 
   L.control.scale({
@@ -1308,7 +1310,7 @@ function scheduleEvaPanelViewportUpdate() {
 // CARGA regiones.json
 async function cargarRegionesSelector() {
   const selector = document.getElementById("region-selector");
-  if (!selector) return;
+  if (!selector) return null;
 
   try {
     const response = await fetch(REGIONES_PATH);
@@ -1330,10 +1332,84 @@ async function cargarRegionesSelector() {
       option.textContent = region.nombre || "Región sin nombre";
       selector.appendChild(option);
     });
+
+    console.info(
+      "[GeoEVA Init] Opciones regionales:",
+      [...selector.options].map((option) => ({
+        text: option.textContent,
+        value: option.value
+      }))
+    );
+
+    return selector;
   } catch (error) {
     regionesSelector = [];
     console.warn("GEOFACTORY SELECTOR REGIÓN: regiones.json no disponible. Se mantiene el selector actual como respaldo.", error);
+    return selector;
   }
+}
+
+function normalizeRegionName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/^region de /, "")
+    .replace(/^region /, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findAntofagastaOption(selectElement) {
+  return [...(selectElement?.options || [])].find((option) => {
+    const normalizedText = normalizeRegionName(option.textContent);
+    return normalizedText === "antofagasta";
+  }) || null;
+}
+
+async function initializeAntofagastaRegion() {
+  const regionSelector = document.getElementById("region-selector");
+  const option = findAntofagastaOption(regionSelector);
+
+  if (!option) {
+    console.error("[GeoEVA Init] No se encontró Región de Antofagasta");
+    return false;
+  }
+
+  regionSelector.value = option.value;
+
+  console.info("[GeoEVA Init] Región aplicada:", {
+    text: option.textContent,
+    value: option.value,
+    selectedValue: regionSelector.value
+  });
+
+  await moverViewportPorRegion(option.value, { source: "initialization" });
+  return true;
+}
+
+async function initializeGeoEVARegionalViewport() {
+  const crossViewport = GeoXViewport.readCrossAccessViewport(new URLSearchParams(window.location.search));
+
+  if (crossViewport?.isValid) {
+    applyBasemap(crossViewport.basemap);
+    map.setView([crossViewport.centerLat, crossViewport.centerLon], crossViewport.zoom, { animate: false });
+    map.__geoxInitialViewportApplied = true;
+    map.__geoxInitialViewport = {
+      source: "cross-access",
+      center: { lat: crossViewport.centerLat, lon: crossViewport.centerLon },
+      zoom: crossViewport.zoom,
+      basemap: crossViewport.basemap
+    };
+    console.info("[GeoEVA Init] Source: cross-access");
+    return true;
+  }
+
+  applyBasemap("osm");
+  const selected = await initializeAntofagastaRegion();
+  map.__geoxInitialViewportApplied = selected;
+  map.__geoxInitialViewport = { source: "initial-region", region: "Región de Antofagasta", basemap: "osm" };
+  return selected;
 }
 
 function conectarRegionSelector() {
@@ -1387,6 +1463,26 @@ function getBaseMapButton(type) {
   return Array.from(document.querySelectorAll("button")).find(
     (button) => button.textContent.trim().toLowerCase() === type
   );
+}
+
+function applyBasemap(name = "osm") {
+  if (!map || !osmLayer || !satLayer) return;
+
+  const normalized = name === "sat" ? "sat" : "osm";
+  const layer = normalized === "sat" ? satLayer : osmLayer;
+  const previousLayer = normalized === "sat" ? osmLayer : satLayer;
+
+  if (map.hasLayer(previousLayer)) {
+    map.removeLayer(previousLayer);
+  }
+
+  if (layer && !map.hasLayer(layer)) {
+    layer.addTo(map);
+  }
+
+  currentBaseLayer = layer;
+  currentBasemap = normalized;
+  setBaseMapToggleActive(currentBasemap);
 }
 
 function switchBaseMap(type) {
