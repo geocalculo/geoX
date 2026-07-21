@@ -7,10 +7,12 @@ let initialCrossAccessState = null;
 let selectedPoint = null;
 let selectedFeatureContext = null;
 const SITE_ID = "geoeva";
+const SITE_CONFIG = { initialRegion: "Región de Antofagasta" };
 const CROSS_ACCESS_PARAM_NAME = "from";
 const CROSS_ACCESS_PARAM_VALUE = "crossaccess";
 
 let viewportRestoreApplied = false;
+let initialViewportCompleted = false;
 let geoQueryRestoreState = null;
 
 function toFiniteNumber(value) {
@@ -402,7 +404,8 @@ function isCrossAccessNavigationFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return (
     params.get(CROSS_ACCESS_PARAM_NAME) === CROSS_ACCESS_PARAM_VALUE ||
-    params.get("source") === CROSS_ACCESS_PARAM_VALUE
+    params.get("source") === CROSS_ACCESS_PARAM_VALUE ||
+    params.get("crossAccess") === "1"
   );
 }
 
@@ -964,10 +967,13 @@ function initGeoXCrossPortalNavigation() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  iniciarMapa();
+  await iniciarMapa();
   initGeoQueryClickPropagationGuards();
   await cargarRegionesSelector();
   conectarRegionSelector();
+  await GeoXViewport.initializeInitialViewport({ map, siteId: SITE_ID, siteConfig: window.geoxSiteConfig, regionSelector: document.getElementById("region-selector"), executeExistingRegionSearch: moverViewportPorRegion, applyBasemap: switchBaseMap });
+  initialViewportCompleted = true;
+  viewportRestoreApplied = GeoXViewport.readCrossAccessViewport(new URLSearchParams(window.location.search))?.isValid === true;
   conectarBaseMapToggle();
   initGeoXMyLocationButton(map);
   initGeoXCrossPortalNavigation();
@@ -978,7 +984,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function iniciarMapa() {
-  const siteConfig = await GeoXViewport.loadSiteViewportConfig(SITE_ID);
+  const siteConfig = { ...(await GeoXViewport.loadSiteViewportConfig(SITE_ID)), ...SITE_CONFIG };
   window.GeoXLocationZoom = Number(siteConfig.locationViewport?.fallbackZoom ?? siteConfig.locationViewport?.zoom ?? siteConfig.defaultViewport?.fallbackZoom ?? siteConfig.defaultViewport?.zoom ?? 11);
 
   geoQueryRestoreState = null;
@@ -998,10 +1004,7 @@ async function iniciarMapa() {
     attribution: "Tiles © Esri"
   });
 
-  const initialViewport = await GeoXViewport.resolveInitialViewport({ siteId: SITE_ID, siteConfig, urlSearchParams: new URLSearchParams(window.location.search), getGps: getLocationByGps, getIp: getLocationByIp });
-  GeoXViewport.applyResolvedViewport({ map, viewport: initialViewport, setBasemap: switchBaseMap, restoreConsultedCoordinate: (coord) => { if (!coord) return; if (typeof setSelectedPoint === "function") setSelectedPoint(coord.lat, coord.lon, initialViewport.source); else { selectedPoint = { lat: coord.lat, lon: coord.lon, source: initialViewport.source, site: SITE_ID, timestamp: new Date().toISOString() }; window.selectedPoint = selectedPoint; } } });
-  viewportRestoreApplied = ["cross-access", "memory"].includes(initialViewport.source);
-  GeoXViewport.installViewportPreviewPersistence({ siteId: SITE_ID, map, getBasemap: () => currentBasemap, getConsultedCoordinate: () => selectedPoint ? { lat: selectedPoint.lat, lon: selectedPoint.lon } : null });
+  window.geoxSiteConfig = siteConfig;
   initGeoEVASummary(map);
 
   L.control.scale({
