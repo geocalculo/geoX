@@ -77,17 +77,13 @@ function registrarConsultaD1(datos) {
         : null,
       basemap: normalizarBasemapRegistroD1(datos.basemap),
       origen: datos.origen === "cross_access" ? "cross_access" : "directo",
-      estado: "ok"
+      estado: "ok",
+      metadata: datos.metadata || {},
+      session_id: window.GeocalculoTelemetry?.obtenerSessionId?.() || null,
+      journey_id: window.GeocalculoTelemetry?.obtenerJourneyId?.() || null
     })
   })
-    .then((response) => {
-      if (!response.ok) {
-        console.warn("[GeoQuery D1] Registro no confirmado:", response.status);
-      }
-    })
-    .catch((error) => {
-      console.warn("[GeoQuery D1] Servicio de registro no disponible:", error);
-    });
+    .catch(() => {});
 }
 
 function buildReturnUrl(lat, lon, zoom, basemap, viewLat, viewLon) {
