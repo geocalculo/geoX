@@ -2184,6 +2184,57 @@
       return { site: "GeoIPT", documentName: "GeoQuery | GeoIPT", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features, debugTheme: false };
     }
 
+
+    const REGISTRO_API_URL = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/registro";
+    let consultaRegistradaD1 = false;
+
+    function normalizarBasemapRegistroD1(value) {
+      return String(value || "osm").toLowerCase() === "sat" ? "SAT" : "OSM";
+    }
+
+    function normalizarTextoRegistroD1(value) {
+      const text = String(value ?? "").trim();
+      return text ? text : null;
+    }
+
+    function registrarConsultaD1(datos) {
+      if (consultaRegistradaD1) {
+        return;
+      }
+
+      consultaRegistradaD1 = true;
+
+      void fetch(REGISTRO_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        keepalive: true,
+        body: JSON.stringify({
+          tipo_evento: "consulta",
+          sitio: datos.sitio,
+          latitud: Number(datos.latitud),
+          longitud: Number(datos.longitud),
+          region: normalizarTextoRegistroD1(datos.region),
+          comuna: normalizarTextoRegistroD1(datos.comuna),
+          zoom: Number.isFinite(Number(datos.zoom))
+            ? Number(datos.zoom)
+            : null,
+          basemap: normalizarBasemapRegistroD1(datos.basemap),
+          origen: datos.origen === "cross_access" ? "cross_access" : "directo",
+          estado: "ok"
+        })
+      })
+        .then((response) => {
+          if (!response.ok) {
+            console.warn("[GeoQuery D1] Registro no confirmado:", response.status);
+          }
+        })
+        .catch((error) => {
+          console.warn("[GeoQuery D1] Servicio de registro no disponible:", error);
+        });
+    }
+
     window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
 
 
@@ -2487,6 +2538,16 @@
           window.geoQueryState.exportState = { pdfEnabled: Boolean(selectedFeatureResult), kmlEnabled: Boolean(selectedFeatureResult) };
           setGeoQueryKmlExport(buildGeoIptMapExport(selectedFeatureResult));
           elements.cardStatus.textContent = selectedFeatureResult ? "Resuelto" : "Sin resultados";
+          registrarConsultaD1({
+            sitio: "geoipt",
+            latitud: lat,
+            longitud: lon,
+            region: window.__geoiptReportModel?.query?.region,
+            comuna: window.__geoiptReportModel?.query?.commune,
+            zoom: geoQueryMap.getZoom(),
+            basemap: currentBasemap,
+            origen: from === "crossaccess" ? "cross_access" : "directo"
+          });
         })
         .catch(error => {
           console.warn("[GeoQuery GeoIPT] error buscando feature relacionada", error);
@@ -2498,6 +2559,16 @@
           elements.cardStatus.textContent = "Error de análisis";
           elements.cardStatus.classList.remove("status-ok");
           elements.cardStatus.classList.add("status-error");
+          registrarConsultaD1({
+            sitio: "geoipt",
+            latitud: lat,
+            longitud: lon,
+            region: null,
+            comuna: null,
+            zoom: geoQueryMap.getZoom(),
+            basemap: currentBasemap,
+            origen: from === "crossaccess" ? "cross_access" : "directo"
+          });
         });
 
       L.control.scale({

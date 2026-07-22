@@ -1562,6 +1562,57 @@
       return { site: "geoeva", documentName: "GeoQuery | GeoEVA", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
     }
 
+
+    const REGISTRO_API_URL = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/registro";
+    let consultaRegistradaD1 = false;
+
+    function normalizarBasemapRegistroD1(value) {
+      return String(value || "osm").toLowerCase() === "sat" ? "SAT" : "OSM";
+    }
+
+    function normalizarTextoRegistroD1(value) {
+      const text = String(value ?? "").trim();
+      return text ? text : null;
+    }
+
+    function registrarConsultaD1(datos) {
+      if (consultaRegistradaD1) {
+        return;
+      }
+
+      consultaRegistradaD1 = true;
+
+      void fetch(REGISTRO_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        keepalive: true,
+        body: JSON.stringify({
+          tipo_evento: "consulta",
+          sitio: datos.sitio,
+          latitud: Number(datos.latitud),
+          longitud: Number(datos.longitud),
+          region: normalizarTextoRegistroD1(datos.region),
+          comuna: normalizarTextoRegistroD1(datos.comuna),
+          zoom: Number.isFinite(Number(datos.zoom))
+            ? Number(datos.zoom)
+            : null,
+          basemap: normalizarBasemapRegistroD1(datos.basemap),
+          origen: datos.origen === "cross_access" ? "cross_access" : "directo",
+          estado: "ok"
+        })
+      })
+        .then((response) => {
+          if (!response.ok) {
+            console.warn("[GeoQuery D1] Registro no confirmado:", response.status);
+          }
+        })
+        .catch((error) => {
+          console.warn("[GeoQuery D1] Servicio de registro no disponible:", error);
+        });
+    }
+
     window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
 
     (async function initGeoQuery() {
@@ -1890,6 +1941,17 @@
         elements.visualCaption.textContent = baseApprovedCluster.length
           ? `Punto consultado y ${baseApprovedCluster.length} proyectos aprobados cercanos. Radio: ${formatLength(radiusMeters)}.`
           : "Punto consultado. Sin proyectos aprobados disponibles.";
+
+        registrarConsultaD1({
+          sitio: "geoeva",
+          latitud: lat,
+          longitud: lon,
+          region: null,
+          comuna: null,
+          zoom: geoQueryMap.getZoom(),
+          basemap: currentBasemap,
+          origen: from === "crossaccess" ? "cross_access" : "directo"
+        });
       } catch (error) {
         console.error("[GeoQuery GeoEVA] error al cargar proyectos", error);
         document.getElementById("geoquery-related-features-panel").innerHTML = `<h3>Proyectos relacionados</h3><div class="message">No se pudo cargar el GeoJSON nacional de proyectos.</div>`;
