@@ -3,6 +3,7 @@ let osmLayer;
 let satLayer;
 let currentBaseLayer;
 let currentBasemap = "osm";
+window.currentBasemap = currentBasemap;
 let initialCrossAccessState = null;
 let selectedPoint = null;
 let geoqueryToastTimeoutId = null;
@@ -769,11 +770,12 @@ async function iniciarMapa(params = {}) {
       minZoom: Number.isFinite(minZoom) ? minZoom : 3,
       maxZoom: Number.isFinite(maxZoom) ? maxZoom : 19
     });
+  window.map = map;
+  window.geoxMap = map;
   } catch (error) {
     currentInitStep = "map_creation_failed";
     throw error;
   }
-  window.geoxMap = map;
 
   osmLayer = L.tileLayer(
     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -1026,6 +1028,7 @@ function switchBaseMap(type) {
     if (osmLayer && !map.hasLayer(osmLayer)) osmLayer.addTo(map);
     currentBaseLayer = osmLayer;
     currentBasemap = "osm";
+    window.currentBasemap = currentBasemap;
   }
 
   if (type === "sat") {
@@ -1033,6 +1036,7 @@ function switchBaseMap(type) {
     if (satLayer && !map.hasLayer(satLayer)) satLayer.addTo(map);
     currentBaseLayer = satLayer;
     currentBasemap = "sat";
+    window.currentBasemap = currentBasemap;
   }
 
   setMapToggleActive(type);

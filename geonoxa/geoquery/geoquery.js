@@ -1072,17 +1072,13 @@ function registrarConsultaD1(datos) {
         : null,
       basemap: normalizarBasemapRegistroD1(datos.basemap),
       origen: datos.origen === "cross_access" ? "cross_access" : "directo",
-      estado: "ok"
+      estado: "ok",
+      metadata: datos.metadata || {},
+      session_id: window.GeocalculoTelemetry?.obtenerSessionId?.() || null,
+      journey_id: window.GeocalculoTelemetry?.obtenerJourneyId?.() || null
     })
   })
-    .then((response) => {
-      if (!response.ok) {
-        console.warn("[GeoQuery D1] Registro no confirmado:", response.status);
-      }
-    })
-    .catch((error) => {
-      console.warn("[GeoQuery D1] Servicio de registro no disponible:", error);
-    });
+    .catch(() => {});
 }
 
 function buildReturnUrl(lat,lon,zoom,basemap,viewLat,viewLon){ const sourceParams=new URLSearchParams(window.location.search); const p=new URLSearchParams({from:sourceParams.get("from")==="crossaccess"?"crossaccess":"geoquery",lat:String(lat),lon:String(lon),queryLat:sourceParams.get("queryLat")||String(lat),queryLon:sourceParams.get("queryLon")||String(lon),zoom:String(zoom||sourceParams.get("mapZoom")||14),mapZoom:String(sourceParams.get("mapZoom")||zoom||14),basemap:basemap||"osm"}); const centerLat=sourceParams.get("mapCenterLat")||viewLat, centerLon=sourceParams.get("mapCenterLon")||viewLon; if(Number.isFinite(Number(centerLat))&&Number.isFinite(Number(centerLon))){p.set("viewLat",centerLat);p.set("viewLon",centerLon);p.set("mapCenterLat",centerLat);p.set("mapCenterLon",centerLon)} ["viewWest","viewSouth","viewEast","viewNorth","restoreViewport"].forEach(k=>{const v=sourceParams.get(k); if(v!==null)p.set(k,v)}); return `../index.html?${p}`; }

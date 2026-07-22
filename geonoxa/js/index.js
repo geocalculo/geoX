@@ -3,6 +3,7 @@ let osmLayer;
 let satLayer;
 let currentBaseLayer;
 let currentBasemap = "osm";
+window.currentBasemap = currentBasemap;
 let initialCrossAccessState = null;
 let selectedPoint = null;
 let selectedFeatureContext = null;
@@ -842,6 +843,7 @@ async function iniciarMapa() {
     zoomSnap: siteConfig?.zoomLimits?.snap ?? 0.25,
     zoomDelta: siteConfig?.zoomLimits?.snap ?? 0.25
   });
+  window.map = map;
   window.geoxMap = map;
 
   osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -1529,6 +1531,7 @@ function switchBaseMap(type) {
 
   currentBaseLayer = nextLayer;
   currentBasemap = type === "sat" ? "sat" : "osm";
+  window.currentBasemap = currentBasemap;
   setBaseMapToggleActive(currentBasemap);
   refreshGeoNoxaPanelActiveLayers();
 }
