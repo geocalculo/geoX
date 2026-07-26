@@ -1559,61 +1559,36 @@
       (projectsInsideRadius || []).filter(item => !baseIds.has(item.feature)).forEach((item, i) => { item.rank = baseApprovedCluster.length + i + 1; const name = getGeoEvaProjectKmlName(item, item.rank - 1); const description = buildGeoEvaProjectKmlDescription(item, clusterResult, { additional: true }); const extendedData = buildGeoEvaProjectExtendedData(item, clusterResult, { additional: true }); GeoQueryKmlExporter.addUniqueKmlItem(registry, { id: `geoeva-additional-project-${i+1}`, site: "geoeva", groupId: "additional", role: "related-point", folderId: "additional", type: "point", name, description, geometry: { type: "Point", coordinates: [item.lon, item.lat] }, style: vectorStyle({ fillOpacity: .75, weight: 1 }), extendedData, visible: true }); });
       const features = Array.from(registry.values());
       GeoQueryKmlExporter.validateKmlExportItems(features);
-      return { site: "geoeva", documentName: "GeoQuery | GeoEVA", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
+      return { site: "geoeva", get fileName() { return `geoeva_Consulta_${fechaHoraLocalKml()}.kml`; }, documentName: "GeoQuery | GeoEVA", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
     }
 
 
-    const REGISTRO_API_URL = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/registro";
-    let consultaRegistradaD1 = false;
-
-    function normalizarBasemapRegistroD1(value) {
-      return String(value || "osm").toLowerCase() === "sat" ? "SAT" : "OSM";
+    const ARCHIVO_API_URL = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/archivo";
+    function obtenerConsultaIdGeoQuery() {
+      const consultaId = Number(new URLSearchParams(window.location.search).get("consulta_id"));
+      return Number.isSafeInteger(consultaId) && consultaId > 0 ? consultaId : null;
     }
-
-    function normalizarTextoRegistroD1(value) {
-      const text = String(value ?? "").trim();
-      return text ? text : null;
+    function fechaHoraLocalKml(date = new Date()) {
+      return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0"), String(date.getHours()).padStart(2, "0"), String(date.getMinutes()).padStart(2, "0"), String(date.getSeconds()).padStart(2, "0")].join("");
     }
-
-    function registrarConsultaD1(datos) {
-      if (consultaRegistradaD1) {
+    function registrarKmlDescargado({ blob, name }) {
+      const consultaId = obtenerConsultaIdGeoQuery();
+      if (!consultaId) {
+        console.warn("[GeoCálculo] KML descargado sin consulta_id; no se registra en R2");
         return;
       }
-
-      consultaRegistradaD1 = true;
-
-      void fetch(REGISTRO_API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        keepalive: true,
-        body: JSON.stringify({
-          tipo_evento: "consulta",
-          sitio: datos.sitio,
-          latitud: Number(datos.latitud),
-          longitud: Number(datos.longitud),
-          region: normalizarTextoRegistroD1(datos.region),
-          comuna: normalizarTextoRegistroD1(datos.comuna),
-          zoom: Number.isFinite(Number(datos.zoom))
-            ? Number(datos.zoom)
-            : null,
-          basemap: normalizarBasemapRegistroD1(datos.basemap),
-          origen: datos.origen === "cross_access" ? "cross_access" : "directo",
-          estado: "ok"
-        })
-      })
-        .then((response) => {
-          if (!response.ok) {
-            console.warn("[GeoQuery D1] Registro no confirmado:", response.status);
-          }
-        })
-        .catch((error) => {
-          console.warn("[GeoQuery D1] Servicio de registro no disponible:", error);
-        });
+      const formData = new FormData();
+      formData.append("consulta_id", String(consultaId));
+      formData.append("tipo_archivo", "kml");
+      formData.append("nombre_archivo", name);
+      formData.append("archivo", blob, name);
+      fetch(ARCHIVO_API_URL, { method: "POST", body: formData }).then((response) => {
+        if (!response.ok) throw new Error(`Registro de archivo rechazado (${response.status})`);
+      }).catch((error) => console.warn("[GeoCálculo] No fue posible registrar KML", error));
     }
 
-    window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
+    document.querySelectorAll(".download-button").forEach((button) => { if (/KML/i.test(button.textContent)) button.dataset.geocalculoArchivo = "r2"; });
+    window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport, registrarKmlDescargado);
 
     (async function initGeoQuery() {
       const params = new URLSearchParams(window.location.search);
@@ -1941,17 +1916,6 @@
         elements.visualCaption.textContent = baseApprovedCluster.length
           ? `Punto consultado y ${baseApprovedCluster.length} proyectos aprobados cercanos. Radio: ${formatLength(radiusMeters)}.`
           : "Punto consultado. Sin proyectos aprobados disponibles.";
-
-        registrarConsultaD1({
-          sitio: "geoeva",
-          latitud: lat,
-          longitud: lon,
-          region: null,
-          comuna: null,
-          zoom: geoQueryMap.getZoom(),
-          basemap: currentBasemap,
-          origen: from === "crossaccess" ? "cross_access" : "directo"
-        });
       } catch (error) {
         console.error("[GeoQuery GeoEVA] error al cargar proyectos", error);
         document.getElementById("geoquery-related-features-panel").innerHTML = `<h3>Proyectos relacionados</h3><div class="message">No se pudo cargar el GeoJSON nacional de proyectos.</div>`;
