@@ -1036,7 +1036,13 @@ function buildGeoNoxaZoneExtendedData(metadata, result) {
 
 
 const REGISTRO_API_URL = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/registro";
+const ARCHIVO_API_URL = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/archivo";
+const CONSULTA_ID_STORAGE_KEY = "geocalculo_consulta_id";
 let consultaRegistradaD1 = false;
+
+try {
+  sessionStorage.removeItem(CONSULTA_ID_STORAGE_KEY);
+} catch (_) {}
 
 function normalizarBasemapRegistroD1(value) {
   return String(value || "osm").toLowerCase() === "sat" ? "SAT" : "OSM";
@@ -1078,7 +1084,44 @@ function registrarConsultaD1(datos) {
       journey_id: window.GeocalculoTelemetry?.obtenerJourneyId?.() || null
     })
   })
+    .then((response) => {
+      if (!response.ok) throw new Error(`Registro de consulta rechazado (${response.status})`);
+      return response.json();
+    })
+    .then((result) => {
+      const consultaId = Number(result?.id);
+      if (!Number.isSafeInteger(consultaId) || consultaId <= 0) return;
+      try {
+        sessionStorage.setItem(CONSULTA_ID_STORAGE_KEY, String(consultaId));
+      } catch (_) {}
+    })
     .catch(() => {});
+}
+
+function registrarArchivoGeoCalculo({ consultaId, tipoArchivo, nombreArchivo, archivo }) {
+  const formData = new FormData();
+  formData.append("consulta_id", String(consultaId));
+  formData.append("tipo_archivo", tipoArchivo);
+  formData.append("nombre_archivo", nombreArchivo);
+  formData.append("archivo", archivo, nombreArchivo);
+  return fetch(ARCHIVO_API_URL, { method: "POST", body: formData }).then((response) => {
+    if (!response.ok) throw new Error(`Registro de archivo rechazado (${response.status})`);
+    return response;
+  });
+}
+
+function registrarKmlDescargado({ blob, name }) {
+  let consultaId = null;
+  try {
+    const storedId = Number(sessionStorage.getItem(CONSULTA_ID_STORAGE_KEY));
+    if (Number.isSafeInteger(storedId) && storedId > 0) consultaId = storedId;
+  } catch (_) {}
+  if (!consultaId) {
+    console.warn("[GeoCálculo] KML descargado sin consulta_id; no se registra en R2");
+    return;
+  }
+  registrarArchivoGeoCalculo({ consultaId, tipoArchivo: "kml", nombreArchivo: name, archivo: blob })
+    .catch((error) => console.warn("[GeoCálculo] No fue posible registrar KML", error));
 }
 
 function buildReturnUrl(lat,lon,zoom,basemap,viewLat,viewLon){ const sourceParams=new URLSearchParams(window.location.search); const p=new URLSearchParams({from:sourceParams.get("from")==="crossaccess"?"crossaccess":"geoquery",lat:String(lat),lon:String(lon),queryLat:sourceParams.get("queryLat")||String(lat),queryLon:sourceParams.get("queryLon")||String(lon),zoom:String(zoom||sourceParams.get("mapZoom")||14),mapZoom:String(sourceParams.get("mapZoom")||zoom||14),basemap:basemap||"osm"}); const centerLat=sourceParams.get("mapCenterLat")||viewLat, centerLon=sourceParams.get("mapCenterLon")||viewLon; if(Number.isFinite(Number(centerLat))&&Number.isFinite(Number(centerLon))){p.set("viewLat",centerLat);p.set("viewLon",centerLon);p.set("mapCenterLat",centerLat);p.set("mapCenterLon",centerLon)} ["viewWest","viewSouth","viewEast","viewNorth","restoreViewport"].forEach(k=>{const v=sourceParams.get(k); if(v!==null)p.set(k,v)}); return `../index.html?${p}`; }
@@ -1137,7 +1180,7 @@ function buildGeoNoxaMapExport(relavesResult, zonasResult) {
  }
  const features=Array.from(registry.values()); GeoQueryKmlExporter.validateKmlExportItems(features); return {site:"geonoxa",documentName:"GeoQuery | GeoNOXA",documentDescription:state.executiveSummary,queryPoint:{lat:state.lat,lon:state.lon},folders,features,debugTheme:false};
 }
-window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
+window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport, registrarKmlDescargado);
 
 (async function init(){ const params=new URLSearchParams(location.search); const lat=num(params,"lat"), lon=num(params,"lon"); queryLat=lat; queryLon=lon; const viewLat=num(params,"viewLat")??num(params,"mapCenterLat"), viewLon=num(params,"viewLon")??num(params,"mapCenterLon"), zoom=num(params,"zoom")??num(params,"mapZoom")??14, from=params.get("from"), basemap=(params.get("basemap")||"osm").toLowerCase()==="sat"?"sat":"osm"; const els={back:$("back-link"),status:$("card-status"),groups:$("geoquery-groups"),summary:$("executive-summary"),load:$("groups-load-status")}; if(els.back){ els.back.href=validLatLon(lat,lon)?buildReturnUrl(lat,lon,zoom,basemap,viewLat,viewLon):"../index.html"; els.back.addEventListener("click",event=>{ if(history.length>1){ event.preventDefault(); history.back(); } }); } [[$("card-lat"),lat?.toFixed(6)],[$("card-lon"),lon?.toFixed(6)],[$("card-site"),(params.get("site")||"geonoxa").toUpperCase()],[$("lat-decimal"),lat?.toFixed(6)],[$("lon-decimal"),lon?.toFixed(6)],[$("lat-dms"),Number.isFinite(lat)?dms(lat,"lat"):"—"],[$("lon-dms"),Number.isFinite(lon)?dms(lon,"lon"):"—"]].forEach(([e,v])=>{if(e)e.textContent=v||"—"}); if(!validLatLon(lat,lon)){ if(els.status) els.status.textContent="Coordenada inválida"; return; }
  const map=L.map("geoquery-map",{tap:true,scrollWheelZoom:true}); window.geoQueryLeafletMap = map; const mapEl=$("geoquery-map"); const osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap",crossOrigin:true}); const sat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:20,attribution:"Tiles &copy; Esri",crossOrigin:true}); let currentBasemap=basemap; function setBasemapButtonActive(type){$("geoquery-osm-btn")?.classList.toggle("active",type==="osm");$("geoquery-sat-btn")?.classList.toggle("active",type==="sat");} function setBasemap(type){if(map.hasLayer(osm))map.removeLayer(osm);if(map.hasLayer(sat))map.removeLayer(sat);currentBasemap=type==="sat"?"sat":"osm";(currentBasemap==="sat"?sat:osm).addTo(map);setBasemapButtonActive(currentBasemap);if(window.geoQueryState){window.geoQueryState.basemap=currentBasemap;window.geoQueryState.mapState.basemap=currentBasemap;window.geoQueryState.queryContext.originalViewport.basemap=currentBasemap;if(els.back)els.back.href=buildReturnUrl(lat,lon,zoom,currentBasemap,viewLat,viewLon);}} const toggle=L.DomUtil.create("div","map-toggle"); toggle.innerHTML=`<button id="geoquery-osm-btn" class="map-toggle-btn" type="button" data-map="osm">OSM</button><button id="geoquery-sat-btn" class="map-toggle-btn" type="button" data-map="sat">SAT</button>`; mapEl?.appendChild(toggle); L.DomEvent.disableClickPropagation(toggle); L.DomEvent.disableScrollPropagation(toggle); toggle.querySelector('[data-map="osm"]')?.addEventListener("click",()=>setBasemap("osm")); toggle.querySelector('[data-map="sat"]')?.addEventListener("click",()=>setBasemap("sat")); setBasemap(currentBasemap); map.setView([lat,lon],zoom); const layers={results:L.featureGroup().addTo(map)}; L.circleMarker([lat,lon],{radius:7,weight:3,color:"#111827",fillColor:"#facc15",fillOpacity:.95}).bindPopup("Punto consultado").addTo(map); L.control.scale({metric:true,imperial:false}).addTo(map); setupMobileMapGesture(map, mapEl);

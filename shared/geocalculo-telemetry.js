@@ -214,7 +214,7 @@
       if (downloadButton) {
         const label = downloadButton.textContent || "";
         const tipo = /KML/i.test(label) ? "descarga_kml" : /PDF/i.test(label) ? "descarga_pdf" : null;
-        if (tipo) registrarEventoGeocalculo({ tipoEvento: tipo, origen: "geoquery", estado: "ok", metadata: { accion: "download" } });
+        if (tipo && !(tipo === "descarga_kml" && downloadButton.dataset.geocalculoArchivo === "r2")) registrarEventoGeocalculo({ tipoEvento: tipo, origen: "geoquery", estado: "ok", metadata: { accion: "download" } });
       }
     }, true);
     document.addEventListener("change", (event) => {
