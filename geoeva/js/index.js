@@ -460,13 +460,29 @@ function getInitialBasemapFromUrl() {
 
 let userLocationMarker = null;
 
-function openGeoQueryFromLatLng(lat, lon) {
+const REGISTRO_API_URL = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/registro";
+
+async function registrarConsultaGeoEva({ lat, lon, zoom, basemap, origen }) {
+  const response = await fetch(REGISTRO_API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tipo_evento: "consulta", sitio: SITE_ID, latitud: lat, longitud: lon,
+      region: null, comuna: null, zoom, basemap: String(basemap).toLowerCase() === "sat" ? "SAT" : "OSM",
+      origen, estado: "ok", metadata: {}, session_id: window.GeocalculoTelemetry?.obtenerSessionId?.() || null,
+      journey_id: window.GeocalculoTelemetry?.obtenerJourneyId?.() || null })
+  });
+  if (!response.ok) throw new Error(`Registro de consulta rechazado (${response.status})`);
+  const consultaId = Number((await response.json())?.id);
+  if (!Number.isSafeInteger(consultaId) || consultaId <= 0) throw new Error("El registro de consulta no devolvió un id válido");
+  return consultaId;
+}
+
+async function openGeoQueryFromLatLng(lat, lon) {
   if (!map || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
   const center = map.getCenter();
   const zoom = map.getZoom();
   const basemap = currentBasemap || "osm";
-  const url =
+  const url = new URL(
     `./geoquery/geoquery.html?site=${SITE_ID}` +
     `&lat=${encodeURIComponent(lat)}` +
     `&lon=${encodeURIComponent(lon)}` +
@@ -474,11 +490,17 @@ function openGeoQueryFromLatLng(lat, lon) {
     `&viewLon=${encodeURIComponent(center.lng)}` +
     `&zoom=${encodeURIComponent(zoom)}` +
     `&basemap=${encodeURIComponent(basemap)}` +
-    `&from=index`;
+    `&from=index`, window.location.href);
 
   const originState = captureGeoQueryOriginState({ site: SITE_ID, map, queryLat: lat, queryLon: lon, basemap, from: isCrossAccessNavigationFromUrl() ? "crossaccess" : "index" });
   persistOriginStateBeforeGeoQuery(originState);
-  window.location.href = appendOriginStateToGeoQueryUrl(url, originState);
+  try {
+    const consultaId = await registrarConsultaGeoEva({ lat, lon, zoom, basemap, origen: originState.navigation.crossAccess ? "cross_access" : "directo" });
+    url.searchParams.set("consulta_id", String(consultaId));
+  } catch (error) {
+    console.warn("[GeoCálculo] No fue posible registrar la consulta; GeoQuery se abrirá sin consulta_id", error);
+  }
+  window.location.href = appendOriginStateToGeoQueryUrl(url.toString(), originState);
 }
 
 function captureSelectedPoint(event, featureContext = null) {

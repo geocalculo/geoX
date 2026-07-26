@@ -40,52 +40,6 @@ function getZoomForApproxScale(lat, scaleDenominator = 20000) {
 function getParam(params, key, fallback) { return params.get(key) || fallback; }
 
 
-const REGISTRO_API_URL = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/registro";
-let consultaRegistradaD1 = false;
-
-function normalizarBasemapRegistroD1(value) {
-  return String(value || "osm").toLowerCase() === "sat" ? "SAT" : "OSM";
-}
-
-function normalizarTextoRegistroD1(value) {
-  const text = String(value ?? "").trim();
-  return text ? text : null;
-}
-
-function registrarConsultaD1(datos) {
-  if (consultaRegistradaD1) {
-    return;
-  }
-
-  consultaRegistradaD1 = true;
-
-  void fetch(REGISTRO_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    keepalive: true,
-    body: JSON.stringify({
-      tipo_evento: "consulta",
-      sitio: datos.sitio,
-      latitud: Number(datos.latitud),
-      longitud: Number(datos.longitud),
-      region: normalizarTextoRegistroD1(datos.region),
-      comuna: normalizarTextoRegistroD1(datos.comuna),
-      zoom: Number.isFinite(Number(datos.zoom))
-        ? Number(datos.zoom)
-        : null,
-      basemap: normalizarBasemapRegistroD1(datos.basemap),
-      origen: datos.origen === "cross_access" ? "cross_access" : "directo",
-      estado: "ok",
-      metadata: datos.metadata || {},
-      session_id: window.GeocalculoTelemetry?.obtenerSessionId?.() || null,
-      journey_id: window.GeocalculoTelemetry?.obtenerJourneyId?.() || null
-    })
-  })
-    .catch(() => {});
-}
-
 function buildReturnUrl(lat, lon, zoom, basemap, viewLat, viewLon) {
   if (lat === null || lon === null) return "../index.html";
   const sourceParams = new URLSearchParams(window.location.search);
@@ -901,10 +855,35 @@ function buildGeoNemoMapExport(results) {
   const features = Array.from(registry.values());
   validateNoDuplicateSemanticRoles(features);
   console.table(features.map(item => ({ id: item.id, groupId: item.groupId, role: item.role, name: item.name, geometryType: item.geometry?.type })));
-  return { site: "geonemo", documentName: "GeoQuery | GeoNEMO", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
+  return { site: "geonemo", get fileName() { return `geonemo_Consulta_${fechaHoraLocalKml()}.kml`; }, documentName: "GeoQuery | GeoNEMO", documentDescription: state.executiveSummary, queryPoint: { lat: state.lat, lon: state.lon }, folders, features };
 }
 
-window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport);
+const ARCHIVO_API_URL = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/archivo";
+function obtenerConsultaIdGeoQuery() {
+  const consultaId = Number(new URLSearchParams(window.location.search).get("consulta_id"));
+  return Number.isSafeInteger(consultaId) && consultaId > 0 ? consultaId : null;
+}
+function fechaHoraLocalKml(date = new Date()) {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0"), String(date.getHours()).padStart(2, "0"), String(date.getMinutes()).padStart(2, "0"), String(date.getSeconds()).padStart(2, "0")].join("");
+}
+function registrarKmlDescargado({ blob, name }) {
+  const consultaId = obtenerConsultaIdGeoQuery();
+  if (!consultaId) {
+    console.warn("[GeoCálculo] KML descargado sin consulta_id; no se registra en R2");
+    return;
+  }
+  const formData = new FormData();
+  formData.append("consulta_id", String(consultaId));
+  formData.append("tipo_archivo", "kml");
+  formData.append("nombre_archivo", name);
+  formData.append("archivo", blob, name);
+  fetch(ARCHIVO_API_URL, { method: "POST", body: formData }).then((response) => {
+    if (!response.ok) throw new Error(`Registro de archivo rechazado (${response.status})`);
+  }).catch((error) => console.warn("[GeoCálculo] No fue posible registrar KML", error));
+}
+
+document.querySelectorAll(".download-button").forEach((button) => { if (/KML/i.test(button.textContent)) button.dataset.geocalculoArchivo = "r2"; });
+window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => window.geoQueryState.mapExport, registrarKmlDescargado);
 
 (function initGeoQuery() {
   const params = new URLSearchParams(window.location.search);
@@ -980,6 +959,6 @@ window.geoQueryKmlRefresh = GeoQueryKmlExporter.installGeoQueryKmlButton(() => w
     window.geoQueryKmlRefresh?.();
     const boundsParts = [queryMarker];
     results.forEach((result) => addGroupResultToMap(result, layers, [lat, lon], boundsParts));
-    setTimeout(() => { geoQueryMap.invalidateSize(); const bounds = L.featureGroup(boundsParts).getBounds(); if (bounds.isValid()) geoQueryMap.fitBounds(bounds.pad(0.12), { maxZoom: 14, padding: window.innerWidth <= 560 ? [22, 22] : [36, 36], animate: false }); else geoQueryMap.setView([lat, lon], targetZoom, { animate: false }); const registroFeature = results.find((result) => result?.feature?.region || result?.feature?.commune)?.feature || {}; registrarConsultaD1({ sitio: "geonemo", latitud: lat, longitud: lon, region: registroFeature.region, comuna: registroFeature.commune, zoom: geoQueryMap.getZoom(), basemap: currentBasemap, origen: from === "crossaccess" ? "cross_access" : "directo" }); }, 150);
+    setTimeout(() => { geoQueryMap.invalidateSize(); const bounds = L.featureGroup(boundsParts).getBounds(); if (bounds.isValid()) geoQueryMap.fitBounds(bounds.pad(0.12), { maxZoom: 14, padding: window.innerWidth <= 560 ? [22, 22] : [36, 36], animate: false }); else geoQueryMap.setView([lat, lon], targetZoom, { animate: false }); }, 150);
   })().catch((error) => { console.error("Error al inicializar GeoQuery GeoNEMO", error); elements.summary.textContent = "No fue posible cargar temporalmente el registro de grupos de GeoNEMO."; elements.cardStatus.textContent = "Error"; });
 })();
