@@ -4,11 +4,29 @@
   const km = value => Number.isFinite(value) ? `${value.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km` : "N/D";
   const money = value => Number.isFinite(Number(value)) ? `US$ ${Number(value).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MM` : "Sin información";
   const percent = value => Number.isFinite(value) ? `${value.toLocaleString("es-CL", { maximumFractionDigits: 1 })} %` : "N/D";
-  function setStatus(kind, title, message, step = 0) {
-    document.getElementById("status-title").textContent = title; document.getElementById("status-message").textContent = message;
-    document.querySelector(".spinner").hidden = kind !== "loading"; document.getElementById("loading-steps").hidden = kind !== "loading";
-    document.getElementById("status-back").hidden = kind === "loading";
-    document.querySelectorAll("#loading-steps li").forEach((item, index) => item.classList.toggle("active", index <= step));
+  function setAppState(kind, title = "", message = "", step = 0, map = null) {
+    const loading = kind === "loading";
+    const resolved = kind === "resolved";
+    const statusView = document.getElementById("status-view");
+    const report = document.getElementById("report");
+    const spinner = document.querySelector(".spinner");
+    const loadingSteps = document.getElementById("loading-steps");
+
+    document.documentElement.dataset.appState = kind;
+    document.body.classList.toggle("is-loading", loading);
+    document.getElementById("status-title").textContent = title;
+    document.getElementById("status-message").textContent = message;
+    statusView.hidden = resolved;
+    report.hidden = !resolved;
+    spinner.hidden = !loading;
+    spinner.style.animation = loading ? "" : "none";
+    loadingSteps.hidden = !loading;
+    document.getElementById("status-back").hidden = loading;
+    document.querySelectorAll("#loading-steps li").forEach((item, index) => {
+      item.classList.toggle("active", loading && index <= step);
+    });
+
+    if (resolved && map) requestAnimationFrame(() => map.invalidateSize());
   }
   function kpi(container, label, value, note) { const card = document.createElement("article"); card.className = "kpi-card"; text(card, "span", label); text(card, "strong", value); if (note) text(card, "small", note); container.appendChild(card); }
   function summary(result) {
@@ -26,8 +44,7 @@
     const list = document.getElementById("projects"); list.replaceChildren(); document.getElementById("project-count").textContent = `${result.base.length} proyectos seleccionados`;
     result.base.forEach((item,index) => { const p = item.feature.properties || {}; const article = document.createElement("article"); article.className="project"; text(article,"span",String(index+1),"rank"); const body=document.createElement("div"); body.className="project-body"; text(body,"h3",String(p.nombre_proyecto || "Proyecto sin nombre")); text(body,"p",String(p.titular || "Titular no informado"),"holder"); const tags=document.createElement("div"); tags.className="tags"; [GeoQueryAnalysis.normalizeSector(p.sector), String(p.estado || "Estado no informado"), p.region, p.comuna].filter(Boolean).forEach((v,i)=>text(tags,"span",String(v),i===0?"sector":"")); body.appendChild(tags); article.appendChild(body); const facts=document.createElement("div"); facts.className="project-facts"; text(facts,"strong",km(item.distance_km)); text(facts,"span",money(p.inversion_mmusd));
       if (safeUrl(p.web)) { const link=text(facts,"a","Ver expediente ↗"); link.href=p.web; link.target="_blank"; link.rel="noopener noreferrer"; } article.appendChild(facts); list.appendChild(article); });
-    document.getElementById("status-view").hidden=true; document.getElementById("report").hidden=false;
   }
   function safeUrl(value) { try { const url=new URL(value); return ["http:","https:"].includes(url.protocol); } catch (_) { return false; } }
-  global.GeoQueryRender={ setStatus, render, km };
+  global.GeoQueryRender={ setAppState, render, km };
 })(window);
