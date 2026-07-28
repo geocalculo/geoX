@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GeoQuery 2.0 | GeoEVA</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="css/geoquery2.css">
+</head>
+<body>
+  <header class="masthead">
+    <div><span class="eyebrow">GeoEVA</span><h1>Consulta territorial ambiental</h1><p>GeoQuery 2.0</p></div>
+    <nav class="actions" aria-label="Acciones del reporte">
+      <a id="back-link" class="button secondary" href="../index.html">← Volver</a>
+      <button class="button" disabled title="Disponible en la siguiente entrega">Exportar PDF</button>
+      <button class="button" disabled title="Disponible en la siguiente entrega">Descargar KML</button>
+    </nav>
+  </header>
+  <main>
+    <section id="status-view" class="status-view" aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div><h2 id="status-title">Cargando proyectos</h2>
+      <p id="status-message">Preparando la consulta territorial…</p>
+      <ol id="loading-steps" class="loading-steps"><li class="active">Cargando proyectos</li><li>Calculando distancias</li><li>Construyendo reporte</li></ol>
+      <a id="status-back" class="button secondary" href="../index.html" hidden>Volver a GeoEVA</a>
+    </section>
+    <div id="report" hidden>
+      <section class="report-meta card">
+        <div><span>Coordenadas</span><strong id="coordinates"></strong></div><div><span>Referencia</span><strong>WGS84 / EPSG:4326</strong></div>
+        <div><span>Generado</span><strong id="generated-at"></strong></div><div><span>Estado</span><strong class="resolved">Análisis resuelto</strong></div>
+      </section>
+      <section class="summary card"><span class="section-kicker">Síntesis territorial</span><h2>Lectura ejecutiva del entorno</h2><p id="summary-text"></p></section>
+      <section aria-labelledby="kpi-title"><h2 id="kpi-title" class="sr-only">Indicadores principales</h2><div id="primary-kpis" class="kpi-grid"></div><div id="secondary-kpis" class="compact-grid"></div></section>
+      <section class="card map-section"><div class="section-heading"><div><span class="section-kicker">Contexto geográfico</span><h2>Mapa territorial</h2></div><p>Proyectos aprobados que definen el radio.</p></div><div id="map" aria-label="Mapa del análisis territorial"></div></section>
+      <section class="card"><span class="section-kicker">Indicadores espaciales</span><h2>Relación espacial con los proyectos aprobados</h2><p class="relation-type">Cercanía al punto consultado</p><dl id="spatial-stats" class="stats-grid"></dl></section>
+      <section class="card"><div class="section-heading"><div><span class="section-kicker">Expedientes relacionados</span><h2>10 proyectos aprobados más cercanos</h2></div><p id="project-count"></p></div><div id="projects" class="project-list"></div></section>
+      <section class="card downloads"><div><h2>Descargas</h2><p>PDF y KML estarán disponibles en la siguiente entrega.</p></div><div class="actions"><button class="button" disabled>Exportar PDF</button><button class="button" disabled>Descargar KML</button></div></section>
+    </div>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="js/analysis.js"></script><script src="js/render.js"></script><script src="js/map.js"></script><script src="js/geoquery2.js"></script>
+</body>
+</html>
