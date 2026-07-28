@@ -6,6 +6,27 @@
   const rejected = feature => normalizeStatus(feature.properties?.estado) === "rechazado";
   const qualification = feature => normalizeStatus(feature.properties?.estado) === "en calificación";
   const normalizeSector = value => String(value || "").trim().replace(/\s+/g, " ") || "Sin sector informado";
+  function averageEvaluationBySector(features) {
+    const groups = new Map();
+    features.forEach(feature => {
+      const properties = feature?.properties || {};
+      const sector = String(properties.sector || "").trim().replace(/\s+/g, " ");
+      const months = Number(properties.meses_tramitacion);
+      if (normalizeStatus(properties.estado) !== "aprobado" || !sector || !Number.isFinite(months) || months <= 0) return;
+      const group = groups.get(sector) || { totalMonths: 0, projectCount: 0 };
+      group.totalMonths += months;
+      group.projectCount += 1;
+      groups.set(sector, group);
+    });
+    return [...groups].map(([sector, group]) => ({
+      sector,
+      averageMonths: group.totalMonths / group.projectCount,
+      projectCount: group.projectCount
+    })).sort((a, b) => b.averageMonths - a.averageMonths || a.sector.localeCompare(b.sector, "es")).map(row => ({
+      ...row,
+      averageMonths: Number(row.averageMonths.toFixed(1))
+    }));
+  }
   function coordinates(feature) {
     const pair = feature.geometry?.type === "Point" ? feature.geometry.coordinates : [feature.properties?.lon, feature.properties?.lat];
     const lon = Number(pair?.[0]); const lat = Number(pair?.[1]);
@@ -43,7 +64,8 @@
       rejected: inside.filter(item => rejected(item.feature)).length, inQualification: inside.filter(item => qualification(item.feature)).length,
       totalInvestment: inside.reduce((sum, item) => sum + investment(item.feature), 0), approvedInvestment: inside.filter(item => approved(item.feature)).reduce((sum, item) => sum + investment(item.feature), 0),
       dominantSector, dominantSectorCount, dominantSectorShare: base.length ? dominantSectorCount / base.length * 100 : null, dominant,
+      averageEvaluationBySector: averageEvaluationBySector(features),
       approvedPointStats: pointStats(base), dominantPointStats: pointStats(dominant), approvedPairStats: pairStats(base), dominantPairStats: pairStats(dominant) };
   }
-  global.GeoQueryAnalysis = { run, validCoordinate, normalizeSector, normalizeStatus };
+  global.GeoQueryAnalysis = { run, validCoordinate, normalizeSector, normalizeStatus, averageEvaluationBySector };
 })(window);

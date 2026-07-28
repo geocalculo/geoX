@@ -30,21 +30,22 @@
     if (resolved && map) requestAnimationFrame(() => map.invalidateSize());
   }
   function kpi(container, label, value, note) { const card = document.createElement("article"); card.className = "kpi-card"; text(card, "span", label); text(card, "strong", value); if (note) text(card, "small", note); container.appendChild(card); }
-  function evaluationDays(properties) {
-    for (const key of ["plazo_evaluacion_dias", "dias_evaluacion", "plazo_dias", "evaluation_days"]) {
-      const value = Number(properties?.[key]); if (Number.isFinite(value) && value >= 0) return value;
-    }
-    const start = properties?.fecha_ingreso || properties?.fecha_presentacion;
-    const end = properties?.fecha_calificacion || properties?.fecha_resolucion;
-    const elapsed = new Date(end) - new Date(start);
-    return start && end && Number.isFinite(elapsed) && elapsed >= 0 ? elapsed / 86400000 : null;
-  }
   function renderTiming(result) {
-    const chart = document.getElementById("timing-chart"); chart.replaceChildren(); const groups = new Map();
-    result.inside.forEach(item => { const days=evaluationDays(item.feature.properties); if (!Number.isFinite(days)) return; const sector=GeoQueryAnalysis.normalizeSector(item.feature.properties?.sector); const values=groups.get(sector)||[]; values.push(days); groups.set(sector,values); });
-    const rows=[...groups].map(([sector,values])=>({sector,days:values.reduce((a,b)=>a+b,0)/values.length})).sort((a,b)=>b.days-a.days);
-    if (!rows.length) { text(chart,"p","No hay plazos de evaluación disponibles para los proyectos de este radio.","empty-chart"); return; }
-    const max=rows[0].days; rows.forEach(row=>{const item=document.createElement("div"); item.className="timing-row"; const labels=document.createElement("div"); labels.className="timing-labels"; text(labels,"span",row.sector); text(labels,"strong",`${Math.round(row.days).toLocaleString("es-CL")} días`); const track=document.createElement("div"); track.className="timing-track"; const bar=document.createElement("span"); bar.style.width=`${max ? row.days/max*100 : 0}%`; track.appendChild(bar); item.append(labels,track); chart.appendChild(item); });
+    const chart = document.getElementById("timing-chart"); chart.replaceChildren();
+    const rows = result.averageEvaluationBySector || [];
+    if (!rows.length) { text(chart,"p","No hay plazos de evaluación disponibles.","empty-chart"); return; }
+    const max = rows[0].averageMonths;
+    rows.forEach(row => {
+      const item=document.createElement("div"); item.className="timing-row";
+      if (row.sector === result.dominantSector) item.classList.add("is-dominant");
+      const labels=document.createElement("div"); labels.className="timing-labels";
+      text(labels,"span",row.sector);
+      text(labels,"strong",`${row.averageMonths.toLocaleString("es-CL",{minimumFractionDigits:1,maximumFractionDigits:1})} meses (${row.projectCount.toLocaleString("es-CL")})`);
+      const track=document.createElement("div"); track.className="timing-track";
+      const bar=document.createElement("span"); bar.style.width=`${max ? row.averageMonths/max*100 : 0}%`;
+      const tooltip=`${row.sector}\n\nPromedio:\n${row.averageMonths.toLocaleString("es-CL",{minimumFractionDigits:1,maximumFractionDigits:1})} meses\n\nProyectos utilizados:\n${row.projectCount.toLocaleString("es-CL")}`;
+      item.title=tooltip; item.setAttribute("aria-label",tooltip.replace(/\n+/g," ")); track.appendChild(bar); item.append(labels,track); chart.appendChild(item);
+    });
   }
   function summary(result) {
     const level = result.total >= 15 ? "alta" : result.total >= 8 ? "moderada" : "baja";

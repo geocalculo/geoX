@@ -24,3 +24,19 @@ for (const [lat,lon] of cases) { const query={lat,lon}; const actual=GeoQueryAna
   assert.deepEqual(actual.base.map(x=>x.feature.properties.id),expected.base.map(x=>x.feature.properties.id)); assert.equal(actual.radiusMeters,expected.radius); assert.equal(actual.inside.length,expected.inside.length); assert.equal(actual.dominantSector,expected.sector); assert.equal(actual.dominantSectorShare,expected.share); assert.equal(actual.approvedInvestment,expected.approvedInvestment); assert.equal(actual.approvedPointStats.minKm,expected.min);
   console.log(JSON.stringify({lat,lon,radiusKm:actual.radiusMeters/1000,approved:actual.base.length,total:actual.total,sector:actual.dominantSector,share:actual.dominantSectorShare,investment:actual.approvedInvestment,minKm:actual.approvedPointStats.minKm})); }
 assert.equal(GeoQueryAnalysis.validCoordinate(Number.NaN,-70),false); assert.equal(GeoQueryAnalysis.validCoordinate(-91,-70),false); console.log("GeoQuery 2.0: 4 valid comparisons and invalid-coordinate checks passed.");
+
+const timing = GeoQueryAnalysis.averageEvaluationBySector([
+  { properties: { estado: "Aprobado", sector: "Energía", meses_tramitacion: 12.25 } },
+  { properties: { estado: "Aprobado", sector: " Energía ", meses_tramitacion: 24.35 } },
+  { properties: { estado: "Aprobado", sector: "Minería", meses_tramitacion: 30 } },
+  { properties: { estado: "Rechazado", sector: "Minería", meses_tramitacion: 100 } },
+  { properties: { estado: "Aprobado", sector: "Otros", meses_tramitacion: 0 } },
+  { properties: { estado: "Aprobado", sector: "", meses_tramitacion: 20 } },
+  { properties: { estado: "Aprobado", sector: "Puertos", meses_tramitacion: null } }
+]);
+assert.deepEqual(timing, [
+  { sector: "Minería", averageMonths: 30, projectCount: 1 },
+  { sector: "Energía", averageMonths: 18.3, projectCount: 2 }
+]);
+assert.doesNotMatch(fs.readFileSync("geoeva/geoquery2/js/render.js", "utf8"), /fecha_(presentacion|calificacion)|new Date|dias_evaluacion/);
+console.log("GeoQuery 2.0 timing uses precomputed months, valid approved projects, and descending sector averages.");
