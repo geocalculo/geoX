@@ -25,16 +25,21 @@
       <a id="status-back" class="button secondary" href="../index.html" hidden>Volver a GeoEVA</a>
     </section>
     <div id="report" hidden>
-      <section class="report-meta card">
-        <div><span>Coordenadas</span><strong id="coordinates"></strong></div><div><span>Referencia</span><strong>WGS84 / EPSG:4326</strong></div>
-        <div><span>Generado</span><strong id="generated-at"></strong></div><div><span>Estado</span><strong class="resolved">Análisis resuelto</strong></div>
+      <section class="report-meta card" aria-label="Punto consultado">
+        <div><span>Coordenadas</span><strong id="coordinates"></strong></div><div><span>Sistema de referencia</span><strong>WGS84 / EPSG:4326</strong></div>
+        <div><span>Fecha / Hora</span><strong id="generated-at"></strong></div><div><span>Estado del análisis</span><strong class="resolved">Análisis resuelto</strong></div>
+        <div><span>Radio del análisis</span><strong id="analysis-radius"></strong></div>
       </section>
       <section class="summary card"><span class="section-kicker">Síntesis territorial</span><h2>Lectura ejecutiva del entorno</h2><p id="summary-text"></p></section>
-      <section aria-labelledby="kpi-title"><h2 id="kpi-title" class="sr-only">Indicadores principales</h2><div id="primary-kpis" class="kpi-grid"></div><div id="secondary-kpis" class="compact-grid"></div></section>
-      <section class="card map-section"><div class="section-heading"><div><span class="section-kicker">Contexto geográfico</span><h2>Mapa territorial</h2></div><p>Proyectos aprobados que definen el radio.</p></div><div id="map" aria-label="Mapa del análisis territorial"></div></section>
-      <section class="card"><span class="section-kicker">Indicadores espaciales</span><h2>Relación espacial con los proyectos aprobados</h2><p class="relation-type">Cercanía al punto consultado</p><dl id="spatial-stats" class="stats-grid"></dl></section>
-      <section class="card"><div class="section-heading"><div><span class="section-kicker">Expedientes relacionados</span><h2>10 proyectos aprobados más cercanos</h2></div><p id="project-count"></p></div><div id="projects" class="project-list"></div></section>
-      <section class="card downloads"><div><h2>Descargas</h2><p>PDF y KML estarán disponibles en la siguiente entrega.</p></div><div class="actions"><button class="button" disabled>Exportar PDF</button><button class="button" disabled>Descargar KML</button></div></section>
+      <section class="card projects-map-panel">
+        <div class="projects-column"><span class="section-kicker">Proyectos del entorno</span><h2>10 proyectos aprobados más cercanos</h2><p id="project-count" class="section-note"></p><div id="projects" class="project-list"></div></div>
+        <div class="map-column"><div class="map-heading"><span class="section-kicker">Contexto geográfico</span><h2>Mapa territorial</h2></div><div id="map" aria-label="Mapa del análisis territorial"></div></div>
+      </section>
+      <section class="card indicators-timing-panel">
+        <div class="indicators-column"><span class="section-kicker">Lectura cuantitativa</span><h2 id="kpi-title">Indicadores clave</h2><div id="primary-kpis" class="kpi-grid"></div></div>
+        <div class="timing-column"><span class="section-kicker">Referencia sectorial</span><h2>Plazo promedio de evaluación</h2><div id="timing-chart" class="timing-chart"></div></div>
+      </section>
+      <section class="card spatial-panel"><span class="section-kicker">Relación espacial</span><h2>Relación espacial con los proyectos aprobados</h2><dl id="spatial-stats" class="stats-grid"></dl></section>
     </div>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
