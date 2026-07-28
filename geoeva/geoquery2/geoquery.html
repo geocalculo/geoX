@@ -11,11 +11,6 @@
 <body>
   <header class="masthead">
     <div><span class="eyebrow">GeoEVA</span><h1>Consulta territorial ambiental</h1><p>GeoQuery 2.0</p></div>
-    <nav class="actions" aria-label="Acciones del reporte">
-      <a id="back-link" class="button secondary" href="../index.html">← Volver</a>
-      <button class="button" disabled title="Disponible en la siguiente entrega">Exportar PDF</button>
-      <button class="button" disabled title="Disponible en la siguiente entrega">Descargar KML</button>
-    </nav>
   </header>
   <main>
     <section id="status-view" class="status-view" aria-live="polite">
@@ -26,18 +21,27 @@
     </section>
     <div id="report" hidden>
       <section class="report-meta card" aria-label="Punto consultado">
+        <header class="report-meta-title"><span class="section-kicker">Punto consultado</span><h2>Datos de la consulta</h2></header>
         <div><span>Coordenadas</span><strong id="coordinates"></strong></div><div><span>Sistema de referencia</span><strong>WGS84 / EPSG:4326</strong></div>
         <div><span>Fecha / Hora</span><strong id="generated-at"></strong></div><div><span>Estado del análisis</span><strong class="resolved">Análisis resuelto</strong></div>
         <div><span>Radio del análisis</span><strong id="analysis-radius"></strong></div>
+        <nav class="actions" aria-label="Acciones del reporte">
+          <a id="back-link" class="button secondary" href="../index.html">← Volver</a>
+          <button class="button" disabled title="Disponible en la siguiente entrega">Exportar PDF</button>
+          <button class="button" disabled title="Disponible en la siguiente entrega">Descargar KML</button>
+        </nav>
       </section>
-      <section class="summary card"><span class="section-kicker">Síntesis territorial</span><h2>Lectura ejecutiva del entorno</h2><p id="summary-text"></p></section>
+      <section class="summary card"><span class="section-kicker">Síntesis territorial</span><h2>Lectura ejecutiva del entorno</h2><p id="summary-text"></p><div id="primary-kpis" class="kpi-grid"></div></section>
       <section class="card projects-map-panel">
         <div class="projects-column"><span class="section-kicker">Proyectos del entorno</span><h2>10 proyectos aprobados más cercanos</h2><p id="project-count" class="section-note"></p><div id="projects" class="project-list"></div></div>
         <div class="map-column"><div class="map-heading"><span class="section-kicker">Contexto geográfico</span><h2>Mapa territorial</h2></div><div id="map" aria-label="Mapa del análisis territorial"></div></div>
       </section>
-      <section class="card indicators-timing-panel">
-        <div class="indicators-column"><span class="section-kicker">Lectura cuantitativa</span><h2 id="kpi-title">Indicadores clave</h2><div id="primary-kpis" class="kpi-grid"></div></div>
-        <div class="timing-column"><span class="section-kicker">Referencia sectorial nacional</span><h2>Plazo promedio de evaluación por sector</h2><div class="timing-axis"><span>Eje Y · Sectores</span><span>Eje X · Meses promedio</span></div><div id="timing-chart" class="timing-chart" role="img" aria-label="Plazo promedio de evaluación por sector"></div></div>
+      <section class="card timing-panel">
+        <span class="section-kicker">Comparación local y nacional</span><h2>Plazos de tramitación</h2>
+        <div class="timing-columns">
+          <div class="timing-column"><h3>Plazo promedio en el cluster</h3><p>10 proyectos aprobados más cercanos</p><div id="cluster-timing-chart" class="timing-chart" role="img" aria-label="Plazo promedio en el cluster por sector"></div></div>
+          <div class="timing-column"><h3>Referencia nacional</h3><p>Plazo promedio nacional de los sectores presentes en el cluster</p><div id="national-timing-chart" class="timing-chart" role="img" aria-label="Plazo promedio nacional por sector"></div></div>
+        </div>
       </section>
       <section class="card spatial-panel"><span class="section-kicker">Relación espacial</span><h2>Relación espacial con los proyectos aprobados</h2><dl id="spatial-stats" class="stats-grid"></dl></section>
     </div>

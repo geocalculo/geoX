@@ -27,6 +27,29 @@
       averageMonths: Number(row.averageMonths.toFixed(1))
     }));
   }
+  function evaluationComparisons(base, features) {
+    const clusterSectors = [...new Set(base.map(item => String(item.feature.properties?.sector || "").trim().replace(/\s+/g, " ")).filter(Boolean))];
+    const aggregate = (items, featureOf) => {
+      const groups = new Map();
+      items.forEach(item => {
+        const feature = featureOf(item); const properties = feature?.properties || {};
+        const sector = String(properties.sector || "").trim().replace(/\s+/g, " ");
+        if (!clusterSectors.includes(sector) || properties.meses_tramitacion == null) return;
+        const months = Number(properties.meses_tramitacion); if (!Number.isFinite(months) || months <= 0) return;
+        const group = groups.get(sector) || { totalMonths: 0, projectCount: 0 };
+        group.totalMonths += months; group.projectCount += 1; groups.set(sector, group);
+      });
+      return groups;
+    };
+    const clusterGroups = aggregate(base, item => item.feature);
+    const nationalGroups = aggregate(features.filter(approved), feature => feature);
+    const average = (groups, sector) => { const group = groups.get(sector); return group ? { sector, averageMonths: group.totalMonths / group.projectCount, projectCount: group.projectCount } : { sector, averageMonths: null, projectCount: 0 }; };
+    const order = [...clusterSectors].sort((a, b) => (clusterGroups.get(b)?.totalMonths / clusterGroups.get(b)?.projectCount || -Infinity) - (clusterGroups.get(a)?.totalMonths / clusterGroups.get(a)?.projectCount || -Infinity) || a.localeCompare(b, "es"));
+    const clusterEvaluationBySector = order.map(sector => average(clusterGroups, sector));
+    const nationalEvaluationByClusterSectors = order.map(sector => average(nationalGroups, sector));
+    const sharedEvaluationMax = Math.max(0, ...clusterEvaluationBySector.map(row => row.averageMonths || 0), ...nationalEvaluationByClusterSectors.map(row => row.averageMonths || 0));
+    return { clusterSectors: order, clusterEvaluationBySector, nationalEvaluationByClusterSectors, sharedEvaluationMax };
+  }
   function coordinates(feature) {
     const pair = feature.geometry?.type === "Point" ? feature.geometry.coordinates : [feature.properties?.lon, feature.properties?.lat];
     const lon = Number(pair?.[0]); const lat = Number(pair?.[1]);
@@ -60,11 +83,12 @@
     counts.forEach((count, sector) => { if (count > dominantSectorCount) { dominantSector = sector; dominantSectorCount = count; } });
     const dominant = base.filter(item => normalizeSector(item.feature.properties?.sector) === dominantSector);
     const investment = feature => { const value = Number(feature.properties?.inversion_mmusd); return Number.isFinite(value) ? value : 0; };
+    const evaluation = evaluationComparisons(base, features);
     return { query, base, inside, radiusMeters, total: inside.length, approved: inside.filter(item => approved(item.feature)).length,
       rejected: inside.filter(item => rejected(item.feature)).length, inQualification: inside.filter(item => qualification(item.feature)).length,
       totalInvestment: inside.reduce((sum, item) => sum + investment(item.feature), 0), approvedInvestment: inside.filter(item => approved(item.feature)).reduce((sum, item) => sum + investment(item.feature), 0),
       dominantSector, dominantSectorCount, dominantSectorShare: base.length ? dominantSectorCount / base.length * 100 : null, dominant,
-      averageEvaluationBySector: averageEvaluationBySector(features),
+      ...evaluation,
       approvedPointStats: pointStats(base), dominantPointStats: pointStats(dominant), approvedPairStats: pairStats(base), dominantPairStats: pairStats(dominant) };
   }
   global.GeoQueryAnalysis = { run, validCoordinate, normalizeSector, normalizeStatus, averageEvaluationBySector };
