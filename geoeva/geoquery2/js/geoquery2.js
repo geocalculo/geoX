@@ -1,0 +1,14 @@
+(async function () {
+  "use strict";
+  const DATA_URL="../capas_geoquery/geoeva_geoquery_proyectos.geojson"; const params=new URLSearchParams(location.search);
+  const first=(...keys)=>{for(const key of keys){const value=params.get(key);if(value!==null&&value!=="")return value;}return null;};
+  const lat=Number.parseFloat(first("lat","queryLat")); const lon=Number.parseFloat(first("lon","queryLon")); const query={lat,lon};
+  function returnUrl(){if(!GeoQueryAnalysis.validCoordinate(lat,lon))return "../index.html"; const back=new URLSearchParams({from:first("from")==="crossaccess"?"crossaccess":"geoquery",lat:String(lat),lon:String(lon),queryLat:first("queryLat")||String(lat),queryLon:first("queryLon")||String(lon),zoom:first("mapZoom","zoom")||"14",mapZoom:first("mapZoom","zoom")||"14",basemap:first("basemap")||"osm"}); const centerLat=first("mapCenterLat","viewLat"),centerLon=first("mapCenterLon","viewLon"); if(Number.isFinite(Number(centerLat))&&Number.isFinite(Number(centerLon))){back.set("viewLat",centerLat);back.set("viewLon",centerLon);back.set("mapCenterLat",centerLat);back.set("mapCenterLon",centerLon);} ["viewWest","viewSouth","viewEast","viewNorth","restoreViewport"].forEach(k=>{if(params.has(k))back.set(k,params.get(k));}); return `../index.html?${back}`;}
+  const back=returnUrl(); document.getElementById("back-link").href=back; document.getElementById("status-back").href=back;
+  if(!GeoQueryAnalysis.validCoordinate(lat,lon)){GeoQueryRender.setStatus("invalid","Coordenadas inválidas","La consulta necesita latitud entre −90 y 90 y longitud entre −180 y 180. No se cargaron datos ni se inició el mapa.");return;}
+  try { GeoQueryRender.setStatus("loading","Cargando proyectos","Leyendo la fuente nacional de proyectos.",0); const response=await fetch(DATA_URL); if(!response.ok)throw new Error(`GeoJSON HTTP ${response.status}`); const data=await response.json(); const features=Array.isArray(data.features)?data.features:[];
+    GeoQueryRender.setStatus("loading","Calculando distancias","Aplicando las reglas vigentes de GeoQuery.",1); await new Promise(resolve=>requestAnimationFrame(resolve)); const result=GeoQueryAnalysis.run(query,features);
+    if(!result.base.length){GeoQueryRender.setStatus("empty","Sin proyectos aprobados válidos","No fue posible construir el grupo base con la fuente disponible.");return;}
+    GeoQueryRender.setStatus("loading","Construyendo reporte","Preparando indicadores y mapa territorial.",2); await new Promise(resolve=>requestAnimationFrame(resolve)); GeoQueryRender.render(result,{generatedAt:new Date()}); GeoQueryMap.render(result,(first("basemap")||"osm").toLowerCase()); window.geoQuery2State={status:"resolved",source:DATA_URL,result};
+  } catch(error){console.error("[GeoQuery 2.0] Error de análisis",error);GeoQueryRender.setStatus("error","No fue posible completar el análisis",`Las coordenadas recibidas fueron ${lat.toFixed(6)}, ${lon.toFixed(6)}. Intenta nuevamente.`);}
+})();
