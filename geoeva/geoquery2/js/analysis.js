@@ -6,6 +6,12 @@
   const rejected = feature => normalizeStatus(feature.properties?.estado) === "rechazado";
   const qualification = feature => normalizeStatus(feature.properties?.estado) === "en calificación";
   const normalizeSector = value => String(value || "").trim().replace(/\s+/g, " ") || "Sin sector informado";
+  const validInvestment = feature => {
+    const raw = feature?.properties?.inversion_mmusd;
+    if (raw == null || (typeof raw === "string" && !raw.trim())) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  };
   function averageEvaluationBySector(features) {
     const groups = new Map();
     features.forEach(feature => {
@@ -100,13 +106,32 @@
       inversionAprobadaGrupoBase: totalInvestment
     };
   }
+  function investmentDistribution(base) {
+    const sectors = new Map();
+    let validProjectCount = 0;
+    base.forEach(item => {
+      const value = validInvestment(item.feature);
+      if (value == null) return;
+      const sector = normalizeSector(item.feature.properties?.sector);
+      sectors.set(sector, (sectors.get(sector) || 0) + value);
+      validProjectCount += 1;
+    });
+    const total = [...sectors.values()].reduce((sum, value) => sum + value, 0);
+    const rows = [...sectors].map(([sector, investment]) => ({
+      sector,
+      investment,
+      percentage: total ? investment / total * 100 : 0
+    })).sort((a, b) => b.investment - a.investment || a.sector.localeCompare(b.sector, "es"));
+    return { rows, total, validProjectCount, excludedProjectCount: base.length - validProjectCount };
+  }
   function run(query, features) {
     const measured = features.map(feature => distance(query, feature)).filter(Boolean);
     const base = measured.filter(item => approved(item.feature)).sort((a, b) => a.distance_km - b.distance_km).slice(0, 10);
     const radiusMeters = base.length ? base[base.length - 1].distance_m : null;
     const inside = Number.isFinite(radiusMeters) ? measured.filter(item => item.distance_m <= radiusMeters) : [];
-    const investment = feature => { const value = Number(feature.properties?.inversion_mmusd); return Number.isFinite(value) ? value : 0; };
+    const investment = feature => validInvestment(feature) ?? 0;
     const sectorMetrics = sectorIndicators(base, investment);
+    const baseInvestmentDistribution = investmentDistribution(base);
     const dominantByQuantity = base.filter(item => normalizeSector(item.feature.properties?.sector) === sectorMetrics.sectorDominanteCantidad.nombre);
     const approvedInside = inside.filter(item => approved(item.feature));
     const approvedInvestment = approvedInside.reduce((sum, item) => sum + investment(item.feature), 0);
@@ -115,8 +140,9 @@
       rejected: inside.filter(item => rejected(item.feature)).length, inQualification: inside.filter(item => qualification(item.feature)).length,
       totalInvestment: inside.reduce((sum, item) => sum + investment(item.feature), 0), approvedInvestment,
       ...sectorMetrics,
+      baseInvestmentDistribution,
       ...evaluation,
       approvedPointStats: pointStats(base), dominantQuantityPointStats: pointStats(dominantByQuantity), approvedPairStats: pairStats(base), dominantQuantityPairStats: pairStats(dominantByQuantity) };
   }
-  global.GeoQueryAnalysis = { run, validCoordinate, normalizeSector, normalizeStatus, averageEvaluationBySector };
+  global.GeoQueryAnalysis = { run, validCoordinate, normalizeSector, normalizeStatus, averageEvaluationBySector, investmentDistribution };
 })(window);

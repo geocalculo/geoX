@@ -29,19 +29,61 @@
 
   }
   function kpi(container, label, value, note) { const card = document.createElement("article"); card.className = "kpi-card"; text(card, "span", label); text(card, "strong", value); if (note) text(card, "small", note); container.appendChild(card); }
-  function renderTiming(chartId, rows, max, emptyMessage) {
-    const chart = document.getElementById(chartId); chart.replaceChildren();
-    if (!rows.some(row => Number.isFinite(row.averageMonths))) { text(chart,"p",emptyMessage,"empty-chart"); return; }
-    rows.forEach(row => {
-      const item=document.createElement("div"); item.className="timing-row";
-      const labels=document.createElement("div"); labels.className="timing-labels";
-      text(labels,"span",row.sector);
-      text(labels,"strong",Number.isFinite(row.averageMonths) ? `${row.averageMonths.toLocaleString("es-CL",{minimumFractionDigits:1,maximumFractionDigits:1})} meses (${row.projectCount.toLocaleString("es-CL")})` : "Sin datos");
-      const track=document.createElement("div"); track.className="timing-track";
-      const bar=document.createElement("span"); bar.style.width=`${max && Number.isFinite(row.averageMonths) ? row.averageMonths/max*100 : 0}%`;
-      const tooltip=Number.isFinite(row.averageMonths) ? `${row.sector}\n\nPromedio:\n${row.averageMonths.toLocaleString("es-CL",{minimumFractionDigits:1,maximumFractionDigits:1})} meses\n\nProyectos utilizados:\n${row.projectCount.toLocaleString("es-CL")}` : `${row.sector}: Sin datos`;
-      item.title=tooltip; item.setAttribute("aria-label",tooltip.replace(/\n+/g," ")); track.appendChild(bar); item.append(labels,track); chart.appendChild(item);
+  const timingValue = row => Number.isFinite(row?.averageMonths) ? `${row.averageMonths.toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} meses (${row.projectCount.toLocaleString("es-CL")})` : "Sin datos";
+  function renderTiming(rows, nationalRows, max) {
+    const chart = document.getElementById("timing-comparison-chart"); chart.replaceChildren();
+    if (![...rows, ...nationalRows].some(row => Number.isFinite(row.averageMonths))) { text(chart, "p", "No existen datos válidos de tramitación para comparar.", "empty-chart"); return; }
+    const nationalBySector = new Map(nationalRows.map(row => [row.sector, row]));
+    rows.forEach(cluster => {
+      const national = nationalBySector.get(cluster.sector) || { sector: cluster.sector, averageMonths: null, projectCount: 0 };
+      const group = document.createElement("div"); group.className = "timing-group";
+      text(group, "h3", cluster.sector, "timing-sector");
+      [["Clúster", cluster, "cluster"], ["Nacional", national, "national"]].forEach(([label, row, kind]) => {
+        const line = document.createElement("div"); line.className = `timing-bar-line ${kind}`;
+        text(line, "span", label, "timing-series-label");
+        const track = document.createElement("div"); track.className = "timing-track";
+        const barWidth = max && Number.isFinite(row.averageMonths) ? row.averageMonths / max * 100 : 0;
+        const bar = document.createElement("span"); bar.className = "timing-bar"; bar.style.width = `${barWidth}%`;
+        const value = text(track, "strong", timingValue(row), "timing-value");
+        value.style.setProperty("--bar-end", `${barWidth}%`);
+        track.prepend(bar); line.append(track); group.append(line);
+        const tooltip = `${cluster.sector} · ${label}: ${timingValue(row)}`;
+        line.title = tooltip; line.setAttribute("aria-label", tooltip); value.setAttribute("aria-hidden", "true");
+      });
+      chart.appendChild(group);
     });
+  }
+  function visibleInvestmentRows(rows) {
+    if (rows.length <= 6) return rows;
+    const leading = rows.slice(0, 5); const rest = rows.slice(5);
+    const investment = rest.reduce((sum, row) => sum + row.investment, 0);
+    const total = rows.reduce((sum, row) => sum + row.investment, 0);
+    return [...leading, { sector: "Otros sectores", investment, percentage: total ? investment / total * 100 : 0 }];
+  }
+  function renderInvestment(distribution) {
+    const chart = document.getElementById("investment-chart"); chart.replaceChildren();
+    const rows = visibleInvestmentRows(distribution.rows);
+    if (!rows.length || !distribution.total) { text(chart, "p", "No existe inversión válida informada en el grupo base.", "empty-chart"); return; }
+    const colors = ["#0b5f55", "#d97706", "#3d7f94", "#735b8f", "#74a66a", "#b65f5f"];
+    const visual = document.createElement("div"); visual.className = "donut-wrap";
+    const donut = document.createElementNS("http://www.w3.org/2000/svg", "svg"); donut.setAttribute("viewBox", "0 0 160 160"); donut.setAttribute("class", "donut"); donut.setAttribute("aria-hidden", "true");
+    const radius = 58; const circumference = 2 * Math.PI * radius; let offset = 0;
+    rows.forEach((row, index) => {
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      const length = row.investment / distribution.total * circumference;
+      circle.setAttribute("cx", "80"); circle.setAttribute("cy", "80"); circle.setAttribute("r", String(radius)); circle.setAttribute("fill", "none"); circle.setAttribute("stroke", colors[index]); circle.setAttribute("stroke-width", "24"); circle.setAttribute("stroke-dasharray", `${length} ${circumference - length}`); circle.setAttribute("stroke-dashoffset", String(-offset));
+      offset += length; donut.appendChild(circle);
+    });
+    const center = document.createElement("div"); center.className = "donut-center"; text(center, "span", "Inversión total"); text(center, "strong", money(distribution.total));
+    visual.append(donut, center);
+    const legend = document.createElement("ul"); legend.className = "investment-legend";
+    rows.forEach((row, index) => {
+      const item = document.createElement("li"); const heading = document.createElement("div");
+      const swatch = document.createElement("i"); swatch.style.backgroundColor = colors[index]; heading.append(swatch); text(heading, "strong", row.sector); item.append(heading);
+      text(item, "span", `${money(row.investment)} · ${percent(row.percentage)}`);
+      item.title = `${row.sector}\n${money(row.investment)}\n${percent(row.percentage)}`; legend.appendChild(item);
+    });
+    chart.append(visual, legend);
   }
   function summary(result) {
     const dominantInvestment = result.sectorDominanteInversion;
@@ -52,8 +94,8 @@
     document.getElementById("summary-text").textContent = summary(result); document.getElementById("analysis-radius").textContent=km(result.radiusMeters/1000);
     const primary = document.getElementById("primary-kpis"); primary.replaceChildren();
     kpi(primary, "Proyectos aprobados", String(result.base.length), "Grupo base más cercano"); kpi(primary, "Inversión aprobada", money(result.inversionAprobadaGrupoBase), "Grupo base más cercano"); kpi(primary, "Sector dominante por cantidad", result.sectorDominanteCantidad.nombre, `${result.sectorDominanteCantidad.cantidad} proyectos · ${percent(result.sectorDominanteCantidad.porcentaje)}`); kpi(primary, "Sector dominante por inversión", result.sectorDominanteInversion.nombre, `${money(result.sectorDominanteInversion.inversion)} · ${percent(result.sectorDominanteInversion.porcentaje)}`); kpi(primary,"Total dentro del radio",String(result.total)); kpi(primary,"Proyecto más cercano",km(result.approvedPointStats.minKm));
-    renderTiming("cluster-timing-chart", result.clusterEvaluationBySector, result.sharedEvaluationMax, "No existen datos válidos de tramitación para los proyectos del cluster.");
-    renderTiming("national-timing-chart", result.nationalEvaluationByClusterSectors, result.sharedEvaluationMax, "No existen datos nacionales válidos para los sectores del cluster.");
+    renderTiming(result.clusterEvaluationBySector, result.nationalEvaluationByClusterSectors, result.sharedEvaluationMax);
+    renderInvestment(result.baseInvestmentDistribution);
     const centroid = result.base.length ? `${(result.base.reduce((sum,item)=>sum+item.lat,0)/result.base.length).toFixed(6)}, ${(result.base.reduce((sum,item)=>sum+item.lon,0)/result.base.length).toFixed(6)}` : "N/D";
     const stats = [["Distancia media al punto", result.approvedPointStats.meanKm], ["Distancia mínima", result.approvedPointStats.minKm], ["Distancia media entre aprobados", result.approvedPairStats.meanKm], ["Distancia mínima entre aprobados", result.approvedPairStats.minKm], ["Distancia media del sector dominante por cantidad", result.dominantQuantityPairStats.meanKm], ["Distancia mínima del sector dominante por cantidad", result.dominantQuantityPairStats.minKm]];
     const dl = document.getElementById("spatial-stats"); dl.replaceChildren(); stats.forEach(([label,value]) => { const wrap = document.createElement("div"); text(wrap,"dt",label); text(wrap,"dd",km(value)); dl.appendChild(wrap); }); const centroidWrap=document.createElement("div"); text(centroidWrap,"dt","Centroide"); text(centroidWrap,"dd",centroid); dl.appendChild(centroidWrap);
