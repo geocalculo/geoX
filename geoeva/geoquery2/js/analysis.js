@@ -73,29 +73,50 @@
     const values = projects.map(project => project.distance_km).filter(Number.isFinite);
     return { count: values.length, minKm: Math.min(...values), meanKm: values.reduce((a, b) => a + b, 0) / values.length, maxKm: Math.max(...values) };
   }
+  function sectorIndicators(base, investment) {
+    const sectors = new Map();
+    base.forEach(item => {
+      const name = normalizeSector(item.feature.properties?.sector);
+      const sector = sectors.get(name) || { nombre: name, cantidad: 0, inversion: 0 };
+      sector.cantidad += 1;
+      sector.inversion += investment(item.feature);
+      sectors.set(name, sector);
+    });
+    const rows = [...sectors.values()];
+    const byQuantity = [...rows].sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre, "es"))[0];
+    const byInvestment = [...rows].sort((a, b) => b.inversion - a.inversion || a.nombre.localeCompare(b.nombre, "es"))[0];
+    const totalInvestment = rows.reduce((sum, sector) => sum + sector.inversion, 0);
+    return {
+      sectorDominanteCantidad: byQuantity ? {
+        nombre: byQuantity.nombre,
+        cantidad: byQuantity.cantidad,
+        porcentaje: byQuantity.cantidad / base.length * 100
+      } : { nombre: "Sin proyectos aprobados disponibles", cantidad: 0, porcentaje: null },
+      sectorDominanteInversion: byInvestment ? {
+        nombre: byInvestment.nombre,
+        inversion: byInvestment.inversion,
+        porcentaje: totalInvestment ? byInvestment.inversion / totalInvestment * 100 : 0
+      } : { nombre: "Sin proyectos aprobados disponibles", inversion: 0, porcentaje: null },
+      inversionAprobadaGrupoBase: totalInvestment
+    };
+  }
   function run(query, features) {
     const measured = features.map(feature => distance(query, feature)).filter(Boolean);
     const base = measured.filter(item => approved(item.feature)).sort((a, b) => a.distance_km - b.distance_km).slice(0, 10);
     const radiusMeters = base.length ? base[base.length - 1].distance_m : null;
     const inside = Number.isFinite(radiusMeters) ? measured.filter(item => item.distance_m <= radiusMeters) : [];
-    const counts = new Map(); base.forEach(item => { const sector = normalizeSector(item.feature.properties?.sector); counts.set(sector, (counts.get(sector) || 0) + 1); });
-    let dominantSector = base.length ? "Sin sector informado" : "Sin proyectos aprobados disponibles"; let dominantSectorCount = 0;
-    counts.forEach((count, sector) => { if (count > dominantSectorCount) { dominantSector = sector; dominantSectorCount = count; } });
-    const dominant = base.filter(item => normalizeSector(item.feature.properties?.sector) === dominantSector);
     const investment = feature => { const value = Number(feature.properties?.inversion_mmusd); return Number.isFinite(value) ? value : 0; };
+    const sectorMetrics = sectorIndicators(base, investment);
+    const dominantByQuantity = base.filter(item => normalizeSector(item.feature.properties?.sector) === sectorMetrics.sectorDominanteCantidad.nombre);
     const approvedInside = inside.filter(item => approved(item.feature));
     const approvedInvestment = approvedInside.reduce((sum, item) => sum + investment(item.feature), 0);
-    const dominantSectorInvestment = approvedInside
-      .filter(item => normalizeSector(item.feature.properties?.sector) === dominantSector)
-      .reduce((sum, item) => sum + investment(item.feature), 0);
     const evaluation = evaluationComparisons(base, features);
     return { query, base, inside, radiusMeters, total: inside.length, approved: inside.filter(item => approved(item.feature)).length,
       rejected: inside.filter(item => rejected(item.feature)).length, inQualification: inside.filter(item => qualification(item.feature)).length,
       totalInvestment: inside.reduce((sum, item) => sum + investment(item.feature), 0), approvedInvestment,
-      dominantSectorInvestment, dominantSectorInvestmentShare: approvedInvestment ? dominantSectorInvestment / approvedInvestment * 100 : 0,
-      dominantSector, dominantSectorCount, dominantSectorShare: base.length ? dominantSectorCount / base.length * 100 : null, dominant,
+      ...sectorMetrics,
       ...evaluation,
-      approvedPointStats: pointStats(base), dominantPointStats: pointStats(dominant), approvedPairStats: pairStats(base), dominantPairStats: pairStats(dominant) };
+      approvedPointStats: pointStats(base), dominantQuantityPointStats: pointStats(dominantByQuantity), approvedPairStats: pairStats(base), dominantQuantityPairStats: pairStats(dominantByQuantity) };
   }
   global.GeoQueryAnalysis = { run, validCoordinate, normalizeSector, normalizeStatus, averageEvaluationBySector };
 })(window);
