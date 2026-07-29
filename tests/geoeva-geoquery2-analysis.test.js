@@ -25,6 +25,8 @@ function auditedReference(query) {
 }
 for (const [lat,lon] of cases) { const query={lat,lon}; const actual=GeoQueryAnalysis.run(query,features); const expected=auditedReference(query);
   assert.deepEqual(actual.base.map(x=>x.feature.properties.id),expected.base.map(x=>x.feature.properties.id)); assert.equal(actual.radiusMeters,expected.radius); assert.equal(actual.inside.length,expected.inside.length); assert.deepEqual(actual.sectorDominanteCantidad,expected.quantity); assert.deepEqual(actual.sectorDominanteInversion,expected.investment); assert.equal(actual.inversionAprobadaGrupoBase,expected.totalInvestment); assert.equal(actual.approvedPointStats.minKm,expected.min);
+  assert.equal(actual.baseInvestmentDistribution.total, actual.inversionAprobadaGrupoBase);
+  assert.deepEqual(actual.baseInvestmentDistribution.rows.map(row=>row.sector), [...actual.baseInvestmentDistribution.rows].sort((a,b)=>b.investment-a.investment||a.sector.localeCompare(b.sector,"es")).map(row=>row.sector));
   console.log(JSON.stringify({lat,lon,radiusKm:actual.radiusMeters/1000,approved:actual.base.length,total:actual.total,sectorCantidad:actual.sectorDominanteCantidad,sectorInversion:actual.sectorDominanteInversion,inversion:actual.inversionAprobadaGrupoBase,minKm:actual.approvedPointStats.minKm})); }
 
 // Regression: the leader by project count must not leak into the investment indicator.
@@ -36,6 +38,7 @@ const divergent = GeoQueryAnalysis.run({lat:-33,lon:-70}, divergentFeatures);
 assert.deepEqual(divergent.sectorDominanteCantidad, {nombre:"Minería",cantidad:6,porcentaje:60});
 assert.deepEqual(divergent.sectorDominanteInversion, {nombre:"Energía",inversion:100,porcentaje:100/106*100});
 assert.equal(divergent.inversionAprobadaGrupoBase, 106);
+assert.equal(divergent.baseInvestmentDistribution.total, 106);
 assert.equal("dominantSector" in divergent, false);
 assert.equal(GeoQueryAnalysis.validCoordinate(Number.NaN,-70),false); assert.equal(GeoQueryAnalysis.validCoordinate(-91,-70),false); console.log("GeoQuery 2.0: 4 valid comparisons and invalid-coordinate checks passed.");
 
@@ -54,3 +57,20 @@ assert.deepEqual(timing, [
 ]);
 assert.doesNotMatch(fs.readFileSync("geoeva/geoquery2/js/render.js", "utf8"), /fecha_(presentacion|calificacion)|new Date|dias_evaluacion/);
 console.log("GeoQuery 2.0 timing uses precomputed months, valid approved projects, and descending sector averages.");
+
+const investmentDistribution = GeoQueryAnalysis.investmentDistribution([
+  {feature:{properties:{sector:" Energía ",inversion_mmusd:"25.5"}}},
+  {feature:{properties:{sector:"Energía",inversion_mmusd:null}}},
+  {feature:{properties:{sector:"Minería",inversion_mmusd:""}}},
+  {feature:{properties:{sector:"Minería",inversion_mmusd:4.5}}}
+]);
+assert.deepEqual(investmentDistribution, {
+  rows:[
+    {sector:"Energía",investment:25.5,percentage:85},
+    {sector:"Minería",investment:4.5,percentage:15}
+  ],
+  total:30,
+  validProjectCount:2,
+  excludedProjectCount:2
+});
+console.log("GeoQuery 2.0 investment distribution excludes missing values and matches the base-group total.");

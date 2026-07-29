@@ -37,10 +37,17 @@
         <div class="map-column"><div class="map-heading"><span class="section-kicker">Contexto geográfico</span><h2>Mapa territorial</h2></div><div id="map" aria-label="Mapa del análisis territorial"></div></div>
       </section>
       <section class="card timing-panel">
-        <span class="section-kicker">Comparación local y nacional</span><h2>Plazos de tramitación</h2>
-        <div class="timing-columns">
-          <div class="timing-column"><h3>Plazo promedio en el cluster</h3><p>10 proyectos aprobados más cercanos</p><div id="cluster-timing-chart" class="timing-chart" role="img" aria-label="Plazo promedio en el cluster por sector"></div></div>
-          <div class="timing-column"><h3>Referencia nacional</h3><p>Plazo promedio nacional de los sectores presentes en el cluster</p><div id="national-timing-chart" class="timing-chart" role="img" aria-label="Plazo promedio nacional por sector"></div></div>
+        <span class="section-kicker">Comparación local y nacional</span>
+        <div class="comparison-grid">
+          <div class="comparison-column timing-comparison">
+            <h2>Plazos de tramitación</h2><p class="chart-subtitle">Comparación entre el clúster y la referencia nacional</p>
+            <div class="chart-legend timing-legend" aria-label="Leyenda"><span><i class="cluster-swatch"></i>Clúster</span><span><i class="national-swatch"></i>Referencia nacional</span></div>
+            <div id="timing-comparison-chart" class="timing-chart grouped-timing-chart" role="img" aria-label="Comparación de plazos promedio del clúster y la referencia nacional por sector"></div>
+          </div>
+          <div class="comparison-column investment-comparison">
+            <h2>Distribución de la inversión aprobada</h2><p class="chart-subtitle">Participación por sector en el grupo base</p>
+            <div id="investment-chart" class="investment-chart" role="img" aria-label="Distribución de la inversión aprobada por sector"></div>
+          </div>
         </div>
       </section>
       <section class="card spatial-panel"><span class="section-kicker">Relación espacial</span><h2>Relación espacial con los proyectos aprobados</h2><dl id="spatial-stats" class="stats-grid"></dl></section>
