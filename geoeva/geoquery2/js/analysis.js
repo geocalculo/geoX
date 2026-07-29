@@ -83,10 +83,16 @@
     counts.forEach((count, sector) => { if (count > dominantSectorCount) { dominantSector = sector; dominantSectorCount = count; } });
     const dominant = base.filter(item => normalizeSector(item.feature.properties?.sector) === dominantSector);
     const investment = feature => { const value = Number(feature.properties?.inversion_mmusd); return Number.isFinite(value) ? value : 0; };
+    const approvedInside = inside.filter(item => approved(item.feature));
+    const approvedInvestment = approvedInside.reduce((sum, item) => sum + investment(item.feature), 0);
+    const dominantSectorInvestment = approvedInside
+      .filter(item => normalizeSector(item.feature.properties?.sector) === dominantSector)
+      .reduce((sum, item) => sum + investment(item.feature), 0);
     const evaluation = evaluationComparisons(base, features);
     return { query, base, inside, radiusMeters, total: inside.length, approved: inside.filter(item => approved(item.feature)).length,
       rejected: inside.filter(item => rejected(item.feature)).length, inQualification: inside.filter(item => qualification(item.feature)).length,
-      totalInvestment: inside.reduce((sum, item) => sum + investment(item.feature), 0), approvedInvestment: inside.filter(item => approved(item.feature)).reduce((sum, item) => sum + investment(item.feature), 0),
+      totalInvestment: inside.reduce((sum, item) => sum + investment(item.feature), 0), approvedInvestment,
+      dominantSectorInvestment, dominantSectorInvestmentShare: approvedInvestment ? dominantSectorInvestment / approvedInvestment * 100 : 0,
       dominantSector, dominantSectorCount, dominantSectorShare: base.length ? dominantSectorCount / base.length * 100 : null, dominant,
       ...evaluation,
       approvedPointStats: pointStats(base), dominantPointStats: pointStats(dominant), approvedPairStats: pairStats(base), dominantPairStats: pairStats(dominant) };
