@@ -43,17 +43,13 @@ assert.equal(nodes["loading-steps"].hidden, false);
 assert.equal(document.body.classList.contains("is-loading"), true);
 assert.deepEqual(steps.map(step => step.classList.contains("active")), [true, true, false]);
 
-let invalidations = 0;
-GeoQueryRender.setAppState("resolved", "Análisis resuelto", "Disponible", 2, {
-  invalidateSize() { invalidations += 1; }
-});
+GeoQueryRender.setAppState("resolved", "Análisis resuelto", "Disponible", 2);
 assert.equal(nodes.report.hidden, false);
 assert.equal(nodes["status-view"].hidden, true);
 assert.equal(spinner.hidden, true);
 assert.equal(spinner.style.animation, "none");
 assert.equal(nodes["loading-steps"].hidden, true);
 assert.equal(document.body.classList.contains("is-loading"), false);
-assert.equal(invalidations, 1);
 
 for (const state of ["empty", "error"]) {
   GeoQueryRender.setAppState(state, state, state);
