@@ -6,9 +6,11 @@ const calls = [];
 const map = {
   loaded: false,
   setView() { this.loaded = true; calls.push("setView"); return this; },
-  fitBounds() { calls.push("fitBounds"); return this; },
+  fitBounds(bounds, options) { calls.push("fitBounds"); assert.deepEqual(options, { padding: [40, 40], maxZoom: 15 }); return this; },
+  getZoom() { return 10; },
+  getCenter() { return { lat: -33.45, lng: -70.67 }; },
   getContainer() { return { appendChild() {}, addEventListener() {} }; },
-  invalidateSize() {},
+  invalidateSize() { calls.push("invalidateSize"); },
   dragging: { disable() {}, enable() {} }
 };
 function layer(name) {
@@ -21,7 +23,8 @@ function layer(name) {
       assert.equal(this.attached, true, "the analysis circle must belong to an initialized map");
       calls.push("getBounds");
       return {};
-    }
+    },
+    getRadius() { return 1000; }
   };
 }
 function control() { return { onAdd: null, addTo() { return this; } }; }
@@ -35,6 +38,7 @@ global.document = {
 };
 global.matchMedia = () => ({ matches: false });
 global.navigator = { maxTouchPoints: 0 };
+global.requestAnimationFrame = callback => callback();
 global.L = {
   map: () => map,
   tileLayer: () => layer("basemap"),
@@ -50,5 +54,6 @@ GeoQueryMap.render({ query: { lat: -33.45, lon: -70.67 }, radiusMeters: 1000, ba
 
 assert.ok(calls.indexOf("setView") < calls.indexOf("add:circle"));
 assert.ok(calls.indexOf("add:circle") < calls.indexOf("getBounds"));
+assert.ok(calls.indexOf("invalidateSize") < calls.indexOf("fitBounds"));
 assert.ok(calls.indexOf("getBounds") < calls.indexOf("fitBounds"));
 console.log("GeoQuery 2.0 map initializes before fitting the analysis circle.");

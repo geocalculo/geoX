@@ -4,7 +4,7 @@
   const km = value => Number.isFinite(value) ? `${value.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km` : "N/D";
   const money = value => Number.isFinite(Number(value)) ? `US$ ${Number(value).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MM` : "Sin información";
   const percent = value => Number.isFinite(value) ? `${value.toLocaleString("es-CL", { maximumFractionDigits: 1 })} %` : "N/D";
-  function setAppState(kind, title = "", message = "", step = 0, map = null) {
+  function setAppState(kind, title = "", message = "", step = 0) {
     const loading = kind === "loading";
     const resolved = kind === "resolved";
     const statusView = document.getElementById("status-view");
@@ -26,7 +26,6 @@
       item.classList.toggle("active", loading && index <= step);
     });
 
-    if (resolved && map) requestAnimationFrame(() => map.invalidateSize());
   }
   function kpi(container, label, value, note) { const card = document.createElement("article"); card.className = "kpi-card"; text(card, "span", label); text(card, "strong", value); if (note) text(card, "small", note); container.appendChild(card); }
   function renderTiming(chartId, rows, max, emptyMessage) {
