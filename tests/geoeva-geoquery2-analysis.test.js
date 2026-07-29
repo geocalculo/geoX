@@ -13,18 +13,30 @@ vm.runInThisContext(fs.readFileSync("geoeva/geoquery2/js/analysis.js","utf8"));
 const features=JSON.parse(fs.readFileSync("geoeva/capas_geoquery/geoeva_geoquery_proyectos.geojson","utf8")).features;
 const cases=[[-33.4489,-70.6693],[-23.6509,-70.3975],[-36.8201,-73.0444],[-27.1127,-109.3497]];
 
-function legacyReference(query) {
+function auditedReference(query) {
   const status=f=>String(f.properties?.estado||"").trim().toLowerCase(); const isApproved=f=>["aprobado","aprobada","proyecto aprobado"].includes(status(f));
   const measured=features.map(feature=>{const [lon,lat]=feature.geometry.coordinates; const km=haversine([query.lon,query.lat],[lon,lat]); return {feature,lat,lon,distance_km:km,distance_m:km*1000};});
   const base=measured.filter(x=>isApproved(x.feature)).sort((a,b)=>a.distance_km-b.distance_km).slice(0,10); const radius=base.at(-1).distance_m; const inside=measured.filter(x=>x.distance_m<=radius);
-  const counts=new Map(); base.forEach(x=>{const s=String(x.feature.properties.sector||"").trim().replace(/\s+/g," ")||"Sin sector informado";counts.set(s,(counts.get(s)||0)+1);}); let sector="Sin sector informado", count=0; counts.forEach((n,s)=>{if(n>count){sector=s;count=n;}});
-  const approvedInside=inside.filter(x=>isApproved(x.feature)); const approvedInvestment=approvedInside.reduce((s,x)=>s+(Number.isFinite(Number(x.feature.properties.inversion_mmusd))?Number(x.feature.properties.inversion_mmusd):0),0);
-  const sectorInvestment=approvedInside.filter(x=>(String(x.feature.properties.sector||"").trim().replace(/\s+/g," ")||"Sin sector informado")===sector).reduce((s,x)=>s+(Number.isFinite(Number(x.feature.properties.inversion_mmusd))?Number(x.feature.properties.inversion_mmusd):0),0);
-  return {base,radius,inside,sector,share:count/base.length*100,approvedInvestment,sectorInvestment,sectorInvestmentShare:approvedInvestment?sectorInvestment/approvedInvestment*100:0,min:base[0].distance_km};
+  const sectors=new Map(); base.forEach(x=>{const name=String(x.feature.properties.sector||"").trim().replace(/\s+/g," ")||"Sin sector informado"; const row=sectors.get(name)||{nombre:name,cantidad:0,inversion:0}; row.cantidad+=1; row.inversion+=Number(x.feature.properties.inversion_mmusd)||0; sectors.set(name,row);});
+  const rows=[...sectors.values()]; const totalInvestment=rows.reduce((sum,row)=>sum+row.inversion,0);
+  const quantity=[...rows].sort((a,b)=>b.cantidad-a.cantidad||a.nombre.localeCompare(b.nombre,"es"))[0];
+  const investment=[...rows].sort((a,b)=>b.inversion-a.inversion||a.nombre.localeCompare(b.nombre,"es"))[0];
+  return {base,radius,inside,quantity:{nombre:quantity.nombre,cantidad:quantity.cantidad,porcentaje:quantity.cantidad/base.length*100},investment:{nombre:investment.nombre,inversion:investment.inversion,porcentaje:totalInvestment?investment.inversion/totalInvestment*100:0},totalInvestment,min:base[0].distance_km};
 }
-for (const [lat,lon] of cases) { const query={lat,lon}; const actual=GeoQueryAnalysis.run(query,features); const expected=legacyReference(query);
-  assert.deepEqual(actual.base.map(x=>x.feature.properties.id),expected.base.map(x=>x.feature.properties.id)); assert.equal(actual.radiusMeters,expected.radius); assert.equal(actual.inside.length,expected.inside.length); assert.equal(actual.dominantSector,expected.sector); assert.equal(actual.dominantSectorShare,expected.share); assert.equal(actual.approvedInvestment,expected.approvedInvestment); assert.equal(actual.dominantSectorInvestment,expected.sectorInvestment); assert.equal(actual.dominantSectorInvestmentShare,expected.sectorInvestmentShare); assert.equal(actual.approvedPointStats.minKm,expected.min);
-  console.log(JSON.stringify({lat,lon,radiusKm:actual.radiusMeters/1000,approved:actual.base.length,total:actual.total,sector:actual.dominantSector,share:actual.dominantSectorShare,investment:actual.approvedInvestment,minKm:actual.approvedPointStats.minKm})); }
+for (const [lat,lon] of cases) { const query={lat,lon}; const actual=GeoQueryAnalysis.run(query,features); const expected=auditedReference(query);
+  assert.deepEqual(actual.base.map(x=>x.feature.properties.id),expected.base.map(x=>x.feature.properties.id)); assert.equal(actual.radiusMeters,expected.radius); assert.equal(actual.inside.length,expected.inside.length); assert.deepEqual(actual.sectorDominanteCantidad,expected.quantity); assert.deepEqual(actual.sectorDominanteInversion,expected.investment); assert.equal(actual.inversionAprobadaGrupoBase,expected.totalInvestment); assert.equal(actual.approvedPointStats.minKm,expected.min);
+  console.log(JSON.stringify({lat,lon,radiusKm:actual.radiusMeters/1000,approved:actual.base.length,total:actual.total,sectorCantidad:actual.sectorDominanteCantidad,sectorInversion:actual.sectorDominanteInversion,inversion:actual.inversionAprobadaGrupoBase,minKm:actual.approvedPointStats.minKm})); }
+
+// Regression: the leader by project count must not leak into the investment indicator.
+const divergentFeatures = [
+  ...Array.from({length: 6}, (_, index) => ({type:"Feature",properties:{id:`min-${index}`,estado:"Aprobado",sector:"Minería",inversion_mmusd:1},geometry:{type:"Point",coordinates:[-70 + index * .001,-33]}})),
+  ...Array.from({length: 4}, (_, index) => ({type:"Feature",properties:{id:`ene-${index}`,estado:"Aprobado",sector:"Energía",inversion_mmusd:25},geometry:{type:"Point",coordinates:[-70 + (index + 6) * .001,-33]}}))
+];
+const divergent = GeoQueryAnalysis.run({lat:-33,lon:-70}, divergentFeatures);
+assert.deepEqual(divergent.sectorDominanteCantidad, {nombre:"Minería",cantidad:6,porcentaje:60});
+assert.deepEqual(divergent.sectorDominanteInversion, {nombre:"Energía",inversion:100,porcentaje:100/106*100});
+assert.equal(divergent.inversionAprobadaGrupoBase, 106);
+assert.equal("dominantSector" in divergent, false);
 assert.equal(GeoQueryAnalysis.validCoordinate(Number.NaN,-70),false); assert.equal(GeoQueryAnalysis.validCoordinate(-91,-70),false); console.log("GeoQuery 2.0: 4 valid comparisons and invalid-coordinate checks passed.");
 
 const timing = GeoQueryAnalysis.averageEvaluationBySector([
