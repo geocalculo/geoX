@@ -4,6 +4,7 @@
   const km = value => Number.isFinite(value) ? `${value.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km` : "N/D";
   const money = value => Number.isFinite(Number(value)) ? `US$ ${Number(value).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MM` : "Sin información";
   const percent = value => Number.isFinite(value) ? `${value.toLocaleString("es-CL", { maximumFractionDigits: 1 })} %` : "N/D";
+  const wholePercent = value => Number.isFinite(value) ? `${value.toLocaleString("es-CL", { maximumFractionDigits: 0 })} %` : "N/D";
   function setAppState(kind, title = "", message = "", step = 0) {
     const loading = kind === "loading";
     const resolved = kind === "resolved";
@@ -43,8 +44,7 @@
     });
   }
   function summary(result) {
-    const level = result.total >= 15 ? "alta" : result.total >= 8 ? "moderada" : "baja";
-    return `El punto consultado se relaciona con un entorno de concentración ${level} de proyectos ambientales. El análisis identifica ${result.base.length} proyectos aprobados que definen un radio de ${km(result.radiusMeters / 1000)} y ${result.total} proyectos totales dentro de él. El sector ${result.dominantSector} representa el ${percent(result.dominantSectorShare)} del grupo base, mientras la inversión aprobada dentro del radio alcanza ${money(result.approvedInvestment)}. El proyecto aprobado más cercano se localiza a ${km(result.approvedPointStats.minKm)}.`;
+    return `El clúster de análisis concentra una inversión aprobada de ${money(result.approvedInvestment)}, de los cuales el sector ${result.dominantSector} aporta ${money(result.dominantSectorInvestment)}, equivalentes al ${wholePercent(result.dominantSectorInvestmentShare)} de la inversión aprobada, consolidándose como la actividad predominante del entorno. El grupo base está conformado por los 10 proyectos aprobados más cercanos, que definen un radio de análisis de ${km(result.radiusMeters / 1000)}, dentro del cual se registran ${result.total} proyectos sometidos al Sistema de Evaluación de Impacto Ambiental. El proyecto aprobado más cercano se localiza a ${km(result.approvedPointStats.minKm)} del punto consultado.`;
   }
   function render(result, meta) {
     document.getElementById("coordinates").textContent = `${result.query.lat.toFixed(6)}, ${result.query.lon.toFixed(6)}`; document.getElementById("generated-at").textContent = new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short" }).format(meta.generatedAt);
@@ -60,5 +60,5 @@
     result.base.forEach((item,index) => { const p = item.feature.properties || {}; const article = document.createElement("article"); article.className="project"; text(article,"span",String(index+1),"rank"); const fullName=String(p.nombre_proyecto || "Proyecto sin nombre"); const name=safeUrl(p.web)?text(article,"a",fullName,"project-name"):text(article,"span",fullName,"project-name"); name.title=fullName; if(name.tagName==="A"){name.href=p.web;name.target="_blank";name.rel="noopener noreferrer";} text(article,"span",GeoQueryAnalysis.normalizeSector(p.sector),"sector"); text(article,"strong",km(item.distance_km),"project-distance"); list.appendChild(article); });
   }
   function safeUrl(value) { try { const url=new URL(value); return ["http:","https:"].includes(url.protocol); } catch (_) { return false; } }
-  global.GeoQueryRender={ setAppState, render, km };
+  global.GeoQueryRender={ setAppState, render, km, summary };
 })(window);
