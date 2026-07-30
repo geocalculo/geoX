@@ -176,11 +176,11 @@
     if (!map || !mapElement) throw new Error("Mapa Leaflet no disponible");
     const center = typeof map.getCenter === "function" ? map.getCenter() : null;
     const zoom = typeof map.getZoom === "function" ? map.getZoom() : null;
-    const hidden = [...mapElement.querySelectorAll(".leaflet-control-container, .leaflet-control, .map-toggle, .map-touch-hint, [role='tooltip'], .leaflet-tooltip")].map(el => [el, el.style.visibility]);
+    const hidden = [...mapElement.querySelectorAll(".map-toggle, .map-touch-hint, [role='tooltip'], .leaflet-tooltip")].map(el => [el, el.style.visibility]);
     try {
       hidden.forEach(([el]) => { el.style.visibility = "hidden"; });
-      map.invalidateSize({ pan: false, animate: false });
-      await nextFrames(2); await waitForGeoEvaMapTiles(mapElement); await new Promise(r => setTimeout(r, 220));
+      map.invalidateSize(true);
+      await nextFrames(2); await waitForGeoEvaMapTiles(mapElement); await new Promise(r => setTimeout(r, 500));
       const rect = mapElement.getBoundingClientRect(); const width = Math.round(rect.width); const height = Math.round(rect.height);
       if (width <= 0 || height <= 0) throw new Error("Contenedor de mapa sin dimensiones");
       return await window.domtoimage.toPng(mapElement, { width, height, style: { transform: "scale(1)", transformOrigin: "top left" } });
@@ -192,9 +192,18 @@
   }
   function nextFrames(count) { return new Promise(resolve => { const step = n => n <= 0 ? resolve() : requestAnimationFrame(() => step(n - 1)); step(count); }); }
   async function waitForGeoEvaMapTiles(mapElement, timeout = 6000) {
-    const pending = [...mapElement.querySelectorAll(".leaflet-tile")].filter(image => !image.complete);
-    if (!pending.length) return;
+    const tiles = [...mapElement.querySelectorAll(".leaflet-tile")];
+    const pending = tiles.filter(image => !image.complete);
+    if (!pending.length) { if (!tiles.some(image => image.complete && image.naturalWidth !== 0)) throw new Error("No hay teselas válidas disponibles para capturar"); return; }
     await Promise.race([Promise.allSettled(pending.map(image => new Promise(resolve => { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", resolve, { once: true }); }))), new Promise(resolve => setTimeout(resolve, timeout))]);
+    if (![...mapElement.querySelectorAll(".leaflet-tile")].some(image => image.complete && image.naturalWidth !== 0)) throw new Error("Las teselas no terminaron de cargar correctamente");
+  }
+
+  function mapCaptureDiagnostics(map, mapElement) { const rect=mapElement?.getBoundingClientRect?.()||{}; return { basemap:map?.currentBasemap||window.geoQueryState?.basemap, containerSize:{width:rect.width||0,height:rect.height||0}, tileCount:mapElement?.querySelectorAll?.(".leaflet-tile-loaded").length||0, vectorLayerCount:mapElement?.querySelectorAll?.(".leaflet-marker-icon, .leaflet-overlay-pane svg path, .leaflet-overlay-pane canvas").length||0 }; }
+  async function captureGeoEvaMapWithRetry(map,mapElement){
+    let firstError;
+    for(let attempt=1;attempt<=2;attempt+=1){try{if(window.geoQueryMapReadyPromise)await window.geoQueryMapReadyPromise;else if(window.GeoQueryMap?.waitForLeafletMapReady)await window.GeoQueryMap.waitForLeafletMapReady(map);return await captureGeoEvaMapPng({map,mapElement});}catch(error){firstError=firstError||error;console.error("GeoQuery PDF: fallo al capturar mapa",{error,attempt,...mapCaptureDiagnostics(map,mapElement)});if(attempt===1){map?.invalidateSize?.(true);await nextFrames(2);await waitForGeoEvaMapTiles(mapElement).catch(()=>{});}}}
+    throw firstError;
   }
 
   async function captureGeoEvaCharts() {
@@ -330,15 +339,20 @@
   async function renderGeoEvaPdfSection(doc, section, context) { const renderer = PDF_SECTION_RENDERERS[section.type]; if (!renderer) return console.warn("[GeoEVA PDF] Renderizador no disponible", section.type); await renderer(doc, section, context); }
   async function exportGeoEvaPDFDirect({ reportModel, map, mapElement, filename } = {}) {
     let currentPdfStep = "initialization";
+    let staticImage;
     try {
       currentPdfStep = "dependencies"; assertGeoEvaPDFDependencies();
       currentPdfStep = "building_model"; const model = buildGeoEvaPdfModel(reportModel || window.__geoevaReportModel || { state: window.geoQueryState || {} });
-      currentPdfStep = "document"; const doc = createGeoEvaPdfDocument(); const context = createContext(doc, model, map || window.geoQueryLeafletMap, mapElement || document.getElementById("geoquery-map"));
+      currentPdfStep = "document"; const activeMap=map||window.geoQueryLeafletMap; const activeMapElement=mapElement||document.getElementById("map")||document.getElementById("geoquery-map"); const doc = createGeoEvaPdfDocument(); const context = createContext(doc, model, activeMap, activeMapElement);
+      currentPdfStep = "waiting_for_ready_state"; if(window.geoQueryMapReadyPromise)await window.geoQueryMapReadyPromise; if(window.geoQueryChartsReady===false)throw new Error("Los gráficos aún no están listos para exportar");
+      currentPdfStep = "capturing_map"; const mapPng=await captureGeoEvaMapWithRetry(activeMap,activeMapElement); const pointMapSection={mapPng};
+      staticImage=document.createElement("img"); staticImage.src=mapPng; staticImage.alt="Mapa territorial del punto consultado"; staticImage.className="pdf-map-image"; Object.assign(staticImage.style,{width:`${activeMapElement.clientWidth}px`,height:`${activeMapElement.clientHeight}px`,objectFit:"contain"}); activeMapElement.insertAdjacentElement("afterend",staticImage); activeMapElement.style.display="none";
       currentPdfStep = "capturing_charts"; context.capturedCharts = await captureGeoEvaCharts();
-      currentPdfStep = "drawing_sections"; drawDocumentIntro(doc, context); const sections = collectGeoEvaPdfSections(model, context); auditGeoEvaPdfCoverage(model, sections); for (const section of sections) await renderGeoEvaPdfSection(doc, section, context);
+      currentPdfStep = "drawing_sections"; drawDocumentIntro(doc, context); const sections = collectGeoEvaPdfSections(model, context); const mapSection=sections.find(section=>section.type==="point-map"); if(mapSection)Object.assign(mapSection.data,pointMapSection); auditGeoEvaPdfCoverage(model, sections); for (const section of sections) await renderGeoEvaPdfSection(doc, section, context);
       currentPdfStep = "adding_footer"; addPdfHeaderFooterToAllPages(doc, context);
       currentPdfStep = "saving"; const safeFilename = buildFilename(model, filename); doc.save(safeFilename); console.info("[GeoEVA PDF] Descarga solicitada:", safeFilename, { pages: doc.getNumberOfPages() }); return { filename: safeFilename, pages: doc.getNumberOfPages() };
     } catch (error) { console.error("[GeoEVA PDF]", { step: currentPdfStep, message: error?.message, stack: error?.stack, error }); throw error; }
+    finally { if(staticImage){const activeMapElement=mapElement||document.getElementById("map")||document.getElementById("geoquery-map");activeMapElement.style.display="";staticImage.remove();(map||window.geoQueryLeafletMap)?.invalidateSize?.(true);} }
   }
 
   function detailItemsFromPanel(selector) { return [...document.querySelectorAll(`${selector} .detail-row`)].map(row => ({ label: row.querySelector("dt")?.textContent, value: row.querySelector("dd")?.textContent })); }
@@ -408,8 +422,8 @@
 
   let isGeneratingGeoEvaPDF = false;
   function getGeoEvaPdfButtons() { return [...document.querySelectorAll("button.download-button, [data-pdf-button='true']")].filter(button => /PDF/i.test(button.textContent || button.title || "")); }
-  function setGeoEvaPdfButtonsReady() { const ready = Boolean(window.geoQueryState?.exportState?.pdfEnabled || window.geoQueryState?.status === "resolved"); getGeoEvaPdfButtons().forEach(button => { button.disabled = !ready || isGeneratingGeoEvaPDF; button.title = ready ? "Descargar PDF" : "Disponible cuando exista análisis territorial."; button.dataset.pdfButton = "true"; }); }
+  function setGeoEvaPdfButtonsReady() { const analysisReady=Boolean(window.geoQueryState?.exportState?.pdfEnabled || window.geoQueryState?.status === "resolved"); const readinessKnown="geoQueryReady" in window; const ready=analysisReady&&(!readinessKnown||window.geoQueryReady); getGeoEvaPdfButtons().forEach(button => { button.disabled = !ready || isGeneratingGeoEvaPDF; button.title = ready ? "Descargar PDF" : "Esperando que mapa y gráficos terminen de cargar."; button.dataset.pdfButton = "true"; }); }
   function bindGeoEvaPdfButtonOnce() { getGeoEvaPdfButtons().forEach(button => { if (button.dataset.pdfBound === "1") return; button.dataset.pdfBound = "1"; button.addEventListener("click", async event => { event.preventDefault(); if (isGeneratingGeoEvaPDF) return; isGeneratingGeoEvaPDF = true; const buttons = getGeoEvaPdfButtons(); const original = new Map(buttons.map(b => [b, b.textContent])); buttons.forEach(b => { b.disabled = true; b.textContent = "Generando PDF…"; }); try { await exportGeoEvaPDFDirect(); } finally { isGeneratingGeoEvaPDF = false; buttons.forEach(b => b.textContent = original.get(b) || "Exportar PDF"); setGeoEvaPdfButtonsReady(); } }); }); setGeoEvaPdfButtonsReady(); }
   document.addEventListener("DOMContentLoaded", bindGeoEvaPdfButtonOnce); const geoEvaPdfReadyTimer = window.setInterval(() => { bindGeoEvaPdfButtonOnce(); if (window.geoQueryState?.exportState?.pdfEnabled) window.clearInterval(geoEvaPdfReadyTimer); }, 500);
-  window.GeoEvaPdfExport = { exportGeoEvaPDFDirect, bindGeoEvaPdfButtonOnce, assertGeoEvaPDFDependencies, createGeoEvaPdfDocument, collectGeoEvaPdfSections, captureGeoEvaMapPng, captureGeoEvaCharts, waitForGeoEvaMapTiles, collectGeoEvaDomPdfSections, buildGeoEvaPdfModel, deduplicateLabelValueRows, auditGeoEvaPdfCoverage, GEOEVA_HTML_PDF_COVERAGE, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT };
+  window.GeoEvaPdfExport = { exportGeoEvaPDFDirect, bindGeoEvaPdfButtonOnce, assertGeoEvaPDFDependencies, createGeoEvaPdfDocument, collectGeoEvaPdfSections, captureGeoEvaMapPng, captureGeoEvaMapWithRetry, captureGeoEvaCharts, waitForGeoEvaMapTiles, collectGeoEvaDomPdfSections, buildGeoEvaPdfModel, deduplicateLabelValueRows, auditGeoEvaPdfCoverage, GEOEVA_HTML_PDF_COVERAGE, sanitizePdfFilenamePart, normalizePdfUrl, PDF_LAYOUT };
 })();

@@ -4,13 +4,23 @@
     osm: { main: "#2457d6", center: "#173f9f", centerFill: "#fff", line: "#82c8ed", projectText: "#fff" },
     sat: { main: "#FFD400", center: "#FFD400", centerFill: "#FFF3A6", line: "#FFD400", projectText: "#111" }
   });
+  const frames=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  async function waitForLeafletMapReady(map,timeout=10000){
+    if(!map?.getContainer)throw new Error("Mapa Leaflet no inicializado"); const container=map.getContainer(); const started=Date.now();
+    while(Date.now()-started<timeout){
+      const rect=container.getBoundingClientRect(); const tiles=[...container.querySelectorAll(".leaflet-tile")]; const loadedTiles=tiles.filter(tile=>tile.complete&&tile.naturalWidth!==0); const vectors=container.querySelectorAll(".leaflet-marker-icon, .leaflet-overlay-pane svg path, .leaflet-overlay-pane canvas");
+      if(rect.width>0&&rect.height>0&&loadedTiles.length>0&&vectors.length>0){await frames();await new Promise(resolve=>setTimeout(resolve,500));return {width:rect.width,height:rect.height,tileCount:loadedTiles.length,vectorLayerCount:vectors.length};}
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    throw new Error("Tiempo de espera agotado antes de que el mapa, sus teselas y capas estuvieran listos");
+  }
   function labelNode(title, detail) { const node=document.createElement("div"); const strong=document.createElement("strong"); strong.textContent=title; node.append(strong); if(detail){node.append(document.createElement("br"),document.createTextNode(detail));} return node; }
   function projectIcon(index, mode) { const p=PALETTES[mode]; return L.divIcon({className:`project-number-label${mode === "sat" ? " is-sat" : ""}`,html:`<span style="--sector-color:${p.main};color:${p.projectText}">${index+1}</span>`,iconSize:null,iconAnchor:[7,7]}); }
   function render(result, basemap) {
     const initial=basemap === "sat" ? "sat" : "osm";
     const map=L.map("map",{scrollWheelZoom:false,zoomSnap:.25});
-    const osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"&copy; OpenStreetMap"});
-    const sat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:20,attribution:"Tiles &copy; Esri"});
+    const osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,crossOrigin:true,attribution:"&copy; OpenStreetMap"});
+    const sat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:20,crossOrigin:true,attribution:"Tiles &copy; Esri"});
     (initial === "sat" ? sat : osm).addTo(map); L.control.layers({OSM:osm,SAT:sat},null,{collapsed:false}).addTo(map); L.control.scale({metric:true,imperial:false}).addTo(map);
     const query=[result.query.lat,result.query.lon]; map.setView(query,10);
     const queryLayer=L.circleMarker(query,{radius:10,color:"#fff",weight:3,fillOpacity:1}).addTo(map).bindPopup(labelNode("Punto consultado"));
@@ -23,10 +33,11 @@
     applyPalette(initial);
     map.on?.("baselayerchange",event=>applyPalette(event.layer === sat ? "sat" : "osm"));
     enableTouchGuard(map,map.getContainer());
-    if(circle){ map.invalidateSize(); requestAnimationFrame(()=>map.fitBounds(circle.getBounds(),{padding:[40,40],maxZoom:15})); }
+    if(circle){ map.invalidateSize(true); requestAnimationFrame(()=>map.fitBounds(circle.getBounds(),{padding:[20,20],maxZoom:15,animate:false})); }
     global.geoQueryLeafletMap=map;
+    global.geoQueryMapReady=false; global.geoQueryMapReadyPromise=(async()=>{await frames();map.invalidateSize(true);await frames();if(circle)map.fitBounds(circle.getBounds(),{padding:[20,20],maxZoom:15,animate:false});await frames();await waitForLeafletMapReady(map);global.geoQueryMapReady=true;global.geoQueryReady=Boolean(global.geoQueryMapReady&&global.geoQueryChartsReady);global.GeoEvaPdfExport?.bindGeoEvaPdfButtonOnce?.();return true;})().catch(error=>{global.geoQueryMapReady=false;global.geoQueryReady=false;console.error("GeoQuery: el mapa no alcanzó el estado listo",error);throw error;});
     return map;
   }
   function enableTouchGuard(map,container){if(!matchMedia("(pointer: coarse)").matches&&!navigator.maxTouchPoints)return; map.dragging.disable(); const hint=document.createElement("span"); hint.className="touch-hint"; hint.textContent="Usa dos dedos para mover el mapa"; container.appendChild(hint); container.addEventListener("touchstart",e=>{const two=e.touches.length>1; two?map.dragging.enable():map.dragging.disable(); hint.classList.toggle("visible",!two);},{passive:true}); container.addEventListener("touchend",()=>{map.dragging.disable();hint.classList.remove("visible");},{passive:true});}
-  global.GeoQueryMap={render,PALETTES};
+  global.GeoQueryMap={render,PALETTES,waitForLeafletMapReady};
 })(window);
