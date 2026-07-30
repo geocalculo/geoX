@@ -49,7 +49,7 @@ global.L = {
   DomUtil: { create: () => ({ appendChild() {} }) }
 };
 
-vm.runInThisContext(fs.readFileSync("geoeva/geoquery2/js/map.js", "utf8"));
+vm.runInThisContext(fs.readFileSync("geoeva/geoquery/js/map.js", "utf8"));
 GeoQueryMap.render({ query: { lat: -33.45, lon: -70.67 }, radiusMeters: 1000, base: [] }, "osm");
 
 assert.ok(calls.indexOf("setView") < calls.indexOf("add:circle"));

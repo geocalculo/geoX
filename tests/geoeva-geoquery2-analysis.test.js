@@ -9,7 +9,7 @@ function haversine(a, b) {
   return 2*earth*Math.asin(Math.sqrt(h));
 }
 global.window=global; global.turf={point:coordinates=>({geometry:{coordinates}}),distance:(a,b)=>haversine(a.geometry.coordinates,b.geometry.coordinates)};
-vm.runInThisContext(fs.readFileSync("geoeva/geoquery2/js/analysis.js","utf8"));
+vm.runInThisContext(fs.readFileSync("geoeva/geoquery/js/analysis.js","utf8"));
 const features=JSON.parse(fs.readFileSync("geoeva/capas_geoquery/geoeva_geoquery_proyectos.geojson","utf8")).features;
 const cases=[[-33.4489,-70.6693],[-23.6509,-70.3975],[-36.8201,-73.0444],[-27.1127,-109.3497]];
 
@@ -55,7 +55,7 @@ assert.deepEqual(timing, [
   { sector: "Minería", averageMonths: 30, projectCount: 1 },
   { sector: "Energía", averageMonths: 18.3, projectCount: 2 }
 ]);
-assert.doesNotMatch(fs.readFileSync("geoeva/geoquery2/js/render.js", "utf8"), /fecha_(presentacion|calificacion)|new Date|dias_evaluacion/);
+assert.doesNotMatch(fs.readFileSync("geoeva/geoquery/js/render.js", "utf8"), /fecha_(presentacion|calificacion)|new Date|dias_evaluacion/);
 console.log("GeoQuery 2.0 timing uses precomputed months, valid approved projects, and descending sector averages.");
 
 const investmentDistribution = GeoQueryAnalysis.investmentDistribution([

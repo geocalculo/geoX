@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const context = { window: {} };
-vm.runInNewContext(fs.readFileSync("geoeva/geoquery2/js/render.js", "utf8"), context);
+vm.runInNewContext(fs.readFileSync("geoeva/geoquery/js/render.js", "utf8"), context);
 
 const actual = context.window.GeoQueryRender.summary({
   inversionAprobadaGrupoBase: 100,

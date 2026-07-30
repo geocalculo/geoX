@@ -3,64 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>GeoQuery 2.0 | GeoEVA</title>
-  <link rel="preconnect" href="https://unpkg.com">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="css/geoquery2.css">
+  <title>GeoQuery | GeoEVA</title>
+  <script>
+    (function redirectToOfficialGeoQuery() {
+      const target = new URL("../geoquery/geoquery.html", window.location.href);
+      for (const [key, value] of new URLSearchParams(window.location.search)) {
+        target.searchParams.append(key, value);
+      }
+      target.hash = window.location.hash;
+      window.location.replace(target.toString());
+    }());
+  </script>
 </head>
 <body>
-  <header class="masthead">
-    <div><span class="eyebrow">GeoEVA</span><h1>Consulta territorial ambiental</h1><p>GeoQuery 2.0</p></div>
-  </header>
-  <main>
-    <section id="status-view" class="status-view" aria-live="polite">
-      <div class="spinner" aria-hidden="true"></div><h2 id="status-title">Cargando proyectos</h2>
-      <p id="status-message">Preparando la consulta territorial…</p>
-      <ol id="loading-steps" class="loading-steps"><li class="active">Cargando proyectos</li><li>Calculando distancias</li><li>Construyendo reporte</li></ol>
-      <a id="status-back" class="button secondary" href="../index.html" hidden>Volver a GeoEVA</a>
-    </section>
-    <div id="report" hidden>
-      <section class="report-meta card" aria-label="Punto consultado">
-        <header class="report-meta-title"><span class="section-kicker">Punto consultado</span><h2>Datos de la consulta</h2></header>
-        <div><span>Coordenadas</span><strong id="coordinates"></strong></div>
-        <div><span>Fecha / Hora</span><strong id="generated-at"></strong></div><div><span>Estado del análisis</span><strong class="resolved">Análisis resuelto</strong></div>
-        <div><span>Radio del análisis</span><strong id="analysis-radius"></strong></div>
-        <nav class="actions" aria-label="Acciones del reporte">
-          <a id="back-link" class="button secondary" href="../index.html">← Volver</a>
-          <button class="button download-button" data-pdf-button="true" disabled>Exportar PDF</button>
-          <button class="button download-button" data-kml-button="true" disabled>Descargar KML</button>
-        </nav>
-      </section>
-      <section class="summary card"><span class="section-kicker">Síntesis territorial</span><h2>Lectura ejecutiva del entorno</h2><p id="summary-text"></p><div id="primary-kpis" class="kpi-grid"></div></section>
-      <section class="card projects-map-panel">
-        <div class="projects-column"><span class="section-kicker">Proyectos del entorno</span><h2>10 proyectos aprobados más cercanos</h2><p id="project-count" class="section-note"></p><div id="projects" class="project-list"></div></div>
-        <div class="map-column"><div class="map-heading"><span class="section-kicker">Contexto geográfico</span><h2>Mapa territorial</h2></div><div id="map" aria-label="Mapa del análisis territorial"></div></div>
-      </section>
-      <section class="card timing-panel">
-        <span class="section-kicker">Comparación local y nacional</span>
-        <div class="comparison-grid">
-          <div class="comparison-column timing-comparison">
-            <h2>Plazos de tramitación</h2><p class="chart-subtitle">Comparación entre el clúster y la referencia nacional</p>
-            <div class="chart-legend timing-legend" aria-label="Leyenda"><span><i class="cluster-swatch"></i>Clúster</span><span><i class="national-swatch"></i>Referencia nacional</span></div>
-            <div id="timing-comparison-chart" class="timing-chart grouped-timing-chart" data-pdf-chart="true" data-pdf-title="Plazos de tramitación" role="img" aria-label="Comparación de plazos promedio del clúster y la referencia nacional por sector"></div>
-          </div>
-          <div class="comparison-column investment-comparison">
-            <h2>Distribución de la inversión aprobada</h2><p class="chart-subtitle">Participación por sector en el grupo base</p>
-            <div id="investment-chart" class="investment-chart" data-pdf-chart="true" data-pdf-title="Distribución de la inversión aprobada" role="img" aria-label="Distribución de la inversión aprobada por sector"></div>
-          </div>
-        </div>
-      </section>
-      <section class="card spatial-panel"><span class="section-kicker">Relación espacial</span><h2>Relación espacial con los proyectos aprobados</h2><dl id="spatial-stats" class="stats-grid"></dl></section>
-    </div>
-  </main>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="../../shared/geoquery-kml-exporter.js"></script>
-  <script src="../geoquery/pdf/geoEvaPdfConfig.js"></script>
-  <script src="../geoquery/pdf/geoEvaPdfExport.js"></script>
-  <script src="js/analysis.js"></script><script src="js/render.js"></script><script src="js/map.js"></script><script src="js/exports.js"></script><script src="js/geoquery2.js"></script>
+  <p>Redirigiendo a <a id="official-link" href="../geoquery/geoquery.html">GeoQuery</a>…</p>
+  <script>document.getElementById("official-link").href = new URL("../geoquery/geoquery.html" + window.location.search + window.location.hash, window.location.href).toString();</script>
 </body>
 </html>

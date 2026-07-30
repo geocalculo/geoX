@@ -33,7 +33,7 @@ global.document = {
   querySelectorAll(selector) { assert.equal(selector, "#loading-steps li"); return steps; }
 };
 global.requestAnimationFrame = callback => { callback(); return 1; };
-vm.runInThisContext(fs.readFileSync("geoeva/geoquery2/js/render.js", "utf8"));
+vm.runInThisContext(fs.readFileSync("geoeva/geoquery/js/render.js", "utf8"));
 
 GeoQueryRender.setAppState("loading", "Cargando", "En curso", 1);
 assert.equal(nodes.report.hidden, true);
@@ -62,5 +62,5 @@ for (const state of ["empty", "error"]) {
   assert.ok(steps.every(step => !step.classList.contains("active")));
 }
 
-assert.match(fs.readFileSync("geoeva/geoquery2/css/geoquery2.css", "utf8"), /^\[hidden\]\{display:none!important\}/);
+assert.match(fs.readFileSync("geoeva/geoquery/css/geoquery2.css", "utf8"), /^\[hidden\]\{display:none!important\}/);
 console.log("GeoQuery 2.0 states are mutually exclusive and stop the loading UI.");
