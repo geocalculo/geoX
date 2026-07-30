@@ -22,6 +22,18 @@
   function fmtKm(value) { const n = Number(value); return Number.isFinite(n) ? `${n.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km` : "N/D"; }
   function cleanItems(items) { return (items || []).filter(item => present(item?.label) || present(item?.value)); }
   function splitPdfText(doc, text, maxWidth) { return doc.splitTextToSize(String(text ?? ""), maxWidth); }
+  function ellipsizePdfText(doc, text, maxWidth) {
+    const value = present(text) || "Proyecto sin nombre";
+    if (doc.getTextWidth(value) <= maxWidth) return value;
+    const ellipsis = "…";
+    let low = 0, high = value.length;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      if (doc.getTextWidth(value.slice(0, middle).trimEnd() + ellipsis) <= maxWidth) low = middle;
+      else high = middle - 1;
+    }
+    return value.slice(0, low).trimEnd() + ellipsis;
+  }
   function sanitizePdfFilenamePart(value) { return String(value ?? "").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80); }
   function normalizePdfUrl(value) { const raw = String(value ?? "").trim(); return /^https?:\/\//i.test(raw) ? raw : ""; }
   function buildFilename(model, filename) {
@@ -135,19 +147,30 @@
   }
 
   async function drawPointAndMapBlock(doc, section, context) {
-    drawSectionTitle(doc, section.title || "Punto consultado y mapa de ubicación", context);
-    const gap = 5, pointWidth = (context.contentWidth - gap) * (1.1 / 2.1), mapWidth = context.contentWidth - gap - pointWidth, h = 58;
+    drawSectionTitle(doc, section.title || "Proyectos del clúster y mapa de ubicación", context);
+    const gap = 5, pointWidth = (context.contentWidth - gap) / 2.08, mapWidth = context.contentWidth - gap - pointWidth, h = 68;
     ensurePdfSpace(doc, context, h);
     const y = context.y;
     drawRoundedPanel(doc, context.contentLeft, y, pointWidth, h, [255,255,255]);
     drawRoundedPanel(doc, context.contentLeft + pointWidth + gap, y, mapWidth, h, [255,255,255]);
-    const items = cleanItems(section.data?.pointItems || []);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(9); setColor(doc, "accent"); doc.text("Punto consultado", context.contentLeft + 4, y + 6);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(7.4); setColor(doc, "ink"); let yy = y + 12;
-    items.forEach(item => { const lines = splitPdfText(doc, `${item.label}: ${present(item.value) || "N/D"}`, pointWidth - 8); doc.text(lines, context.contentLeft + 4, yy); yy += lines.length * 3.8; });
+    const projects = (section.data?.projects || []).slice(0, 10);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); setColor(doc, "accent"); doc.text("10 proyectos aprobados más cercanos", context.contentLeft + 4, y + 6);
+    let yy = y + 12;
+    projects.forEach((project, index) => {
+      const rank = String(project.order ?? index + 1);
+      const distance = present(project.distanceFormatted) || "N/D";
+      const rankX = context.contentLeft + 4, distanceRight = context.contentLeft + pointWidth - 4;
+      doc.setFontSize(7.2); doc.setFont("helvetica", "bold"); setColor(doc, "muted"); doc.text(rank, rankX, yy);
+      doc.setFont("helvetica", "bold"); setColor(doc, "ink"); doc.text(distance, distanceRight, yy, { align: "right" });
+      const nameX = rankX + 6, nameWidth = Math.max(8, distanceRight - doc.getTextWidth(distance) - 3 - nameX);
+      doc.setFont("helvetica", "normal"); doc.text(ellipsizePdfText(doc, project.name, nameWidth), nameX, yy);
+      doc.setDrawColor(...COLORS.line); doc.line(rankX, yy + 1.7, distanceRight, yy + 1.7);
+      yy += 5.15;
+    });
+    if (!projects.length) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.4); setColor(doc, "muted"); doc.text("Sin proyectos aprobados disponibles.", context.contentLeft + 4, yy); }
     let mapPng = section.data?.mapPng;
     if (!mapPng && context.mapElement) { try { mapPng = await captureGeoEvaMapPng({ map: context.map, mapElement: context.mapElement }); } catch (error) { console.warn("[GeoEVA PDF] No fue posible capturar el mapa", error); } }
-    const mx = context.contentLeft + pointWidth + gap + 3, my = y + 8, mw = mapWidth - 6, mh = h - 12;
+    const mx = context.contentLeft + pointWidth + gap + 2.5, my = y + 8, mw = mapWidth - 5, mh = h - 10.5;
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); setColor(doc, "accent"); doc.text("Mapa de ubicación", context.contentLeft + pointWidth + gap + 4, y + 6);
     if (mapPng) {
       const props = doc.getImageProperties(mapPng);
@@ -176,16 +199,27 @@
     if (!map || !mapElement) throw new Error("Mapa Leaflet no disponible");
     const center = typeof map.getCenter === "function" ? map.getCenter() : null;
     const zoom = typeof map.getZoom === "function" ? map.getZoom() : null;
+    const originalStyle = { width: mapElement.style.width, height: mapElement.style.height };
     const hidden = [...mapElement.querySelectorAll(".map-toggle, .map-touch-hint, [role='tooltip'], .leaflet-tooltip")].map(el => [el, el.style.visibility]);
     try {
       hidden.forEach(([el]) => { el.style.visibility = "hidden"; });
+      mapElement.style.width = "720px";
+      mapElement.style.height = "420px";
       map.invalidateSize(true);
-      await nextFrames(2); await waitForGeoEvaMapTiles(mapElement); await new Promise(r => setTimeout(r, 500));
+      const radius = Number(window.geoQueryState?.analysis_radius_m);
+      const query = window.geoQueryState?.queryContext?.queryPoint || window.geoQueryState || {};
+      if (Number.isFinite(radius) && radius > 0 && Number.isFinite(Number(query.lat)) && Number.isFinite(Number(query.lon)) && window.L?.latLng) {
+        const clusterBounds = window.L.latLng(Number(query.lat), Number(query.lon)).toBounds(radius * 2);
+        map.fitBounds(clusterBounds, { padding: [12, 12], animate: false, maxZoom: 14 });
+      }
+      await nextFrames(3); await waitForGeoEvaMapTiles(mapElement); await new Promise(r => setTimeout(r, 500));
       const rect = mapElement.getBoundingClientRect(); const width = Math.round(rect.width); const height = Math.round(rect.height);
       if (width <= 0 || height <= 0) throw new Error("Contenedor de mapa sin dimensiones");
       return await window.domtoimage.toPng(mapElement, { width, height, style: { transform: "scale(1)", transformOrigin: "top left" } });
     } finally {
       hidden.forEach(([el, visibility]) => { el.style.visibility = visibility; });
+      mapElement.style.width = originalStyle.width;
+      mapElement.style.height = originalStyle.height;
       if (center && Number.isFinite(zoom) && typeof map.setView === "function") map.setView(center, zoom, { animate: false });
       map.invalidateSize({ pan: false, animate: false });
     }
@@ -359,7 +393,6 @@
 
   function collectGeoEvaPdfSections(rawModel, context) {
     const model = buildGeoEvaPdfModel(rawModel);
-    const pointItems = deduplicateLabelValueRows(model.pointItems || []);
     const selectedText = model.cluster.selectedCount
       ? `${model.cluster.selectedCount} aprobados`
       : "Sin aprobados";
@@ -369,7 +402,7 @@
     const dominantProjects = (model.relatedProjects || []).filter(project => project.sector === model.dominantSector.name).map(project => `${project.order}. ${project.name}`).join("; ");
     const sections = [
       { id: "query-summary", type: "kpi-grid", title: "Resumen de consulta", order: 10, data: { columns: 4, items: [{ label: "Latitud", value: fmtNumber(model.query?.lat) || "N/D" }, { label: "Longitud", value: fmtNumber(model.query?.lon) || "N/D" }, { label: "Proyectos aprobados analizados", value: selectedText }, { label: "Estado", value: model.cluster.selectedCount ? "Resuelto" : "Sin aprobados" }] } },
-      { id: "point-map", type: "point-map", title: "Punto consultado y mapa de ubicación", order: 20, data: { pointItems } },
+      { id: "point-map", type: "point-map", title: "Proyectos del clúster y mapa de ubicación", order: 20, data: { projects: (model.relatedProjects || []).slice(0, 10) } },
       { id: "executive-summary", type: "text-panel", title: "Resumen ejecutivo", order: 30, data: { text: buildExecutiveSummary(model) } },
       { id: "related-projects", type: "notice", title: "Proyectos relacionados", order: 40, data: { text: relatedIntro } },
       { id: "cluster-base", type: "metadata", title: "Clúster base", order: 50, data: { columns: 2, items: [
