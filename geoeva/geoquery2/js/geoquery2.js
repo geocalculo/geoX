@@ -1,5 +1,6 @@
 (async function () {
   "use strict";
+  window.geoQueryReady=false; window.geoQueryMapReady=false; window.geoQueryChartsReady=false;
   const DATA_URL="../capas_geoquery/geoeva_geoquery_proyectos.geojson"; const params=new URLSearchParams(location.search);
   const first=(...keys)=>{for(const key of keys){const value=params.get(key);if(value!==null&&value!=="")return value;}return null;};
   const lat=Number.parseFloat(first("lat","queryLat")); const lon=Number.parseFloat(first("lon","queryLon")); const query={lat,lon};
@@ -9,6 +10,6 @@
   try { GeoQueryRender.setAppState("loading","Cargando proyectos","Leyendo la fuente nacional de proyectos.",0); const response=await fetch(DATA_URL); if(!response.ok)throw new Error(`GeoJSON HTTP ${response.status}`); const data=await response.json(); const features=Array.isArray(data.features)?data.features:[];
     GeoQueryRender.setAppState("loading","Calculando distancias","Aplicando las reglas vigentes de GeoQuery.",1); await new Promise(resolve=>requestAnimationFrame(resolve)); const result=GeoQueryAnalysis.run(query,features);
     if(!result.base.length){GeoQueryRender.setAppState("empty","Sin proyectos aprobados válidos","No fue posible construir el grupo base con la fuente disponible.");return;}
-    GeoQueryRender.setAppState("loading","Construyendo reporte","Preparando indicadores y mapa territorial.",2); await new Promise(resolve=>requestAnimationFrame(resolve)); GeoQueryRender.render(result,{generatedAt:new Date()}); GeoQueryRender.setAppState("resolved","Análisis resuelto","El reporte territorial está disponible.",2); const basemap=(first("basemap")||"osm").toLowerCase()==="sat"?"sat":"osm"; const map=GeoQueryMap.render(result,basemap); GeoQuery2Exports.initialize(result,{source:DATA_URL,basemap}); window.geoQueryLeafletMap=map; window.geoQuery2State={status:"resolved",source:DATA_URL,result,map};
+    GeoQueryRender.setAppState("loading","Construyendo reporte","Preparando indicadores y mapa territorial.",2); await new Promise(resolve=>requestAnimationFrame(resolve)); GeoQueryRender.render(result,{generatedAt:new Date()}); window.geoQueryChartsReady=true; GeoQueryRender.setAppState("resolved","Análisis resuelto","El reporte territorial está disponible.",2); const basemap=(first("basemap")||"osm").toLowerCase()==="sat"?"sat":"osm"; const map=GeoQueryMap.render(result,basemap); GeoQuery2Exports.initialize(result,{source:DATA_URL,basemap}); window.geoQueryLeafletMap=map; window.geoQuery2State={status:"resolved",source:DATA_URL,result,map};
   } catch(error){console.error("[GeoQuery 2.0] Error de análisis",error);GeoQueryRender.setAppState("error","No fue posible completar el análisis",`Las coordenadas recibidas fueron ${lat.toFixed(6)}, ${lon.toFixed(6)}. Intenta nuevamente.`);}
 })();

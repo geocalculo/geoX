@@ -6,10 +6,10 @@ const calls = [];
 const map = {
   loaded: false,
   setView() { this.loaded = true; calls.push("setView"); return this; },
-  fitBounds(bounds, options) { calls.push("fitBounds"); assert.deepEqual(options, { padding: [40, 40], maxZoom: 15 }); return this; },
+  fitBounds(bounds, options) { calls.push("fitBounds"); assert.deepEqual(options, { padding: [20, 20], maxZoom: 15, animate: false }); return this; },
   getZoom() { return 10; },
   getCenter() { return { lat: -33.45, lng: -70.67 }; },
-  getContainer() { return { appendChild() {}, addEventListener() {} }; },
+  getContainer() { return { appendChild() {}, addEventListener() {}, getBoundingClientRect(){return {width:800,height:520};}, querySelector(){return null;}, querySelectorAll(selector){return selector===".leaflet-tile"?[{complete:true,naturalWidth:256}]:[{}];} }; },
   invalidateSize() { calls.push("invalidateSize"); },
   dragging: { disable() {}, enable() {} }
 };
