@@ -8,7 +8,7 @@
 @media(max-width:390px){.stats-grid{grid-template-columns:1fr}}
 
 /* GeoQuery 2.0 final report panels */
-.report-meta{grid-template-columns:repeat(5,minmax(0,1fr)) auto;align-items:center}
+.report-meta{grid-template-columns:repeat(4,minmax(0,1fr)) auto;align-items:center}
 .report-meta-title{grid-column:1/-1}.report-meta-title h2{margin-bottom:0;font-size:1.1rem}
 .report-meta .actions{justify-content:flex-end}.report-meta .button{min-height:38px;padding:7px 10px;background:var(--brand);color:#fff;font-size:.8rem}.report-meta .button.secondary{background:transparent;color:var(--brand)}
 .summary .kpi-grid{margin:24px 0 0;grid-template-columns:repeat(5,minmax(0,1fr))}.summary .kpi-card{padding:14px;background:#f3f6ff}.summary .kpi-card strong{font-size:1.25rem}
@@ -48,3 +48,6 @@ h1,h2,h3{color:var(--geoeva-text)}
 .national-swatch,.timing-bar-line.national .timing-bar{background:var(--chart-national)}
 .timing-track{background:#edf3f9}.timing-value{color:var(--chart-label)}
 .project-number-label span{border-color:#fff;background:var(--sector-color,var(--geoeva-primary-soft));color:var(--geoeva-text);text-shadow:none;box-shadow:0 1px 5px rgba(16,40,76,.25)}
+.project-number-label.is-sat span{border-color:#fff;background:#ffd400;color:#111;box-shadow:0 1px 6px #000b}
+.map-legend.is-sat .query,.map-legend.is-sat .legend-project{background:#ffd400;border-color:#fff;box-shadow:0 0 0 1px #0008}
+.map-legend.is-sat .centroid{background:#fff3a6;border-color:#ffd400}
