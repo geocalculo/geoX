@@ -107,6 +107,7 @@
     return `El clúster de análisis concentra una inversión aprobada de ${money(result.inversionAprobadaGrupoBase)}, de los cuales el sector ${dominantInvestment.nombre} aporta ${money(dominantInvestment.inversion)}, equivalentes al ${wholePercent(dominantInvestment.porcentaje)} de la inversión aprobada, consolidándose como la actividad predominante por inversión del entorno. El grupo base está conformado por los 10 proyectos aprobados más cercanos, que definen un radio de análisis de ${km(result.radiusMeters / 1000)}, dentro del cual se registran ${result.total} proyectos sometidos al Sistema de Evaluación de Impacto Ambiental. El proyecto aprobado más cercano se localiza a ${km(result.approvedPointStats.minKm)} del punto consultado.`;
   }
   function render(result, meta) {
+    global.geoQueryChartsReady = false;
     document.getElementById("coordinates").textContent = `${result.query.lat.toFixed(6)}, ${result.query.lon.toFixed(6)}`; document.getElementById("generated-at").textContent = new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short" }).format(meta.generatedAt);
     document.getElementById("summary-text").textContent = summary(result); document.getElementById("analysis-radius").textContent=km(result.radiusMeters/1000);
     const primary = document.getElementById("primary-kpis"); primary.replaceChildren();
@@ -119,6 +120,14 @@
     const list = document.getElementById("projects"); list.replaceChildren(); document.getElementById("project-count").textContent = `${result.base.length} proyectos seleccionados`;
     result.base.forEach((item,index) => { const p = item.feature.properties || {}; const article = document.createElement("article"); article.className="project"; text(article,"span",String(index+1),"rank"); const fullName=String(p.nombre_proyecto || "Proyecto sin nombre"); const name=safeUrl(p.web)?text(article,"a",fullName,"project-name"):text(article,"span",fullName,"project-name"); name.title=fullName; if(name.tagName==="A"){name.href=p.web;name.target="_blank";name.rel="noopener noreferrer";} const sector=GeoQueryAnalysis.normalizeSector(p.sector); const sectorChip=text(article,"span",sector,"sector"); sectorChip.style.setProperty("--sector-color",sectorColor(sector)); text(article,"strong",km(item.distance_km),"project-distance"); list.appendChild(article); });
   }
+  function markChartsReady() {
+    const processingChart = document.getElementById("timing-comparison-chart");
+    const investmentChart = document.getElementById("investment-chart");
+    const hasDimensions = chart => Boolean(chart && chart.getBoundingClientRect().width > 0 && chart.getBoundingClientRect().height > 0);
+    global.geoQueryChartsReady = hasDimensions(processingChart) && hasDimensions(investmentChart) && processingChart.childElementCount > 0 && investmentChart.childElementCount > 0;
+    global.geoQueryReady = Boolean(global.geoQueryMapReady && global.geoQueryChartsReady);
+    return global.geoQueryChartsReady;
+  }
   function safeUrl(value) { try { const url=new URL(value); return ["http:","https:"].includes(url.protocol); } catch (_) { return false; } }
-  global.GeoQueryRender={ setAppState, render, km, summary, sectorColor, SECTOR_COLORS };
+  global.GeoQueryRender={ setAppState, render, markChartsReady, km, summary, sectorColor, SECTOR_COLORS };
 })(window);
