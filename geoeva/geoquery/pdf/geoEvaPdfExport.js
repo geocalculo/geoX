@@ -206,6 +206,7 @@
         if (window.Plotly?.toImage && node.classList.contains("js-plotly-plot")) dataUrl = await window.Plotly.toImage(node, { format: "png", width: node.clientWidth || 800, height: node.clientHeight || 420 });
         else if (node.__chartjs?.toBase64Image) dataUrl = node.__chartjs.toBase64Image();
         else if (node instanceof HTMLCanvasElement) dataUrl = node.toDataURL("image/png");
+        else if (window.domtoimage?.toPng) dataUrl = await window.domtoimage.toPng(node, { bgcolor: "#ffffff" });
         if (dataUrl) charts.push({ title: node.dataset.pdfTitle || node.getAttribute("aria-label") || "Gráfico", dataUrl });
       } catch (error) { console.warn("[GeoEVA PDF] No fue posible exportar un gráfico", error); }
     }

@@ -22,13 +22,13 @@
     <div id="report" hidden>
       <section class="report-meta card" aria-label="Punto consultado">
         <header class="report-meta-title"><span class="section-kicker">Punto consultado</span><h2>Datos de la consulta</h2></header>
-        <div><span>Coordenadas</span><strong id="coordinates"></strong></div><div><span>Sistema de referencia</span><strong>WGS84 / EPSG:4326</strong></div>
+        <div><span>Coordenadas</span><strong id="coordinates"></strong></div>
         <div><span>Fecha / Hora</span><strong id="generated-at"></strong></div><div><span>Estado del análisis</span><strong class="resolved">Análisis resuelto</strong></div>
         <div><span>Radio del análisis</span><strong id="analysis-radius"></strong></div>
         <nav class="actions" aria-label="Acciones del reporte">
           <a id="back-link" class="button secondary" href="../index.html">← Volver</a>
-          <button class="button" disabled title="Disponible en la siguiente entrega">Exportar PDF</button>
-          <button class="button" disabled title="Disponible en la siguiente entrega">Descargar KML</button>
+          <button class="button download-button" data-pdf-button="true" disabled>Exportar PDF</button>
+          <button class="button download-button" data-kml-button="true" disabled>Descargar KML</button>
         </nav>
       </section>
       <section class="summary card"><span class="section-kicker">Síntesis territorial</span><h2>Lectura ejecutiva del entorno</h2><p id="summary-text"></p><div id="primary-kpis" class="kpi-grid"></div></section>
@@ -42,11 +42,11 @@
           <div class="comparison-column timing-comparison">
             <h2>Plazos de tramitación</h2><p class="chart-subtitle">Comparación entre el clúster y la referencia nacional</p>
             <div class="chart-legend timing-legend" aria-label="Leyenda"><span><i class="cluster-swatch"></i>Clúster</span><span><i class="national-swatch"></i>Referencia nacional</span></div>
-            <div id="timing-comparison-chart" class="timing-chart grouped-timing-chart" role="img" aria-label="Comparación de plazos promedio del clúster y la referencia nacional por sector"></div>
+            <div id="timing-comparison-chart" class="timing-chart grouped-timing-chart" data-pdf-chart="true" data-pdf-title="Plazos de tramitación" role="img" aria-label="Comparación de plazos promedio del clúster y la referencia nacional por sector"></div>
           </div>
           <div class="comparison-column investment-comparison">
             <h2>Distribución de la inversión aprobada</h2><p class="chart-subtitle">Participación por sector en el grupo base</p>
-            <div id="investment-chart" class="investment-chart" role="img" aria-label="Distribución de la inversión aprobada por sector"></div>
+            <div id="investment-chart" class="investment-chart" data-pdf-chart="true" data-pdf-title="Distribución de la inversión aprobada" role="img" aria-label="Distribución de la inversión aprobada por sector"></div>
           </div>
         </div>
       </section>
@@ -55,6 +55,12 @@
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
-  <script src="js/analysis.js"></script><script src="js/render.js"></script><script src="js/map.js"></script><script src="js/geoquery2.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="../../shared/geoquery-kml-exporter.js"></script>
+  <script src="../geoquery/pdf/geoEvaPdfConfig.js"></script>
+  <script src="../geoquery/pdf/geoEvaPdfExport.js"></script>
+  <script src="js/analysis.js"></script><script src="js/render.js"></script><script src="js/map.js"></script><script src="js/exports.js"></script><script src="js/geoquery2.js"></script>
 </body>
 </html>
