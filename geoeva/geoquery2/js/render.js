@@ -1,5 +1,23 @@
 (function (global) {
   "use strict";
+  const SECTOR_COLORS = Object.freeze({
+    "Minería": "#e7c98d",
+    "Energía": "#f3dc83",
+    "Infraestructura": "#a9cce3",
+    "Inmobiliario": "#d7b9dc",
+    "Saneamiento Ambiental": "#a9d9cf",
+    "Agropecuario": "#b9d89b",
+    "Pesca y Acuicultura": "#9fd5df",
+    "Forestal": "#b8d2a4",
+    "Equipamiento": "#c7c9df",
+    "Otros": "#d4d9df"
+  });
+  const sectorColor = sector => {
+    if (SECTOR_COLORS[sector]) return SECTOR_COLORS[sector];
+    if (/infraestructura/i.test(sector)) return SECTOR_COLORS.Infraestructura;
+    if (/inmobiliari/i.test(sector)) return SECTOR_COLORS.Inmobiliario;
+    return SECTOR_COLORS.Otros;
+  };
   const text = (parent, tag, value, className) => { const node = document.createElement(tag); if (className) node.className = className; node.textContent = value; parent.appendChild(node); return node; };
   const km = value => Number.isFinite(value) ? `${value.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km` : "N/D";
   const money = value => Number.isFinite(Number(value)) ? `US$ ${Number(value).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MM` : "Sin información";
@@ -64,14 +82,13 @@
     const chart = document.getElementById("investment-chart"); chart.replaceChildren();
     const rows = visibleInvestmentRows(distribution.rows);
     if (!rows.length || !distribution.total) { text(chart, "p", "No existe inversión válida informada en el grupo base.", "empty-chart"); return; }
-    const colors = ["#0b5f55", "#d97706", "#3d7f94", "#735b8f", "#74a66a", "#b65f5f"];
     const visual = document.createElement("div"); visual.className = "donut-wrap";
     const donut = document.createElementNS("http://www.w3.org/2000/svg", "svg"); donut.setAttribute("viewBox", "0 0 160 160"); donut.setAttribute("class", "donut"); donut.setAttribute("aria-hidden", "true");
     const radius = 58; const circumference = 2 * Math.PI * radius; let offset = 0;
     rows.forEach((row, index) => {
       const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       const length = row.investment / distribution.total * circumference;
-      circle.setAttribute("cx", "80"); circle.setAttribute("cy", "80"); circle.setAttribute("r", String(radius)); circle.setAttribute("fill", "none"); circle.setAttribute("stroke", colors[index]); circle.setAttribute("stroke-width", "24"); circle.setAttribute("stroke-dasharray", `${length} ${circumference - length}`); circle.setAttribute("stroke-dashoffset", String(-offset));
+      circle.setAttribute("cx", "80"); circle.setAttribute("cy", "80"); circle.setAttribute("r", String(radius)); circle.setAttribute("fill", "none"); circle.setAttribute("stroke", sectorColor(row.sector === "Otros sectores" ? "Otros" : row.sector)); circle.setAttribute("stroke-width", "24"); circle.setAttribute("stroke-dasharray", `${length} ${circumference - length}`); circle.setAttribute("stroke-dashoffset", String(-offset));
       offset += length; donut.appendChild(circle);
     });
     const center = document.createElement("div"); center.className = "donut-center"; text(center, "span", "Inversión total"); text(center, "strong", money(distribution.total));
@@ -79,7 +96,7 @@
     const legend = document.createElement("ul"); legend.className = "investment-legend";
     rows.forEach((row, index) => {
       const item = document.createElement("li"); const heading = document.createElement("div");
-      const swatch = document.createElement("i"); swatch.style.backgroundColor = colors[index]; heading.append(swatch); text(heading, "strong", row.sector); item.append(heading);
+      const swatch = document.createElement("i"); swatch.style.backgroundColor = sectorColor(row.sector === "Otros sectores" ? "Otros" : row.sector); heading.append(swatch); text(heading, "strong", row.sector); item.append(heading);
       text(item, "span", `${money(row.investment)} · ${percent(row.percentage)}`);
       item.title = `${row.sector}\n${money(row.investment)}\n${percent(row.percentage)}`; legend.appendChild(item);
     });
@@ -100,8 +117,8 @@
     const stats = [["Distancia media al punto", result.approvedPointStats.meanKm], ["Distancia mínima", result.approvedPointStats.minKm], ["Distancia media entre aprobados", result.approvedPairStats.meanKm], ["Distancia mínima entre aprobados", result.approvedPairStats.minKm], ["Distancia media del sector dominante por cantidad", result.dominantQuantityPairStats.meanKm], ["Distancia mínima del sector dominante por cantidad", result.dominantQuantityPairStats.minKm]];
     const dl = document.getElementById("spatial-stats"); dl.replaceChildren(); stats.forEach(([label,value]) => { const wrap = document.createElement("div"); text(wrap,"dt",label); text(wrap,"dd",km(value)); dl.appendChild(wrap); }); const centroidWrap=document.createElement("div"); text(centroidWrap,"dt","Centroide"); text(centroidWrap,"dd",centroid); dl.appendChild(centroidWrap);
     const list = document.getElementById("projects"); list.replaceChildren(); document.getElementById("project-count").textContent = `${result.base.length} proyectos seleccionados`;
-    result.base.forEach((item,index) => { const p = item.feature.properties || {}; const article = document.createElement("article"); article.className="project"; text(article,"span",String(index+1),"rank"); const fullName=String(p.nombre_proyecto || "Proyecto sin nombre"); const name=safeUrl(p.web)?text(article,"a",fullName,"project-name"):text(article,"span",fullName,"project-name"); name.title=fullName; if(name.tagName==="A"){name.href=p.web;name.target="_blank";name.rel="noopener noreferrer";} text(article,"span",GeoQueryAnalysis.normalizeSector(p.sector),"sector"); text(article,"strong",km(item.distance_km),"project-distance"); list.appendChild(article); });
+    result.base.forEach((item,index) => { const p = item.feature.properties || {}; const article = document.createElement("article"); article.className="project"; text(article,"span",String(index+1),"rank"); const fullName=String(p.nombre_proyecto || "Proyecto sin nombre"); const name=safeUrl(p.web)?text(article,"a",fullName,"project-name"):text(article,"span",fullName,"project-name"); name.title=fullName; if(name.tagName==="A"){name.href=p.web;name.target="_blank";name.rel="noopener noreferrer";} const sector=GeoQueryAnalysis.normalizeSector(p.sector); const sectorChip=text(article,"span",sector,"sector"); sectorChip.style.setProperty("--sector-color",sectorColor(sector)); text(article,"strong",km(item.distance_km),"project-distance"); list.appendChild(article); });
   }
   function safeUrl(value) { try { const url=new URL(value); return ["http:","https:"].includes(url.protocol); } catch (_) { return false; } }
-  global.GeoQueryRender={ setAppState, render, km, summary };
+  global.GeoQueryRender={ setAppState, render, km, summary, sectorColor, SECTOR_COLORS };
 })(window);
