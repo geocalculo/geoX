@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GeoQuery 2.0 | GeoNEMO</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="geoquery.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__brand"><span class="eyebrow">GeoNEMO</span><h1>GeoQuery <b>2.0</b></h1><p>Condicionamiento ambiental por áreas protegidas</p></div>
+    <dl class="hero__facts">
+      <div><dt>Coordenadas</dt><dd id="coordinates">—</dd></div><div><dt>Fecha consulta</dt><dd id="date">—</dd></div>
+      <div><dt>Sistema de referencia</dt><dd>WGS 84 · EPSG:4326</dd></div><div><dt>Área protegida más cercana</dt><dd id="header-name">Buscando…</dd></div>
+      <div><dt>Categoría</dt><dd id="header-category">—</dd></div><div><dt>Región</dt><dd id="header-region">—</dd></div>
+    </dl>
+  </header>
+  <nav class="actions" aria-label="Acciones"><a id="back-link" href="../index.html">← Volver</a><span></span><button id="pdf-button">Exportar PDF</button><button id="kml-button">Exportar KML</button></nav>
+
+  <main>
+    <!-- 01: Indicador exclusivamente geométrico. -->
+    <section class="panel proximity">
+      <div class="section-heading"><span>01</span><div><h2>Proximidad territorial</h2><p>Relación geométrica con el área protegida más cercana</p></div></div>
+      <div class="proximity__grid">
+        <div class="map-wrap"><div id="map" aria-label="Mapa de proximidad territorial"></div><div class="map-key"><i></i> Punto consultado <i></i> Área protegida <i></i> Distancia al borde</div></div>
+        <article class="executive-card">
+          <div class="position"><span>Posición</span><strong id="position">—</strong></div>
+          <div class="big-metrics"><div><span>Distancia al borde</span><strong id="distance">—</strong></div><div><span>Diámetro equivalente</span><strong id="diameter">—</strong></div><div><span>Relación</span><strong id="ratio">—</strong></div></div>
+          <div class="scale"><div class="scale__labels"><span>Muy baja</span><span>Baja</span><span>Media</span><span>Alta</span><span>Muy alta</span></div><div class="scale__bar"><i id="scale-marker"></i></div><p>Nivel de proximidad: <b id="level">—</b></p></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 02: La evaluación normativa permanece separada del indicador geométrico. -->
+    <section class="panel"><div class="section-heading"><span>02</span><div><h2>Condición normativa</h2><p>Referencia sectorial para la combinación seleccionada</p></div><strong id="rule-status" class="status">—</strong></div>
+      <div class="metric-grid five"><div><span>Tipo proyecto</span><strong id="project-type">Parque Fotovoltaico</strong></div><div><span>Área protegida</span><strong id="rule-area-type">—</strong></div><div><span>Distancia medida</span><strong id="rule-distance">—</strong></div><div><span>Distancia normativa</span><strong id="rule-threshold">500 m</strong></div><div><span>Estado</span><strong id="rule-state">—</strong></div></div>
+      <p class="rule-note">Referencia experimental. Las reglas definitivas se cargarán desde una fuente normativa independiente.</p>
+    </section>
+
+    <!-- 03: Síntesis de lectura rápida, limitada a dos ideas. -->
+    <section class="panel interpretation"><div class="section-heading"><span>03</span><div><h2>Interpretación ejecutiva</h2></div></div><p id="interpretation">Calculando relación territorial…</p></section>
+
+    <!-- 04: Métricas derivadas de la geometría consultada. -->
+    <section class="panel"><div class="section-heading"><span>04</span><div><h2>Información geométrica</h2></div></div><div class="metric-grid six"><div><span>Área</span><strong id="area">—</strong></div><div><span>Perímetro</span><strong id="perimeter">—</strong></div><div><span>Diámetro equivalente</span><strong id="geometry-diameter">—</strong></div><div><span>Distancia al borde</span><strong id="geometry-distance">—</strong></div><div><span>Distancia al centroide</span><strong id="centroid-distance">—</strong></div><div><span>Posición</span><strong id="geometry-position">—</strong></div></div></section>
+
+    <!-- 05: Ficha compacta del área protegida seleccionada. -->
+    <section class="panel"><div class="section-heading"><span>05</span><div><h2>Área protegida</h2></div></div><dl class="area-details"><div><dt>Nombre</dt><dd id="detail-name">—</dd></div><div><dt>Categoría</dt><dd id="detail-category">—</dd></div><div><dt>Superficie</dt><dd id="detail-area">—</dd></div><div><dt>Administración</dt><dd id="administration">—</dd></div><div><dt>Región</dt><dd id="detail-region">—</dd></div><div><dt>Comuna</dt><dd id="commune">—</dd></div><div><dt>Año creación</dt><dd id="creation-year">—</dd></div><div><dt>Link oficial</dt><dd><a id="official-link" href="#" target="_blank" rel="noopener">No disponible</a></dd></div></dl></section>
+
+    <!-- 06: Fuentes sin repetir la ficha anterior. -->
+    <section class="panel sources"><div class="section-heading"><span>06</span><div><h2>Fuentes</h2></div></div><ul><li><b>SNASPE</b><small>Sistema Nacional de Áreas Silvestres Protegidas</small></li><li><b>Ramsar</b><small>Sitios de importancia internacional</small></li><li><b>GeoNEMO</b><small>Procesamiento y análisis territorial</small></li><li><b>IDE Chile</b><small>Información territorial de referencia</small></li></ul></section>
+  </main>
+  <footer>GeoQuery 2.0 · Versión experimental · Los resultados son referenciales</footer>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script><script src="geoquery.js"></script>
+</body>
+</html>
