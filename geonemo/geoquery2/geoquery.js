@@ -32,8 +32,10 @@ const longitude = finiteParam("lon", "queryLon") ?? -70.66;
 const validPoint = latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
 const poi = turf.point([longitude, latitude]);
 let results = [];
-let entitiesConsidered = 0;
+const sourceEntityKeys = new Set();
+const viewportEntityKeys = new Set();
 const groupMaps = [];
+let loadedGroupCount = 0;
 
 function buildReturnUrl() {
   const back = new URLSearchParams(params);
@@ -71,6 +73,14 @@ function first(properties, fields) {
     if (value !== undefined && value !== null && String(value).trim()) return value;
   }
   return null;
+}
+
+function entityKey(feature, group, layer, index) {
+  const properties = feature.properties || {};
+  const explicitId = first(properties, ["id", "ID", "Id", "OBJECTID", "objectid", "fid", "codigo", "Código"]);
+  const name = first(properties, ["nombre", "Nombre", "NOMBRE", ...(layer.campos_nombre || [])]);
+  /* El archivo no forma parte de la identidad: una misma entidad publicada en dos capas se cuenta una vez. */
+  return explicitId !== null ? `${group.id}:id:${explicitId}` : `${group.id}:entity:${name || JSON.stringify(feature.geometry) || index}`;
 }
 
 function safePolygonLines(feature) {
@@ -141,12 +151,14 @@ async function loadGroup(group) {
   for (const item of settled) {
     if (item.status !== "fulfilled") { console.error(`Fuente no disponible para ${group.nombre}`, item.reason); continue; }
     sourceFiles.push(item.value.layer.archivo);
-    for (const feature of item.value.data.features || []) {
-      entitiesConsidered += 1;
+    for (const [index, feature] of (item.value.data.features || []).entries()) {
+      const key = entityKey(feature, group, item.value.layer, index);
+      sourceEntityKeys.add(key);
       const diameterKm = calculateEquivalentDiameterKm(feature);
       if (!diameterKm || !isCandidateByViewport(feature, originalViewport, diameterKm, turf, originalViewportBbox)) continue;
+      viewportEntityKeys.add(key);
       const measured = measureFeature(feature, group, config, item.value.layer, diameterKm);
-      if (measured) candidates.push(measured);
+      if (measured) candidates.push({ ...measured, entityKey: key });
     }
   }
   candidates.sort((a, b) => a.distanciaBordeKm - b.distanciaBordeKm);
@@ -155,16 +167,22 @@ async function loadGroup(group) {
 
 const formatNumber = (value, digits = 1) => Number.isFinite(value) ? value.toLocaleString("es-CL", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
 const formatDistance = (km) => !Number.isFinite(km) ? "—" : km < 1 ? `${formatNumber(km * 1000, 0)} m` : `${formatNumber(km, 1)} km`;
-const formatRatio = (ratio) => Number.isFinite(ratio) ? `${formatNumber(ratio, 3)} diámetros` : "No calculable";
+function formatRatio(ratio) {
+  if (!Number.isFinite(ratio)) return "No calculable";
+  if (ratio > 100) return "Más de 100 diámetros";
+  if (ratio > 50) return "Más de 50 diámetros";
+  if (ratio > 20) return "Más de 20 diámetros";
+  return `${formatNumber(ratio, ratio < 1 ? 2 : 1)} diámetros`;
+}
 const escapeHtml = (text) => String(text ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
-const territorialExposure = (result) => classifyTerritorialExposure(result.relacionDiametros);
+const territorialExposure = (result) => classifyTerritorialAlert(result);
+const alertPosition = (result) => result.posicion === "interior" ? (1 - result.profundidadRelativa) * 100 : getExposureVisualPosition(result.relacionDiametros);
 
 function renderCard(result, index) {
   const color = GROUP_COLORS[index % GROUP_COLORS.length];
   const depth = result.posicion === "interior" ? `<p class="inside-note">Profundidad relativa: <b>${formatNumber(result.profundidadRelativa, 2)}</b></p>` : "";
   const exposure = territorialExposure(result);
-  const equilibrium = Math.abs(result.relacionDiametros - 1) <= 0.05 ? `<aside class="equilibrium-note"><b>Punto de equilibrio territorial</b><span>La distancia al borde es equivalente al diámetro de la entidad.</span></aside>` : "";
-  return `<article class="group-report" style="--group-color:${color}"><header class="group-report-title"><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge">EXPOSICIÓN ${escapeHtml(exposure.label.toUpperCase())}</span></header><div class="group-report-body"><section class="group-card" aria-label="Información y análisis espacial"><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${result.posicion === "interior" ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}${equilibrium}<div class="scale"><div class="scale-labels"><span>Muy alta</span><span>Alta</span><span>Media alta</span><span>Media baja</span><span>Baja</span><span>Muy baja</span></div><div class="scale-bar"><i class="scale-marker" style="left:${getExposureVisualPosition(result.relacionDiametros)}%"></i></div><p class="scale-help">Menor cantidad de diámetros = mayor exposición territorial. Mayor cantidad de diámetros = menor exposición territorial.</p></div></section><section class="group-map-column" aria-label="Mapa exclusivo de ${escapeHtml(result.nombre)}"><div class="group-map" id="group-map-${index}"></div><div class="map-legend"><span class="legend-item"><i class="legend-swatch legend-poi"></i>POI</span><span class="legend-item"><i class="legend-line" style="border-color:${color}"></i>Distancia al borde</span><span class="legend-item"><i class="legend-swatch" style="background:${color}"></i>${escapeHtml(result.categoria)}</span></div></section></div></article>`;
+  return `<article class="group-report" style="--group-color:${color}"><header class="group-report-title"><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge level-${exposure.key}">ALERTA ${escapeHtml(exposure.label.toUpperCase())}</span></header><div class="group-report-body"><section class="group-card" aria-label="Información y análisis espacial"><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${result.posicion === "interior" ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}<div class="scale"><div class="scale-labels"><span>Muy alta</span><span>Alta</span><span>Media</span><span>Baja</span><span>Muy baja</span></div><div class="scale-bar"><i class="scale-marker" style="left:${alertPosition(result)}%"></i></div><p class="scale-help">${result.posicion === "interior" ? "Mayor profundidad = mayor alerta territorial." : "Mayor cercanía = mayor alerta territorial."} Rojo indica mayor condicionamiento y verde, menor condicionamiento.</p></div></section><section class="group-map-column" aria-label="Mapa exclusivo de ${escapeHtml(result.nombre)}"><div class="group-map" id="group-map-${index}"></div><div class="map-legend"><span class="legend-item"><i class="legend-swatch legend-poi"></i>POI</span><span class="legend-item"><i class="legend-line" style="border-color:${color}"></i>${formatDistance(result.distanciaBordeKm)}</span><span class="legend-item"><i class="legend-swatch" style="background:${color}"></i>${escapeHtml(result.categoria)}</span></div></section></div></article>`;
 }
 
 function renderEmptyCard(group, index) {
@@ -173,12 +191,9 @@ function renderEmptyCard(group, index) {
 }
 
 function executiveResultSentence(result) {
-  const ratio = result.relacionDiametros;
-  const ratioText = formatNumber(ratio, 2);
-  const exposure = territorialExposure(result).label.toLocaleLowerCase("es-CL");
-  if (Math.abs(ratio - 1) <= 0.05) return `La entidad ${result.entidadMasCercana} se encuentra a ${ratioText} diámetro equivalente del punto, correspondiente al punto de equilibrio territorial y a una exposición media baja.`;
-  if (ratio > 2) return `La entidad ${result.entidadMasCercana} se encuentra a ${ratioText} diámetros equivalentes del punto, por lo que su exposición territorial relativa es ${exposure}.`;
-  return `La entidad ${result.entidadMasCercana} se encuentra a ${ratioText} diámetros equivalentes del punto, lo que representa una exposición territorial ${exposure}.`;
+  const alert = territorialExposure(result).label.toLocaleLowerCase("es-CL");
+  if (result.posicion === "interior") return `El punto se encuentra al interior de ${result.entidadMasCercana}, con profundidad relativa ${formatNumber(result.profundidadRelativa, 2)} y alerta ${alert}.`;
+  return `${result.entidadMasCercana} se encuentra a ${formatRatio(result.relacionDiametros)} del punto, con alerta ${alert}.`;
 }
 
 function renderSynthesis(dominant) {
@@ -186,12 +201,11 @@ function renderSynthesis(dominant) {
     $("synthesis-text").textContent = "No se identificaron entidades ambientales relevantes en el área territorial analizada.";
     return;
   }
-  const allInside = results.every((result) => result.posicion === "interior");
-  const anyInside = results.some((result) => result.posicion === "interior");
-  const positionSentence = allInside ? "El punto consultado está contenido en entidades de todos los grupos analizados." : anyInside ? "El punto consultado está contenido en al menos una entidad ambiental analizada." : "El punto consultado se encuentra fuera de las entidades ambientales seleccionadas.";
-  const groupList = results.map((result) => result.nombre).join(", ");
-  const dominantSentence = `La mayor exposición territorial corresponde a ${dominant.nombre}. ${executiveResultSentence(dominant)}`;
-  $("synthesis-text").textContent = `${positionSentence} Se analizaron los grupos ${groupList}. ${dominantSentence}`;
+  const omitted = Math.max(0, loadedGroupCount - results.length);
+  const relation = `El punto analizado presenta relación territorial con ${results.length} ${results.length === 1 ? "grupo ambiental" : "grupos ambientales"}.`;
+  const dominantSentence = `La mayor alerta corresponde a ${dominant.entidadMasCercana}, del grupo ${dominant.nombre}. ${executiveResultSentence(dominant)}`;
+  const remaining = omitted ? `No se detectaron entidades relevantes en ${omitted} ${omitted === 1 ? "grupo ambiental adicional" : "grupos ambientales adicionales"}.` : "Todos los grupos analizados presentan una entidad territorialmente relacionada.";
+  $("synthesis-text").textContent = `${relation} ${dominantSentence} ${remaining}`;
 }
 
 function popupHtml(result) {
@@ -269,11 +283,14 @@ async function run() {
     const groups = (registry.grupos || []).filter((group) => group.activo).sort((a, b) => (a.orden || 0) - (b.orden || 0));
     const settled = await Promise.allSettled(groups.map(loadGroup));
     const groupOutcomes = settled.filter((item) => item.status === "fulfilled").map((item) => item.value);
+    loadedGroupCount = groupOutcomes.length;
     results = groupOutcomes.filter((outcome) => outcome.result).map((outcome) => outcome.result);
     settled.filter((item) => item.status === "rejected").forEach((item) => console.error("Grupo ambiental no disponible", item.reason));
     if (!groupOutcomes.length) throw new Error("No se encontraron grupos ambientales disponibles");
     $("group-count").textContent = String(groupOutcomes.length);
-    $("entity-count").textContent = entitiesConsidered.toLocaleString("es-CL");
+    $("source-entity-count").textContent = sourceEntityKeys.size.toLocaleString("es-CL");
+    $("viewport-entity-count").textContent = viewportEntityKeys.size.toLocaleString("es-CL");
+    $("related-entity-count").textContent = new Set(results.map((result) => result.entityKey)).size.toLocaleString("es-CL");
     $("status").textContent = "Completada";
     $("query-status").textContent = `${groupOutcomes.length} grupos analizados; ${results.length} con entidades relevantes en el área.`;
     renderResults(groupOutcomes);
