@@ -148,22 +148,23 @@ const formatNumber = (value, digits = 1) => Number.isFinite(value) ? value.toLoc
 const formatDistance = (km) => !Number.isFinite(km) ? "—" : km < 1 ? `${formatNumber(km * 1000, 0)} m` : `${formatNumber(km, 1)} km`;
 const formatRatio = (ratio) => Number.isFinite(ratio) ? `${formatNumber(ratio, 3)} diámetros` : "No calculable";
 const escapeHtml = (text) => String(text ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
-const relativeProximity = (result) => classifyRelativeProximity(result.relacionDiametros);
+const territorialExposure = (result) => classifyTerritorialExposure(result.relacionDiametros);
 
 function renderCard(result, index) {
   const color = GROUP_COLORS[index % GROUP_COLORS.length];
   const depth = result.posicion === "interior" ? `<p class="inside-note">Profundidad relativa: <b>${formatNumber(result.profundidadRelativa, 2)}</b></p>` : "";
-  const proximity = relativeProximity(result);
-  return `<article class="group-card" style="--group-color:${color}"><header><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge">PROXIMIDAD ${escapeHtml(proximity.label.toUpperCase())}</span></header><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${result.posicion === "interior" ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}<div class="scale"><div class="scale-labels"><span>Muy alta</span><span>Alta</span><span>Media</span><span>Baja</span><span>Muy baja</span></div><div class="scale-bar"><i class="scale-marker" style="left:${getVisualRatioPosition(result.relacionDiametros)}%"></i></div></div></article>`;
+  const exposure = territorialExposure(result);
+  const equilibrium = Math.abs(result.relacionDiametros - 1) <= 0.05 ? `<aside class="equilibrium-note"><b>Punto de equilibrio territorial</b><span>La distancia al borde es equivalente al diámetro de la entidad.</span></aside>` : "";
+  return `<article class="group-card" style="--group-color:${color}"><header><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge">EXPOSICIÓN ${escapeHtml(exposure.label.toUpperCase())}</span></header><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${result.posicion === "interior" ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}${equilibrium}<div class="scale"><div class="scale-labels"><span>Muy alta</span><span>Alta</span><span>Media alta</span><span>Media baja</span><span>Baja</span><span>Muy baja</span></div><div class="scale-bar"><i class="scale-marker" style="left:${getExposureVisualPosition(result.relacionDiametros)}%"></i></div><p class="scale-help">Menor cantidad de diámetros = mayor exposición territorial. Mayor cantidad de diámetros = menor exposición territorial.</p></div></article>`;
 }
 
 function executiveResultSentence(result) {
   const ratio = result.relacionDiametros;
   const ratioText = formatNumber(ratio, 2);
-  const proximity = relativeProximity(result).label.toLocaleLowerCase("es-CL");
-  if (ratio === 1) return `La entidad ${result.entidadMasCercana} se encuentra a ${ratioText} diámetro equivalente del punto, correspondiente al punto de equilibrio territorial y a una proximidad media.`;
-  if (ratio > 2) return `La entidad ${result.entidadMasCercana} se encuentra a ${ratioText} diámetros equivalentes del punto, por lo que su proximidad territorial relativa es ${proximity}.`;
-  return `La entidad ${result.entidadMasCercana} se encuentra a ${ratioText} diámetros equivalentes del punto, lo que representa una proximidad territorial ${proximity}.`;
+  const exposure = territorialExposure(result).label.toLocaleLowerCase("es-CL");
+  if (Math.abs(ratio - 1) <= 0.05) return `La entidad ${result.entidadMasCercana} se encuentra a ${ratioText} diámetro equivalente del punto, correspondiente al punto de equilibrio territorial y a una exposición media baja.`;
+  if (ratio > 2) return `La entidad ${result.entidadMasCercana} se encuentra a ${ratioText} diámetros equivalentes del punto, por lo que su exposición territorial relativa es ${exposure}.`;
+  return `La entidad ${result.entidadMasCercana} se encuentra a ${ratioText} diámetros equivalentes del punto, lo que representa una exposición territorial ${exposure}.`;
 }
 
 function renderSynthesis(dominant) {
@@ -171,12 +172,12 @@ function renderSynthesis(dominant) {
   const anyInside = results.some((result) => result.posicion === "interior");
   const positionSentence = allInside ? "El punto consultado está contenido en entidades de todos los grupos analizados." : anyInside ? "El punto consultado está contenido en al menos una entidad ambiental analizada." : "El punto consultado se encuentra fuera de las entidades ambientales seleccionadas.";
   const groupList = results.map((result) => result.nombre).join(", ");
-  const dominantSentence = `La mayor proximidad territorial corresponde a ${dominant.nombre}. ${executiveResultSentence(dominant)}`;
+  const dominantSentence = `La mayor exposición territorial corresponde a ${dominant.nombre}. ${executiveResultSentence(dominant)}`;
   $("synthesis-text").textContent = `${positionSentence} Se analizaron los grupos ${groupList}. ${dominantSentence}`;
 }
 
 function popupHtml(result) {
-  return `<b>${escapeHtml(result.entidadMasCercana)}</b><br>${escapeHtml(result.nombre)} · ${escapeHtml(result.categoria)}<br>Superficie: ${formatNumber(result.superficieHa, 0)} ha<br>Distancia: ${formatDistance(result.distanciaBordeKm)}<br>Diámetro: ${formatDistance(result.diametroEquivalenteKm)}<br>Relación territorial: ${formatRatio(result.relacionDiametros)}<br>Proximidad relativa: ${escapeHtml(relativeProximity(result).label)}`;
+  return `<b>${escapeHtml(result.entidadMasCercana)}</b><br>${escapeHtml(result.nombre)} · ${escapeHtml(result.categoria)}<br>Superficie: ${formatNumber(result.superficieHa, 0)} ha<br>Distancia: ${formatDistance(result.distanciaBordeKm)}<br>Diámetro: ${formatDistance(result.diametroEquivalenteKm)}<br>Relación territorial: ${formatRatio(result.relacionDiametros)}<br>Exposición territorial relativa: ${escapeHtml(territorialExposure(result).label)}`;
 }
 
 function renderMap() {
@@ -196,18 +197,18 @@ function renderMap() {
 function renderResults() {
   results.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   $("result-cards").innerHTML = results.map(renderCard).join("");
-  $("results-table").innerHTML = results.map((result) => `<tr><td>${escapeHtml(result.nombre)}</td><td>${escapeHtml(result.entidadMasCercana)}</td><td>${formatDistance(result.distanciaBordeKm)}</td><td>${formatDistance(result.diametroEquivalenteKm)}</td><td>${formatRatio(result.relacionDiametros)}</td><td>${escapeHtml(relativeProximity(result).label)}</td></tr>`).join("");
+  $("results-table").innerHTML = results.map((result) => `<tr><td>${escapeHtml(result.nombre)}</td><td>${escapeHtml(result.entidadMasCercana)}</td><td>${formatDistance(result.distanciaBordeKm)}</td><td>${formatDistance(result.diametroEquivalenteKm)}</td><td>${formatRatio(result.relacionDiametros)}</td><td>${escapeHtml(territorialExposure(result).label)}</td></tr>`).join("");
   $("source-list").innerHTML = results.map((result, index) => `<li style="--source-color:${GROUP_COLORS[index % GROUP_COLORS.length]}">${escapeHtml(result.nombre)} <small>· ${escapeHtml(result.sourceFile)}</small></li>`).join("");
   const dominant = getDominantResult(results);
   $("dominant-group").textContent = dominant.nombre;
   $("dominant-name").textContent = dominant.entidadMasCercana;
-  $("dominant-level").textContent = `Proximidad: ${relativeProximity(dominant).label}`;
+  $("dominant-level").textContent = `Exposición: ${territorialExposure(dominant).label}`;
   renderSynthesis(dominant);
   renderMap();
 }
 
 function kmlDescription(result) {
-  return `Grupo: ${result.nombre}; Categoría: ${result.categoria}; Superficie: ${formatNumber(result.superficieHa, 2)} ha; Distancia al borde: ${formatNumber(result.distanciaBordeKm, 3)} km; Diámetro equivalente: ${formatNumber(result.diametroEquivalenteKm, 3)} km; Relación territorial: ${formatNumber(result.relacionDiametros, 3)} diámetros; Proximidad relativa: ${relativeProximity(result).label}`;
+  return `Grupo: ${result.nombre}; Categoría: ${result.categoria}; Superficie: ${formatNumber(result.superficieHa, 2)} ha; Distancia al borde: ${formatNumber(result.distanciaBordeKm, 3)} km; Diámetro equivalente: ${formatNumber(result.diametroEquivalenteKm, 3)} km; Relación territorial: ${formatNumber(result.relacionDiametros, 3)} diámetros; Exposición territorial relativa: ${territorialExposure(result).label}`;
 }
 
 function ringKml(ring) { return ring.map((coordinate) => `${coordinate[0]},${coordinate[1]},0`).join(" "); }
