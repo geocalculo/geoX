@@ -3,6 +3,22 @@ const GROUP_COLORS = ["#16835f", "#0b9c9c", "#4169a9", "#a563c1", "#dc8a27", "#7
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(window.location.search);
 
+function viewportParamsFromNavigation() {
+  const direct = createViewportPolygon(params);
+  if (direct) return direct;
+  const states = [history.state?.geoQueryOrigin];
+  try { states.push(JSON.parse(sessionStorage.getItem("geox:geonemo:geoquery-origin") || "null")); } catch (error) { console.warn("GeoNEMO: estado de navegación inválido", error); }
+  for (const state of states) {
+    const viewport = createViewportPolygon(state?.map?.bounds || state?.bounds);
+    if (viewport) return viewport;
+  }
+  console.warn("GeoNEMO: viewport original ausente o inválido; se omite la búsqueda ambiental nacional");
+  return null;
+}
+
+const originalViewport = viewportParamsFromNavigation();
+const originalViewportBbox = originalViewport ? turf.bbox(originalViewport) : null;
+
 function finiteParam(...names) {
   for (const name of names) {
     const raw = params.get(name);
@@ -76,7 +92,7 @@ function safePolygonLines(feature) {
   }
 }
 
-function measureFeature(feature, group, config, layer) {
+function measureFeature(feature, group, config, layer, diameterKm) {
   const lines = safePolygonLines(feature);
   if (!lines.length) return null;
   let nearest = null;
@@ -90,10 +106,8 @@ function measureFeature(feature, group, config, layer) {
   let inside = false;
   try { inside = turf.booleanPointInPolygon(poi, feature); } catch (error) { console.warn("No fue posible comprobar contención", error); }
 
-  /* turf.area integra geodésicamente WGS84 y entrega m²: no usa grados de EPSG:4326 como unidad de superficie. */
-  let areaM2 = 0;
-  try { areaM2 = turf.area(feature); } catch (error) { console.warn("No fue posible calcular superficie", error); }
-  const diameterKm = areaM2 > 0 ? (2 * Math.sqrt(areaM2 / Math.PI)) / 1000 : null;
+  /* La geometría original gobierna todas las mediciones; el buffer solo intervino en la preselección. */
+  const areaM2 = Math.PI * ((diameterKm * 1000) / 2) ** 2;
   const borderDistanceKm = nearest.properties.dist;
   const ratio = diameterKm ? borderDistanceKm / diameterKm : null;
   const depth = inside && diameterKm ? Math.min(1, Math.max(0, (2 * borderDistanceKm) / diameterKm)) : null;
@@ -132,16 +146,20 @@ async function loadGroup(group) {
   const active = (query.capas || []).filter((layer) => layer.activo && (layer.incluir_en_nearest || layer.incluir_en_intersects));
   const settled = await Promise.allSettled(active.map(async (layer) => ({ layer, data: await fetchJson(new URL(layer.archivo, base)) })));
   const candidates = [];
+  const sourceFiles = [];
   for (const item of settled) {
     if (item.status !== "fulfilled") { console.error(`Fuente no disponible para ${group.nombre}`, item.reason); continue; }
+    sourceFiles.push(item.value.layer.archivo);
     for (const feature of item.value.data.features || []) {
       entitiesConsidered += 1;
-      const measured = measureFeature(feature, group, config, item.value.layer);
+      const diameterKm = calculateEquivalentDiameterKm(feature);
+      if (!diameterKm || !isCandidateByViewport(feature, originalViewport, diameterKm, turf, originalViewportBbox)) continue;
+      const measured = measureFeature(feature, group, config, item.value.layer, diameterKm);
       if (measured) candidates.push(measured);
     }
   }
-  candidates.sort((a, b) => (a.posicion === "interior" ? -1 : 1) - (b.posicion === "interior" ? -1 : 1) || a.distanciaBordeKm - b.distanciaBordeKm);
-  return candidates[0] || null;
+  candidates.sort((a, b) => a.distanciaBordeKm - b.distanciaBordeKm);
+  return { group, result: candidates[0] || null, sourceFiles };
 }
 
 const formatNumber = (value, digits = 1) => Number.isFinite(value) ? value.toLocaleString("es-CL", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
@@ -158,6 +176,11 @@ function renderCard(result, index) {
   return `<article class="group-card" style="--group-color:${color}"><header><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge">EXPOSICIÓN ${escapeHtml(exposure.label.toUpperCase())}</span></header><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${result.posicion === "interior" ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}${equilibrium}<div class="scale"><div class="scale-labels"><span>Muy alta</span><span>Alta</span><span>Media alta</span><span>Media baja</span><span>Baja</span><span>Muy baja</span></div><div class="scale-bar"><i class="scale-marker" style="left:${getExposureVisualPosition(result.relacionDiametros)}%"></i></div><p class="scale-help">Menor cantidad de diámetros = mayor exposición territorial. Mayor cantidad de diámetros = menor exposición territorial.</p></div></article>`;
 }
 
+function renderEmptyCard(group, index) {
+  const color = GROUP_COLORS[index % GROUP_COLORS.length];
+  return `<article class="group-card group-card-empty" style="--group-color:${color}"><header><div><h3>${escapeHtml(group.nombre || group.id)}</h3><h4>Sin entidades relevantes</h4></div></header><p class="category">en el área territorial analizada</p></article>`;
+}
+
 function executiveResultSentence(result) {
   const ratio = result.relacionDiametros;
   const ratioText = formatNumber(ratio, 2);
@@ -168,6 +191,10 @@ function executiveResultSentence(result) {
 }
 
 function renderSynthesis(dominant) {
+  if (!dominant) {
+    $("synthesis-text").textContent = "No se identificaron entidades ambientales relevantes en el área territorial analizada.";
+    return;
+  }
   const allInside = results.every((result) => result.posicion === "interior");
   const anyInside = results.some((result) => result.posicion === "interior");
   const positionSentence = allInside ? "El punto consultado está contenido en entidades de todos los grupos analizados." : anyInside ? "El punto consultado está contenido en al menos una entidad ambiental analizada." : "El punto consultado se encuentra fuera de las entidades ambientales seleccionadas.";
@@ -194,15 +221,15 @@ function renderMap() {
   $("map-legend").innerHTML = `<span class="legend-item"><i class="legend-swatch legend-poi"></i>POI</span>${results.map((result, index) => `<span class="legend-item"><i class="legend-swatch" style="background:${GROUP_COLORS[index % GROUP_COLORS.length]}"></i>${escapeHtml(result.nombre)}</span>`).join("")}`;
 }
 
-function renderResults() {
+function renderResults(groupOutcomes) {
   results.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-  $("result-cards").innerHTML = results.map(renderCard).join("");
+  $("result-cards").innerHTML = groupOutcomes.map((outcome, index) => outcome.result ? renderCard(outcome.result, index) : renderEmptyCard(outcome.group, index)).join("");
   $("results-table").innerHTML = results.map((result) => `<tr><td>${escapeHtml(result.nombre)}</td><td>${escapeHtml(result.entidadMasCercana)}</td><td>${formatDistance(result.distanciaBordeKm)}</td><td>${formatDistance(result.diametroEquivalenteKm)}</td><td>${formatRatio(result.relacionDiametros)}</td><td>${escapeHtml(territorialExposure(result).label)}</td></tr>`).join("");
-  $("source-list").innerHTML = results.map((result, index) => `<li style="--source-color:${GROUP_COLORS[index % GROUP_COLORS.length]}">${escapeHtml(result.nombre)} <small>· ${escapeHtml(result.sourceFile)}</small></li>`).join("");
+  $("source-list").innerHTML = groupOutcomes.map((outcome, index) => `<li style="--source-color:${GROUP_COLORS[index % GROUP_COLORS.length]}">${escapeHtml(outcome.group.nombre || outcome.group.id)} <small>· ${escapeHtml(outcome.sourceFiles.join(", ") || "fuente no disponible")}${outcome.result ? "" : " · sin entidades relevantes en el área analizada"}</small></li>`).join("");
   const dominant = getDominantResult(results);
-  $("dominant-group").textContent = dominant.nombre;
-  $("dominant-name").textContent = dominant.entidadMasCercana;
-  $("dominant-level").textContent = `Exposición: ${territorialExposure(dominant).label}`;
+  $("dominant-group").textContent = dominant?.nombre || "Sin entidades relevantes";
+  $("dominant-name").textContent = dominant?.entidadMasCercana || "en el área territorial analizada";
+  $("dominant-level").textContent = dominant ? `Exposición: ${territorialExposure(dominant).label}` : "Sin exposición calculable";
   renderSynthesis(dominant);
   renderMap();
 }
@@ -247,14 +274,15 @@ async function run() {
     const registry = await fetchJson(new URL("../capas_geoquery/listado.json", window.location.href));
     const groups = (registry.grupos || []).filter((group) => group.activo).sort((a, b) => (a.orden || 0) - (b.orden || 0));
     const settled = await Promise.allSettled(groups.map(loadGroup));
-    results = settled.filter((item) => item.status === "fulfilled" && item.value).map((item) => item.value);
+    const groupOutcomes = settled.filter((item) => item.status === "fulfilled").map((item) => item.value);
+    results = groupOutcomes.filter((outcome) => outcome.result).map((outcome) => outcome.result);
     settled.filter((item) => item.status === "rejected").forEach((item) => console.error("Grupo ambiental no disponible", item.reason));
-    if (!results.length) throw new Error("No se encontraron grupos ambientales disponibles");
-    $("group-count").textContent = String(results.length);
+    if (!groupOutcomes.length) throw new Error("No se encontraron grupos ambientales disponibles");
+    $("group-count").textContent = String(groupOutcomes.length);
     $("entity-count").textContent = entitiesConsidered.toLocaleString("es-CL");
     $("status").textContent = "Completada";
-    $("query-status").textContent = `${results.length} grupos analizados correctamente.`;
-    renderResults();
+    $("query-status").textContent = `${groupOutcomes.length} grupos analizados; ${results.length} con entidades relevantes en el área.`;
+    renderResults(groupOutcomes);
   } catch (error) {
     console.error(error);
     $("status").textContent = "No disponible";
