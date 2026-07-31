@@ -1,0 +1,5 @@
+{
+  "version": "experimental-1",
+  "aviso": "Datos demostrativos; reemplazar por reglas sectoriales validadas.",
+  "reglas": [{"tipo_proyecto":"Parque Fotovoltaico","categorias":["Parque Nacional","Reserva Nacional","Monumento Natural"],"distancia_m":500}]
+}
