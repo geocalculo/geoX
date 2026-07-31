@@ -31,9 +31,9 @@ const latitude = finiteParam("lat", "queryLat") ?? -33.45;
 const longitude = finiteParam("lon", "queryLon") ?? -70.66;
 const validPoint = latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
 const poi = turf.point([longitude, latitude]);
-const analysisLayers = L.featureGroup();
 let results = [];
 let entitiesConsidered = 0;
+const groupMaps = [];
 
 function buildReturnUrl() {
   const back = new URLSearchParams(params);
@@ -64,15 +64,6 @@ function decimalToDms(value, axis) {
   return `${degrees}° ${minutes}′ ${seconds.toFixed(2)}″ ${direction}`;
 }
 $("dms-coordinates").textContent = `${decimalToDms(latitude, "lat")} · ${decimalToDms(longitude, "lon")}`;
-
-const initialLat = finiteParam("viewLat", "mapCenterLat") ?? latitude;
-const initialLon = finiteParam("viewLon", "mapCenterLon") ?? longitude;
-const initialZoom = finiteParam("zoom", "mapZoom") ?? 10;
-const map = L.map("map", { zoomControl: true }).setView([initialLat, initialLon], initialZoom);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map);
-analysisLayers.addTo(map);
-L.circleMarker([latitude, longitude], { radius: 7, color: "#fff", weight: 3, fillColor: "#dc443b", fillOpacity: 1 })
-  .bindTooltip("Punto consultado", { direction: "top" }).addTo(analysisLayers);
 
 function first(properties, fields) {
   for (const field of fields || []) {
@@ -173,12 +164,12 @@ function renderCard(result, index) {
   const depth = result.posicion === "interior" ? `<p class="inside-note">Profundidad relativa: <b>${formatNumber(result.profundidadRelativa, 2)}</b></p>` : "";
   const exposure = territorialExposure(result);
   const equilibrium = Math.abs(result.relacionDiametros - 1) <= 0.05 ? `<aside class="equilibrium-note"><b>Punto de equilibrio territorial</b><span>La distancia al borde es equivalente al diámetro de la entidad.</span></aside>` : "";
-  return `<article class="group-card" style="--group-color:${color}"><header><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge">EXPOSICIÓN ${escapeHtml(exposure.label.toUpperCase())}</span></header><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${result.posicion === "interior" ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}${equilibrium}<div class="scale"><div class="scale-labels"><span>Muy alta</span><span>Alta</span><span>Media alta</span><span>Media baja</span><span>Baja</span><span>Muy baja</span></div><div class="scale-bar"><i class="scale-marker" style="left:${getExposureVisualPosition(result.relacionDiametros)}%"></i></div><p class="scale-help">Menor cantidad de diámetros = mayor exposición territorial. Mayor cantidad de diámetros = menor exposición territorial.</p></div></article>`;
+  return `<article class="group-report" style="--group-color:${color}"><header class="group-report-title"><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge">EXPOSICIÓN ${escapeHtml(exposure.label.toUpperCase())}</span></header><div class="group-report-body"><section class="group-card" aria-label="Información y análisis espacial"><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${result.posicion === "interior" ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}${equilibrium}<div class="scale"><div class="scale-labels"><span>Muy alta</span><span>Alta</span><span>Media alta</span><span>Media baja</span><span>Baja</span><span>Muy baja</span></div><div class="scale-bar"><i class="scale-marker" style="left:${getExposureVisualPosition(result.relacionDiametros)}%"></i></div><p class="scale-help">Menor cantidad de diámetros = mayor exposición territorial. Mayor cantidad de diámetros = menor exposición territorial.</p></div></section><section class="group-map-column" aria-label="Mapa exclusivo de ${escapeHtml(result.nombre)}"><div class="group-map" id="group-map-${index}"></div><div class="map-legend"><span class="legend-item"><i class="legend-swatch legend-poi"></i>POI</span><span class="legend-item"><i class="legend-line" style="border-color:${color}"></i>Distancia al borde</span><span class="legend-item"><i class="legend-swatch" style="background:${color}"></i>${escapeHtml(result.categoria)}</span></div></section></div></article>`;
 }
 
 function renderEmptyCard(group, index) {
   const color = GROUP_COLORS[index % GROUP_COLORS.length];
-  return `<article class="group-card group-card-empty" style="--group-color:${color}"><header><div><h3>${escapeHtml(group.nombre || group.id)}</h3><h4>Sin entidades relevantes</h4></div></header><p class="category">en el área territorial analizada</p></article>`;
+  return `<article class="group-card group-card-empty" style="--group-color:${color}"><header><div><h3>${escapeHtml(group.nombre || group.id)}</h3><h4>Sin entidades relevantes</h4></div></header><p class="category">en el área territorial analizada.</p></article>`;
 }
 
 function executiveResultSentence(result) {
@@ -207,22 +198,25 @@ function popupHtml(result) {
   return `<b>${escapeHtml(result.entidadMasCercana)}</b><br>${escapeHtml(result.nombre)} · ${escapeHtml(result.categoria)}<br>Superficie: ${formatNumber(result.superficieHa, 0)} ha<br>Distancia: ${formatDistance(result.distanciaBordeKm)}<br>Diámetro: ${formatDistance(result.diametroEquivalenteKm)}<br>Relación territorial: ${formatRatio(result.relacionDiametros)}<br>Exposición territorial relativa: ${escapeHtml(territorialExposure(result).label)}`;
 }
 
-function renderMap() {
-  results.forEach((result, index) => {
-    const color = GROUP_COLORS[index % GROUP_COLORS.length];
-    const polygon = L.geoJSON(result.feature, { style: { color, weight: 3, fillColor: color, fillOpacity: 0.18 } }).bindPopup(popupHtml(result)).addTo(analysisLayers);
-    const border = result.nearest.geometry.coordinates;
-    L.polyline([[latitude, longitude], [border[1], border[0]]], { color, weight: 2, dashArray: "6 5" })
-      .bindTooltip(`${result.nombre} · ${formatDistance(result.distanciaBordeKm)}`, { permanent: true, direction: "center", className: "distance-label" }).addTo(analysisLayers);
-    polygon.eachLayer((layer) => layer.bindTooltip(result.nombre, { sticky: true }));
-  });
-  const bounds = analysisLayers.getBounds();
-  if (bounds.isValid()) map.fitBounds(bounds.pad(0.1), { maxZoom: 13 });
-  $("map-legend").innerHTML = `<span class="legend-item"><i class="legend-swatch legend-poi"></i>POI</span>${results.map((result, index) => `<span class="legend-item"><i class="legend-swatch" style="background:${GROUP_COLORS[index % GROUP_COLORS.length]}"></i>${escapeHtml(result.nombre)}</span>`).join("")}`;
+function renderGroupMap(result, index) {
+  const color = GROUP_COLORS[index % GROUP_COLORS.length];
+  const map = L.map(`group-map-${index}`, { zoomControl: true });
+  const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map);
+  const satellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Tiles © Esri" });
+  L.control.layers({ OSM: osm, SAT: satellite }, null, { collapsed: false }).addTo(map);
+  L.control.scale({ imperial: false }).addTo(map);
+  const layers = L.featureGroup().addTo(map);
+  L.circleMarker([latitude, longitude], { radius: 7, color: "#fff", weight: 3, fillColor: "#dc443b", fillOpacity: 1 }).bindTooltip("Punto consultado", { direction: "top" }).addTo(layers);
+  const polygon = L.geoJSON(result.feature, { style: { color, weight: 3, fillColor: color, fillOpacity: 0.18 } }).bindPopup(popupHtml(result)).addTo(layers);
+  const border = result.nearest.geometry.coordinates;
+  L.polyline([[latitude, longitude], [border[1], border[0]]], { color, weight: 2, dashArray: "6 5" }).bindTooltip(formatDistance(result.distanciaBordeKm), { permanent: true, direction: "center", className: "distance-label" }).addTo(layers);
+  polygon.eachLayer((layer) => layer.bindTooltip(result.entidadMasCercana, { sticky: true }));
+  const bounds = layers.getBounds();
+  if (bounds.isValid()) map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
+  groupMaps.push(map);
 }
 
 function renderResults(groupOutcomes) {
-  results.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   $("result-cards").innerHTML = groupOutcomes.map((outcome, index) => outcome.result ? renderCard(outcome.result, index) : renderEmptyCard(outcome.group, index)).join("");
   $("results-table").innerHTML = results.map((result) => `<tr><td>${escapeHtml(result.nombre)}</td><td>${escapeHtml(result.entidadMasCercana)}</td><td>${formatDistance(result.distanciaBordeKm)}</td><td>${formatDistance(result.diametroEquivalenteKm)}</td><td>${formatRatio(result.relacionDiametros)}</td><td>${escapeHtml(territorialExposure(result).label)}</td></tr>`).join("");
   $("source-list").innerHTML = groupOutcomes.map((outcome, index) => `<li style="--source-color:${GROUP_COLORS[index % GROUP_COLORS.length]}">${escapeHtml(outcome.group.nombre || outcome.group.id)} <small>· ${escapeHtml(outcome.sourceFiles.join(", ") || "fuente no disponible")}${outcome.result ? "" : " · sin entidades relevantes en el área analizada"}</small></li>`).join("");
@@ -231,7 +225,7 @@ function renderResults(groupOutcomes) {
   $("dominant-name").textContent = dominant?.entidadMasCercana || "en el área territorial analizada";
   $("dominant-level").textContent = dominant ? `Exposición: ${territorialExposure(dominant).label}` : "Sin exposición calculable";
   renderSynthesis(dominant);
-  renderMap();
+  groupOutcomes.forEach((outcome, index) => { if (outcome.result) renderGroupMap(outcome.result, index); });
 }
 
 function kmlDescription(result) {
