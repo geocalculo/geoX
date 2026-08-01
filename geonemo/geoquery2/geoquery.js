@@ -223,7 +223,13 @@ function renderCard(result, index) {
   const color = GROUP_COLORS[index % GROUP_COLORS.length];
   const depth = result.posicion === "interior" ? `<p class="inside-note">Profundidad relativa: <b>${formatNumber(result.profundidadRelativa, 2)}</b></p>` : "";
   const exposure = territorialExposure(result);
-  return `<article class="group-report" style="--group-color:${color}"><header class="group-report-title"><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge level-${exposure.key}">ALERTA ${escapeHtml(exposure.label.toUpperCase())}</span></header><div class="group-report-body"><section class="group-card" aria-label="Información y análisis espacial"><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${result.posicion === "interior" ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}<div class="scale"><div class="scale-labels"><span>Muy alta</span><span>Alta</span><span>Media</span><span>Baja</span><span>Muy baja</span></div><div class="scale-bar"><i class="scale-marker" style="left:${alertPosition(result)}%"></i></div><p class="scale-help">${result.posicion === "interior" ? "Mayor profundidad = mayor alerta territorial." : "Mayor cercanía = mayor alerta territorial."} Rojo indica mayor condicionamiento y verde, menor condicionamiento.</p></div></section><section class="group-map-column" aria-label="Mapa exclusivo de ${escapeHtml(result.nombre)}"><div class="group-map" id="group-map-${index}"></div><div class="map-legend"><span class="legend-item"><i class="legend-swatch legend-poi"></i>POI</span><span class="legend-item"><i class="legend-line" style="border-color:${color}"></i>${formatDistance(result.distanciaBordeKm)}</span><span class="legend-item"><i class="legend-swatch" style="background:${color}"></i>${escapeHtml(result.categoria)}</span></div></section></div></article>`;
+  const inside = result.posicion === "interior";
+  const badge = inside ? `CONDICIONAMIENTO ${exposure.label.toUpperCase()}` : `ALERTA ${exposure.label.toUpperCase()}`;
+  const scaleLabels = inside ? "<span>Muy alto</span><span>Alto</span><span>Medio</span><span>Bajo</span>" : "<span>Muy alta</span><span>Alta</span><span>Media</span><span>Baja</span><span>Muy baja</span>";
+  const scaleHelp = inside
+    ? "Mayor profundidad relativa implica mayor condicionamiento territorial.<br>Valores cercanos a 0 indican proximidad al borde.<br>Valores cercanos a 1 representan mayor inmersión en el área protegida."
+    : "Mayor cercanía = mayor alerta territorial. Rojo indica mayor condicionamiento y verde, menor condicionamiento.";
+  return `<article class="group-report" style="--group-color:${color}"><header class="group-report-title"><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge level-${exposure.key}">${escapeHtml(badge)}</span></header><div class="group-report-body"><section class="group-card" aria-label="Información y análisis espacial"><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${inside ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}<div class="scale"><div class="scale-labels${inside ? " scale-labels-inside" : ""}">${scaleLabels}</div><div class="scale-bar"><i class="scale-marker" style="left:${alertPosition(result)}%"></i></div><p class="scale-help">${scaleHelp}</p></div></section><section class="group-map-column" aria-label="Mapa exclusivo de ${escapeHtml(result.nombre)}"><div class="group-map" id="group-map-${index}"></div><div class="map-legend"><span class="legend-item"><i class="legend-swatch legend-poi"></i>POI</span><span class="legend-item"><i class="legend-line" style="border-color:${color}"></i>${formatDistance(result.distanciaBordeKm)}</span><span class="legend-item"><i class="legend-swatch" style="background:${color}"></i>${escapeHtml(result.categoria)}</span></div></section></div></article>`;
 }
 
 function renderEmptyCard(group, index) {
@@ -233,7 +239,16 @@ function renderEmptyCard(group, index) {
 
 function executiveResultSentence(result) {
   const alert = territorialExposure(result).label.toLocaleLowerCase("es-CL");
-  if (result.posicion === "interior") return `El punto se encuentra al interior de ${result.entidadMasCercana}, con profundidad relativa ${formatNumber(result.profundidadRelativa, 2)} y alerta ${alert}.`;
+  if (result.posicion === "interior") {
+    const location = result.profundidadRelativa > .6
+      ? "El punto se encuentra profundamente inmerso dentro del área protegida"
+      : result.profundidadRelativa > .3
+        ? "El punto se encuentra claramente inmerso dentro del área protegida"
+        : result.profundidadRelativa > .1
+          ? "El punto se encuentra parcialmente inmerso dentro del área protegida"
+          : "El punto se ubica próximo al borde del área protegida";
+    return `El punto consultado se encuentra al interior de ${result.entidadMasCercana}. Presenta una profundidad relativa de ${formatNumber(result.profundidadRelativa, 2)}. ${location}, con un condicionamiento territorial ${alert}.`;
+  }
   return `${result.entidadMasCercana} se encuentra a ${formatRatio(result.relacionDiametros)} del punto, con alerta ${alert}.`;
 }
 
