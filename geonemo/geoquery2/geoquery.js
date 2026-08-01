@@ -268,11 +268,17 @@ function renderGroupMap(result, index) {
   L.control.layers({ OSM: osm, SAT: satellite }, null, { collapsed: false }).addTo(map);
   L.control.scale({ imperial: false }).addTo(map);
   const layers = L.featureGroup().addTo(map);
-  L.circleMarker([latitude, longitude], { radius: 7, color: "#fff", weight: 3, fillColor: "#dc443b", fillOpacity: 1 }).bindTooltip("Punto consultado", { direction: "top" }).addTo(layers);
+  const poiMarker = L.circleMarker([latitude, longitude], { radius: 7, color: "#fff", weight: 3, fillColor: "#dc443b", fillOpacity: 1 }).bindTooltip("Punto consultado", { direction: "top", className: "map-entity-label" }).addTo(layers);
   const polygon = L.geoJSON(result.feature, { style: { color, weight: 3, fillColor: color, fillOpacity: 0.18 } }).bindPopup(popupHtml(result)).addTo(layers);
   const border = result.nearest.geometry.coordinates;
-  L.polyline([[latitude, longitude], [border[1], border[0]]], { color, weight: 2, dashArray: "6 5" }).bindTooltip(formatDistance(result.distanciaBordeKm), { permanent: true, direction: "center", className: "distance-label" }).addTo(layers);
-  polygon.eachLayer((layer) => layer.bindTooltip(result.entidadMasCercana, { sticky: true }));
+  const distanceLine = L.polyline([[latitude, longitude], [border[1], border[0]]], { color, weight: 2, dashArray: "6 5" }).bindTooltip(formatDistance(result.distanciaBordeKm), { permanent: true, direction: "center", className: "distance-label map-entity-label" }).addTo(layers);
+  polygon.eachLayer((layer) => layer.bindTooltip(result.entidadMasCercana, { sticky: true, className: "map-entity-label" }));
+  const themedMap = {
+    map, polygon, distanceLine, poiMarker, institutionalColor: color,
+    legend: map.getContainer().closest(".group-map-column").querySelector(".map-legend")
+  };
+  GeoQueryMapTheme.applyTheme("osm", themedMap);
+  map.on("baselayerchange", ({ name }) => GeoQueryMapTheme.applyTheme(name, themedMap));
   const bounds = layers.getBounds();
   if (bounds.isValid()) map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
   groupMaps.push(map);
