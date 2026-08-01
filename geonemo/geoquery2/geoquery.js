@@ -216,20 +216,18 @@ function formatRatio(ratio) {
   return `${formatNumber(ratio, ratio < 1 ? 2 : 1)} diámetros`;
 }
 const escapeHtml = (text) => String(text ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
+const resultIct = (result) => calculateIct(result);
+const ictDisplay = (result) => Number.isFinite(resultIct(result)) ? String(Math.round(resultIct(result))) : "—";
+const ictClassification = (result) => classifyIct(resultIct(result));
+/* Se conserva la interpretación preexistente para mapas y KML. */
 const territorialExposure = (result) => classifyTerritorialAlert(result);
-const alertPosition = (result) => result.posicion === "interior" ? (1 - result.profundidadRelativa) * 100 : getExposureVisualPosition(result.relacionDiametros);
 
 function renderCard(result, index) {
   const color = GROUP_COLORS[index % GROUP_COLORS.length];
-  const depth = result.posicion === "interior" ? `<p class="inside-note">Profundidad relativa: <b>${formatNumber(result.profundidadRelativa, 2)}</b></p>` : "";
-  const exposure = territorialExposure(result);
+  const exposure = ictClassification(result);
   const inside = result.posicion === "interior";
-  const badge = inside ? `CONDICIONAMIENTO ${exposure.label.toUpperCase()}` : `ALERTA ${exposure.label.toUpperCase()}`;
-  const scaleLabels = inside ? "<span>Muy alto</span><span>Alto</span><span>Medio</span><span>Bajo</span>" : "<span>Muy alta</span><span>Alta</span><span>Media</span><span>Baja</span><span>Muy baja</span>";
-  const scaleHelp = inside
-    ? "Mayor profundidad relativa implica mayor condicionamiento territorial.<br>Valores cercanos a 0 indican proximidad al borde.<br>Valores cercanos a 1 representan mayor inmersión en el área protegida."
-    : "Mayor cercanía = mayor alerta territorial. Rojo indica mayor condicionamiento y verde, menor condicionamiento.";
-  return `<article class="group-report" style="--group-color:${color}"><header class="group-report-title"><div><h3>${escapeHtml(result.nombre)}</h3><h4>${escapeHtml(result.entidadMasCercana)}</h4></div><span class="level-badge level-${exposure.key}">${escapeHtml(badge)}</span></header><div class="group-report-body"><section class="group-card" aria-label="Información y análisis espacial"><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${inside ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div></div>${depth}<div class="scale"><div class="scale-labels${inside ? " scale-labels-inside" : ""}">${scaleLabels}</div><div class="scale-bar"><i class="scale-marker" style="left:${alertPosition(result)}%"></i></div><p class="scale-help">${scaleHelp}</p></div></section><section class="group-map-column" aria-label="Mapa exclusivo de ${escapeHtml(result.nombre)}"><div class="group-map" id="group-map-${index}"></div><div class="map-legend"><span class="legend-item"><i class="legend-swatch legend-poi"></i>POI</span><span class="legend-item"><i class="legend-line" style="border-color:${color}"></i>${formatDistance(result.distanciaBordeKm)}</span><span class="legend-item"><i class="legend-swatch" style="background:${color}"></i>${escapeHtml(result.categoria)}</span></div></section></div></article>`;
+  const depth = inside ? `${formatNumber(result.profundidadRelativa * 100, 0)} %<small>${formatNumber(result.profundidadRelativa, 2)}</small>` : `—<small>No aplica</small>`;
+  return `<article class="group-report" style="--group-color:${color}"><header class="group-report-title"><div><h3>${escapeHtml(result.entidadMasCercana)}</h3><h4>${escapeHtml(result.nombre)}</h4></div><div class="ict-summary level-${exposure.key}"><span>ICT</span><strong>${ictDisplay(result)}</strong><b>Condicionamiento ${escapeHtml(exposure.label)}</b></div></header><div class="group-report-body"><section class="group-card" aria-label="Información y análisis espacial"><p class="category">Categoría: ${escapeHtml(result.categoria)}</p><div class="metrics"><div class="metric"><span>Posición</span><strong>${inside ? "Interior" : "Exterior"}</strong></div><div class="metric"><span>Distancia al borde</span><strong>${formatDistance(result.distanciaBordeKm)}</strong></div><div class="metric"><span>Diámetro equivalente</span><strong>${formatDistance(result.diametroEquivalenteKm)}</strong></div><div class="metric"><span>Relación territorial</span><strong>${formatRatio(result.relacionDiametros)}</strong></div><div class="metric metric-depth"><span>Profundidad relativa</span><strong>${depth}</strong></div></div><div class="scale"><div class="scale-labels"><span>Muy bajo</span><span>Bajo</span><span>Medio</span><span>Alto</span><span>Muy alto</span></div><div class="scale-bar"><i class="scale-marker" style="left:${resultIct(result)}%"></i></div><p class="scale-help">La barra representa el ICT: 0 indica condicionamiento nulo y 100, condicionamiento máximo.</p></div></section><section class="group-map-column" aria-label="Mapa exclusivo de ${escapeHtml(result.nombre)}"><div class="group-map" id="group-map-${index}"></div><div class="map-legend"><span class="legend-item"><i class="legend-swatch legend-poi"></i>POI</span><span class="legend-item"><i class="legend-line" style="border-color:${color}"></i>${formatDistance(result.distanciaBordeKm)}</span><span class="legend-item"><i class="legend-swatch" style="background:${color}"></i>${escapeHtml(result.categoria)}</span></div></section></div></article>`;
 }
 
 function renderEmptyCard(group, index) {
@@ -238,18 +236,12 @@ function renderEmptyCard(group, index) {
 }
 
 function executiveResultSentence(result) {
-  const alert = territorialExposure(result).label.toLocaleLowerCase("es-CL");
+  const alert = ictClassification(result).label.toLocaleLowerCase("es-CL");
   if (result.posicion === "interior") {
-    const location = result.profundidadRelativa > .6
-      ? "El punto se encuentra profundamente inmerso dentro del área protegida"
-      : result.profundidadRelativa > .3
-        ? "El punto se encuentra claramente inmerso dentro del área protegida"
-        : result.profundidadRelativa > .1
-          ? "El punto se encuentra parcialmente inmerso dentro del área protegida"
-          : "El punto se ubica próximo al borde del área protegida";
-    return `El punto consultado se encuentra al interior de ${result.entidadMasCercana}. Presenta una profundidad relativa de ${formatNumber(result.profundidadRelativa, 2)}. ${location}, con un condicionamiento territorial ${alert}.`;
+    const depthDescription = result.profundidadRelativa > .6 ? "alta" : result.profundidadRelativa > .3 ? "moderada" : "baja";
+    return `Se detectó una entidad ${result.nombre}. ICT: ${ictDisplay(result)}. El punto se encuentra al interior de ${result.entidadMasCercana}, con una profundidad territorial ${depthDescription} y un condicionamiento ${alert}.`;
   }
-  return `${result.entidadMasCercana} se encuentra a ${formatRatio(result.relacionDiametros)} del punto, con alerta ${alert}.`;
+  return `Se detectó una entidad ${result.nombre} relacionada. ICT: ${ictDisplay(result)}. El punto presenta un condicionamiento territorial ${alert} debido a su proximidad relativa a ${result.entidadMasCercana}.`;
 }
 
 function renderSynthesis(dominant) {
@@ -258,8 +250,8 @@ function renderSynthesis(dominant) {
     return;
   }
   const omitted = Math.max(0, loadedGroupCount - results.length);
-  const relation = `El punto analizado presenta relación territorial con ${results.length} ${results.length === 1 ? "grupo ambiental" : "grupos ambientales"}.`;
-  const dominantSentence = `La mayor alerta corresponde a ${dominant.entidadMasCercana}, del grupo ${dominant.nombre}. ${executiveResultSentence(dominant)}`;
+  const relation = `Se ${results.length === 1 ? "detectó una entidad ambiental relacionada" : `detectaron entidades ambientales relacionadas en ${results.length} grupos`}.`;
+  const dominantSentence = `El ICT máximo corresponde a ${dominant.entidadMasCercana}. ${executiveResultSentence(dominant)}`;
   const remaining = omitted ? `No se detectaron entidades relevantes en ${omitted} ${omitted === 1 ? "grupo ambiental adicional" : "grupos ambientales adicionales"}.` : "Todos los grupos analizados presentan una entidad territorialmente relacionada.";
   $("synthesis-text").textContent = `${relation} ${dominantSentence} ${remaining}`;
 }
@@ -288,12 +280,12 @@ function renderGroupMap(result, index) {
 
 function renderResults(groupOutcomes) {
   $("result-cards").innerHTML = groupOutcomes.map((outcome, index) => outcome.result ? renderCard(outcome.result, index) : renderEmptyCard(outcome.group, index)).join("");
-  $("results-table").innerHTML = results.map((result) => `<tr><td>${escapeHtml(result.nombre)}</td><td>${escapeHtml(result.entidadMasCercana)}</td><td>${formatDistance(result.distanciaBordeKm)}</td><td>${formatDistance(result.diametroEquivalenteKm)}</td><td>${formatRatio(result.relacionDiametros)}</td><td>${escapeHtml(territorialExposure(result).label)}</td></tr>`).join("");
+  $("results-table").innerHTML = results.map((result) => `<tr><td>${escapeHtml(result.nombre)}</td><td>${escapeHtml(result.entidadMasCercana)}</td><td><b>${ictDisplay(result)}</b></td><td>${formatDistance(result.distanciaBordeKm)}</td><td>${formatDistance(result.diametroEquivalenteKm)}</td><td>${formatRatio(result.relacionDiametros)}</td><td>${result.posicion === "interior" ? `${formatNumber(result.profundidadRelativa, 2)} (${formatNumber(result.profundidadRelativa * 100, 0)} %)` : "No aplica"}</td></tr>`).join("");
   $("source-list").innerHTML = groupOutcomes.map((outcome, index) => `<li style="--source-color:${GROUP_COLORS[index % GROUP_COLORS.length]}">${escapeHtml(outcome.group.nombre || outcome.group.id)} <small>· ${escapeHtml(outcome.sourceFiles.join(", ") || "fuente no disponible")}${outcome.result ? "" : " · sin entidades relevantes en el área analizada"}</small></li>`).join("");
   const dominant = getDominantResult(results);
-  $("dominant-group").textContent = dominant?.nombre || "Sin entidades relevantes";
-  $("dominant-name").textContent = dominant?.entidadMasCercana || "en el área territorial analizada";
-  $("dominant-level").textContent = dominant ? `Exposición: ${territorialExposure(dominant).label}` : "Sin exposición calculable";
+  $("dominant-ict").textContent = dominant ? ictDisplay(dominant) : "—";
+  $("dominant-name").textContent = dominant?.entidadMasCercana || "Sin entidades relevantes";
+  $("dominant-group").textContent = dominant?.nombre || "en el área territorial analizada";
   renderSynthesis(dominant);
   groupOutcomes.forEach((outcome, index) => { if (outcome.result) renderGroupMap(outcome.result, index); });
 }

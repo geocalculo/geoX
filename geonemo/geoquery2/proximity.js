@@ -28,19 +28,51 @@
     return Math.max(0, Math.min(100, normalized * 100));
   }
 
+  /*
+   * El ICT exterior interpola de forma continua los puntos de referencia
+   * ejecutivos. El ICT interior conserva exactamente la profundidad calculada
+   * por el análisis geométrico; esta capa no altera ninguna medición.
+   */
+  const exteriorIctAnchors = [[0, 100], [.25, 90], [.5, 80], [1, 60], [2, 40], [3, 20], [5, 0]];
+
+  function calculateIct(result) {
+    if (result?.posicion === "interior") {
+      if (!Number.isFinite(result.profundidadRelativa)) return null;
+      return Math.max(0, Math.min(100, result.profundidadRelativa * 100));
+    }
+    const ratio = result?.relacionDiametros;
+    if (!Number.isFinite(ratio) || ratio < 0) return null;
+    if (ratio >= exteriorIctAnchors.at(-1)[0]) return 0;
+    for (let index = 1; index < exteriorIctAnchors.length; index += 1) {
+      const [rightRatio, rightIct] = exteriorIctAnchors[index];
+      if (ratio <= rightRatio) {
+        const [leftRatio, leftIct] = exteriorIctAnchors[index - 1];
+        const progress = (ratio - leftRatio) / (rightRatio - leftRatio);
+        return leftIct + progress * (rightIct - leftIct);
+      }
+    }
+    return 0;
+  }
+
+  function classifyIct(ict) {
+    if (!Number.isFinite(ict)) return { key: "unknown", label: "Sin información", rank: -1 };
+    if (ict <= 20) return { key: "very-low", label: "Muy bajo", rank: 0 };
+    if (ict <= 40) return { key: "low", label: "Bajo", rank: 1 };
+    if (ict <= 60) return { key: "medium", label: "Medio", rank: 2 };
+    if (ict <= 80) return { key: "high", label: "Alto", rank: 3 };
+    return { key: "very-high", label: "Muy alto", rank: 4 };
+  }
+
   function getDominantResult(results) {
     return results
-      .filter((result) => classifyTerritorialAlert(result).rank >= 0)
+      .filter((result) => Number.isFinite(calculateIct(result)))
       .reduce((dominant, current) => {
         if (!dominant) return current;
-        const difference = classifyTerritorialAlert(current).rank - classifyTerritorialAlert(dominant).rank;
-        if (difference) return difference > 0 ? current : dominant;
-        if (current.posicion === "interior" && dominant.posicion === "interior") return current.profundidadRelativa > dominant.profundidadRelativa ? current : dominant;
-        return current.relacionDiametros < dominant.relacionDiametros ? current : dominant;
+        return calculateIct(current) > calculateIct(dominant) ? current : dominant;
       }, null);
   }
 
-  const api = { classifyTerritorialExposure, classifyTerritorialAlert, getExposureVisualPosition, getDominantResult };
+  const api = { classifyTerritorialExposure, classifyTerritorialAlert, getExposureVisualPosition, calculateIct, classifyIct, getDominantResult };
   Object.assign(globalScope, api);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : window);
