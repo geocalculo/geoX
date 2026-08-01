@@ -39,6 +39,7 @@
 /* GeoQuery 2.0 producción: cinco niveles y relación ejecutiva 35/65. */
 .group-report-body{grid-template-columns:minmax(0,35fr) minmax(0,65fr)}
 .group-report .scale-labels{grid-template-columns:repeat(5,1fr)}
+.group-report .scale-labels-inside{grid-template-columns:repeat(4,1fr)}
 .group-report .scale-bar{background:linear-gradient(90deg,#d6584c,#e88e43 25%,#e7c64e 50%,#62bc74 75%,#168d67)}
 .level-badge{font-size:12.5px;padding:7px 11px;color:#fff;background:#687b77}
 .level-very-high{background:#c7443c}.level-high{background:#dc713d}.level-medium{background:#b89322}.level-low{background:#4d9f68}.level-very-low{background:#16835f}

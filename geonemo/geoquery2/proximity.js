@@ -13,11 +13,10 @@
     if (result?.posicion !== "interior") return classifyTerritorialExposure(result?.relacionDiametros);
     const depth = result.profundidadRelativa;
     if (!Number.isFinite(depth) || depth < 0) return { key: "unknown", label: "Sin información", rank: -1 };
-    if (depth >= .8) return { key: "very-high", label: "Muy alta", rank: 4 };
-    if (depth >= .6) return { key: "high", label: "Alta", rank: 3 };
-    if (depth >= .4) return { key: "medium", label: "Media", rank: 2 };
-    if (depth >= .2) return { key: "low", label: "Baja", rank: 1 };
-    return { key: "very-low", label: "Muy baja", rank: 0 };
+    if (depth > .6) return { key: "very-high", label: "Muy alto", rank: 4 };
+    if (depth > .3) return { key: "high", label: "Alto", rank: 3 };
+    if (depth > .1) return { key: "medium", label: "Medio", rank: 2 };
+    return { key: "low", label: "Bajo", rank: 1 };
   }
 
   function getExposureVisualPosition(ratio) {
