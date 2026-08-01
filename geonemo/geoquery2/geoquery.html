@@ -12,11 +12,11 @@
     <div><span class="eyebrow">GeoNEMO</span><h1>GeoQuery <b>2.0</b></h1><p>Relación espacial con entidades ambientales</p></div>
     <div class="dominant"><span>Mayor exposición territorial</span><strong id="dominant-group">Calculando…</strong><b id="dominant-name">—</b><small id="dominant-level">—</small></div>
   </header>
-  <nav class="actions" aria-label="Acciones"><a id="back-link" href="../index.html">← Volver</a><span></span><button id="pdf-button">Exportar PDF</button><button id="kml-button">Exportar KML</button></nav>
+  <nav class="actions" aria-label="Acciones"><a id="back-link" href="../index.html">← Volver</a><span></span><button id="pdf-button" disabled>Exportar PDF</button><button id="kml-button" disabled>Exportar KML</button></nav>
 
   <main class="layout">
     <section class="panel summary" aria-labelledby="summary-title">
-      <div class="heading"><span>01</span><div><h2 id="summary-title">Resumen de consulta</h2><p id="query-status">Cargando entidades ambientales…</p></div></div>
+      <div class="heading"><span>01</span><div><h2 id="summary-title">Resumen de consulta</h2><p id="query-status">Preparando área territorial…</p></div></div>
       <dl class="summary-grid">
         <div><dt>Latitud</dt><dd id="latitude">—</dd></div><div><dt>Longitud</dt><dd id="longitude">—</dd></div>
         <div><dt>Sitio de origen</dt><dd id="site">GeoNEMO</dd></div><div><dt>Estado</dt><dd id="status">En proceso</dd></div>
@@ -34,7 +34,7 @@
       <h3>Entidades analizadas</h3><div class="table-wrap"><table><thead><tr><th>Grupo</th><th>Entidad</th><th>Distancia</th><th>Diámetro</th><th>Relación</th><th>Exposición territorial relativa</th></tr></thead><tbody id="results-table"></tbody></table></div>
     </section>
 
-    <section class="panel sources"><div class="heading"><span>05</span><div><h2>Fuentes y exportaciones</h2><p>Fuentes ambientales cargadas para esta consulta</p></div></div><ul id="source-list"></ul><div class="export-actions"><button id="pdf-button-bottom">Exportar PDF</button><button id="kml-button-bottom">Exportar KML</button></div></section>
+    <section class="panel sources"><div class="heading"><span>05</span><div><h2>Fuentes y exportaciones</h2><p>Fuentes ambientales cargadas para esta consulta</p></div></div><ul id="source-list"></ul><div class="export-actions"><button id="pdf-button-bottom" disabled>Exportar PDF</button><button id="kml-button-bottom" disabled>Exportar KML</button></div></section>
   </main>
   <footer>GeoQuery 2.0 · Informe Ejecutivo Territorial · Resultados territoriales referenciales</footer>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script><script src="proximity.js"></script><script src="viewport-filter.js"></script><script src="geoquery.js"></script>

@@ -4,12 +4,12 @@ const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(window.location.search);
 
 function viewportParamsFromNavigation() {
-  const direct = createViewportPolygon(params);
+  const direct = readOriginalViewport(params);
   if (direct) return direct;
   const states = [history.state?.geoQueryOrigin];
   try { states.push(JSON.parse(sessionStorage.getItem("geox:geonemo:geoquery-origin") || "null")); } catch (error) { console.warn("GeoNEMO: estado de navegación inválido", error); }
   for (const state of states) {
-    const viewport = createViewportPolygon(state?.map?.bounds || state?.bounds);
+    const viewport = readOriginalViewport(state?.map?.bounds || state?.bounds);
     if (viewport) return viewport;
   }
   console.warn("GeoNEMO: viewport original ausente o inválido; se omite la búsqueda ambiental nacional");
@@ -17,7 +17,11 @@ function viewportParamsFromNavigation() {
 }
 
 const originalViewport = viewportParamsFromNavigation();
-const originalViewportBbox = originalViewport ? turf.bbox(originalViewport) : null;
+const expandedViewport = originalViewport ? clampExpandedViewport(expandViewportByFactor(originalViewport, 2)) : null;
+const expandedViewportPolygon = expandedViewport ? viewportToPolygon(expandedViewport) : null;
+const expandedViewportBbox = expandedViewport ? [expandedViewport.west, expandedViewport.south, expandedViewport.east, expandedViewport.north] : null;
+console.info("GeoNEMO viewport original", originalViewport);
+console.info("GeoNEMO viewport ampliado x2", expandedViewport);
 
 function finiteParam(...names) {
   for (const name of names) {
@@ -36,6 +40,7 @@ const sourceEntityKeys = new Set();
 const viewportEntityKeys = new Set();
 const groupMaps = [];
 let loadedGroupCount = 0;
+let sourceWarningCount = 0;
 
 function buildReturnUrl() {
   const back = new URLSearchParams(params);
@@ -77,10 +82,25 @@ function first(properties, fields) {
 
 function entityKey(feature, group, layer, index) {
   const properties = feature.properties || {};
-  const explicitId = first(properties, ["id", "ID", "Id", "OBJECTID", "objectid", "fid", "codigo", "Código"]);
-  const name = first(properties, ["nombre", "Nombre", "NOMBRE", ...(layer.campos_nombre || [])]);
+  const explicitId = first(properties, group.id === "snaspe" ? ["ID_CATASTR"] : group.id === "ramsar" ? ["Id"] : ["id", "ID", "Id", "OBJECTID", "objectid", "fid"]);
+  const name = first(properties, group.id === "snaspe" ? ["NOMBRE_TOT"] : group.id === "ramsar" ? ["Nombre"] : ["nombre", "Nombre", "NOMBRE", ...(layer.campos_nombre || [])]);
   /* El archivo no forma parte de la identidad: una misma entidad publicada en dos capas se cuenta una vez. */
   return explicitId !== null ? `${group.id}:id:${explicitId}` : `${group.id}:entity:${name || JSON.stringify(feature.geometry) || index}`;
+}
+
+function mergeEntityFeatures(entries) {
+  const firstEntry = entries[0];
+  const polygons = [];
+  for (const { feature } of entries) {
+    if (feature.geometry?.type === "Polygon") polygons.push(feature.geometry.coordinates);
+    else if (feature.geometry?.type === "MultiPolygon") polygons.push(...feature.geometry.coordinates);
+  }
+  if (!polygons.length) return null;
+  return {
+    type: "Feature",
+    properties: firstEntry.feature.properties || {},
+    geometry: polygons.length === 1 ? { type: "Polygon", coordinates: polygons[0] } : { type: "MultiPolygon", coordinates: polygons }
+  };
 }
 
 function safePolygonLines(feature) {
@@ -107,7 +127,7 @@ function measureFeature(feature, group, config, layer, diameterKm) {
   let inside = false;
   try { inside = turf.booleanPointInPolygon(poi, feature); } catch (error) { console.warn("No fue posible comprobar contención", error); }
 
-  /* La geometría original gobierna todas las mediciones; el buffer solo intervino en la preselección. */
+  /* La geometría original gobierna todas las mediciones y el análisis territorial posterior. */
   const areaM2 = Math.PI * ((diameterKm * 1000) / 2) ** 2;
   const borderDistanceKm = nearest.properties.dist;
   const ratio = diameterKm ? borderDistanceKm / diameterKm : null;
@@ -133,9 +153,13 @@ function measureFeature(feature, group, config, layer, diameterKm) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`${response.status}: ${url}`);
-  return response.json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+    if (!response.ok) throw new Error(`${response.status}: ${url}`);
+    return await response.json();
+  } finally { clearTimeout(timeout); }
 }
 
 async function loadGroup(group) {
@@ -146,21 +170,38 @@ async function loadGroup(group) {
   ]);
   const active = (query.capas || []).filter((layer) => layer.activo && (layer.incluir_en_nearest || layer.incluir_en_intersects));
   const settled = await Promise.allSettled(active.map(async (layer) => ({ layer, data: await fetchJson(new URL(layer.archivo, base)) })));
-  const candidates = [];
+  const spatialEntries = [];
   const sourceFiles = [];
+  let featuresLoaded = 0;
+  let bboxCandidateCount = 0;
+  let spatialCandidateCount = 0;
   for (const item of settled) {
-    if (item.status !== "fulfilled") { console.error(`Fuente no disponible para ${group.nombre}`, item.reason); continue; }
+    if (item.status !== "fulfilled") { sourceWarningCount += 1; console.warn(`Fuente no disponible para ${group.nombre}`, item.reason); continue; }
     sourceFiles.push(item.value.layer.archivo);
-    for (const [index, feature] of (item.value.data.features || []).entries()) {
+    const features = item.value.data.features || [];
+    featuresLoaded += features.length;
+    for (const [index, feature] of features.entries()) {
       const key = entityKey(feature, group, item.value.layer, index);
       sourceEntityKeys.add(key);
-      const diameterKm = calculateEquivalentDiameterKm(feature);
-      if (!diameterKm || !isCandidateByViewport(feature, originalViewport, diameterKm, turf, originalViewportBbox)) continue;
-      viewportEntityKeys.add(key);
-      const measured = measureFeature(feature, group, config, item.value.layer, diameterKm);
-      if (measured) candidates.push({ ...measured, entityKey: key });
     }
+    const filtered = await filterFeaturesByViewport(features, expandedViewportPolygon, expandedViewportBbox, turf, group.id === "snaspe" ? 150 : 250);
+    bboxCandidateCount += filtered.roughCandidates.length;
+    spatialCandidateCount += filtered.spatialCandidates.length;
+    filtered.spatialCandidates.forEach((feature) => spatialEntries.push({ feature, layer: item.value.layer, key: entityKey(feature, group, item.value.layer, features.indexOf(feature)) }));
   }
+  const entities = new Map();
+  spatialEntries.forEach((entry) => entities.set(entry.key, [...(entities.get(entry.key) || []), entry]));
+  const candidates = [];
+  for (const [key, entries] of entities) {
+    viewportEntityKeys.add(key);
+    const feature = mergeEntityFeatures(entries);
+    const diameterKm = calculateEquivalentDiameterKm(feature);
+    if (!diameterKm) continue;
+    const measured = measureFeature(feature, group, config, entries[0].layer, diameterKm);
+    if (measured) candidates.push({ ...measured, entityKey: key });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  console.info("GeoNEMO filtro ambiental", { fuente: group.nombre, featuresCargados: featuresLoaded, candidatosBbox: bboxCandidateCount, candidatosFinales: spatialCandidateCount, entidadesUnicas: entities.size });
   candidates.sort((a, b) => a.distanciaBordeKm - b.distanciaBordeKm);
   return { group, result: candidates[0] || null, sourceFiles };
 }
@@ -279,21 +320,29 @@ async function run() {
     return;
   }
   try {
+    $("query-status").textContent = "Preparando área territorial…";
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    $("query-status").textContent = "Cargando fuentes ambientales…";
     const registry = await fetchJson(new URL("../capas_geoquery/listado.json", window.location.href));
     const groups = (registry.grupos || []).filter((group) => group.activo).sort((a, b) => (a.orden || 0) - (b.orden || 0));
+    $("query-status").textContent = "Filtrando entidades en el viewport ampliado…";
     const settled = await Promise.allSettled(groups.map(loadGroup));
     const groupOutcomes = settled.filter((item) => item.status === "fulfilled").map((item) => item.value);
     loadedGroupCount = groupOutcomes.length;
     results = groupOutcomes.filter((outcome) => outcome.result).map((outcome) => outcome.result);
-    settled.filter((item) => item.status === "rejected").forEach((item) => console.error("Grupo ambiental no disponible", item.reason));
+    settled.filter((item) => item.status === "rejected").forEach((item) => { sourceWarningCount += 1; console.warn("Grupo ambiental no disponible", item.reason); });
     if (!groupOutcomes.length) throw new Error("No se encontraron grupos ambientales disponibles");
+    $("query-status").textContent = "Analizando grupos ambientales…";
     $("group-count").textContent = String(groupOutcomes.length);
     $("source-entity-count").textContent = sourceEntityKeys.size.toLocaleString("es-CL");
     $("viewport-entity-count").textContent = viewportEntityKeys.size.toLocaleString("es-CL");
     $("related-entity-count").textContent = new Set(results.map((result) => result.entityKey)).size.toLocaleString("es-CL");
     $("status").textContent = "Completada";
-    $("query-status").textContent = `${groupOutcomes.length} grupos analizados; ${results.length} con entidades relevantes en el área.`;
     renderResults(groupOutcomes);
+    $("query-status").textContent = "Generando diagnóstico ejecutivo…";
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    $("query-status").textContent = `${groupOutcomes.length} grupos analizados; ${results.length} con entidades relevantes en el área.${sourceWarningCount ? ` ${sourceWarningCount} fuente(s) no disponible(s).` : ""}`;
+    [$(`pdf-button`), $(`pdf-button-bottom`), $(`kml-button`), $(`kml-button-bottom`)].forEach((button) => { button.disabled = false; });
   } catch (error) {
     console.error(error);
     $("status").textContent = "No disponible";
