@@ -15,7 +15,10 @@
 .group-map-column{position:relative;min-width:0;border-left:1px solid var(--line)}
 .group-map{height:390px;background:#dce8e4}
 .group-map-column .map-legend{position:absolute}
-.legend-line{width:14px;border-top:2px dashed}
+.legend-line{width:14px;border-top:2px dashed;border-color:var(--map-distance-color,var(--group-color))!important}
+.group-map-column .map-legend .legend-swatch:not(.legend-poi){background:var(--map-entity-color,var(--group-color))!important}
+.group-map[data-map-theme="sat"] .map-entity-label{color:#FFFF66;background:#111;border-color:#000;text-shadow:0 0 3px #000,0 0 6px #000;box-shadow:0 1px 5px #000}
+.group-map[data-map-theme="sat"] .map-entity-label:before{border-top-color:#000}
 @media print{
   .layout>*{break-inside:auto}
   .group-report{break-inside:avoid;page-break-inside:avoid}
