@@ -392,7 +392,7 @@
       const metadata = tailingsMetadata(item, index, relatedTailings.length);
       const name = metadata.name;
       const classes = ['tailings-list__item', index === 0 ? 'is-nearest is-active' : '', index === relatedTailings.length - 1 ? 'is-radius-limit' : ''].filter(Boolean).join(' ');
-      const badge = index === 0 ? '<small>Más cercano</small>' : index === relatedTailings.length - 1 ? '<small>Límite del clúster</small>' : '';
+      const badge = index === 0 ? '<small class="tailings-list__badge">Más cercano</small>' : index === relatedTailings.length - 1 ? '<small class="tailings-list__badge">Límite del clúster</small>' : '';
       return `<li class="${classes}" data-tailings-index="${index}" tabindex="0" title="${esc(tailingsMetadataEntries(metadata).map(entry => entry.join(': ')).join(' · '))}"><span class="tailings-list__order">${String(index + 1).padStart(2, '0')}</span><span class="tailings-list__main"><strong>${esc(name)}</strong><small>${esc(metadata.resource || 'Sin recurso')}</small></span><span class="tailings-list__distance">${distanceLabel(metadata.distanceKm)}${badge}</span></li>`;
     }).join('')}</ol>`;
   }
@@ -500,17 +500,23 @@
     const exportDate = new Date();
     const filename = buildExportFilename('geonoxa', 'pdf', exportDate);
     const report = document.getElementById('report');
-    await waitForExportMaps();
-    return html2pdf().set({
-      margin: [8, 10, 8, 10],
-      filename,
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait', compress: true },
-      pagebreak: {
-        mode: ['css', 'legacy'],
-        avoid: ['.tailings-related-panel', '.report-card__header', '.complementary-information-heading', 'tr']
-      }
-    }).from(report).save();
+    report.classList.add('is-pdf-export');
+    try {
+      await waitForExportMaps();
+      await html2pdf().set({
+        margin: [8, 10, 8, 10],
+        filename,
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait', compress: true },
+        pagebreak: {
+          mode: ['css', 'legacy'],
+          avoid: ['.tailings-related-panel', '.report-card__header', '.complementary-information-heading', 'tr']
+        }
+      }).from(report).save();
+    } finally {
+      report.classList.remove('is-pdf-export');
+      Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize(false));
+    }
   }
 
   document.getElementById('back').onclick = () => { const query = new URLSearchParams(params); query.set('lat', params.get('viewLat') || lat); query.set('lon', params.get('viewLon') || lon); location.href = `../index.html?${query}`; };
