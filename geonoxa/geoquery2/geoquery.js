@@ -170,12 +170,18 @@
     const main = ordered[0];
     const dominant = A.dominant(ordered, item => isTailings ? item.p.recurso : (item.p.contaminante || item.p.contaminantes || item.p.saturado || item.p.latentes));
     const scores = ordered.map(item => Number(item.score)).filter(Number.isFinite);
-    const score = scores.length ? (isTailings ? Math.round(scores.reduce((sum, item) => sum + item, 0) / scores.length) : scores[0]) : null;
+    const score = scores.length ? (isTailings ? scores.reduce((sum, item) => sum + item, 0) / scores.length : scores[0]) : null;
     const semantics = A.indicatorSemantics(kind, main.inside, score);
     const category = semantics.category;
     const clusterRadiusKm = isTailings ? ordered.at(-1)?.distanceKm ?? null : null;
     const meanDistance = isTailings ? ordered.reduce((sum, item) => sum + item.distanceKm, 0) / ordered.length : null;
     return { group: isTailings ? 'Relaves' : 'Zona Saturada', entity: entityName(kind, main), distance: main.distanceKm, score, category: category?.label || 'Sin información', categoryData: category, semantics, detail: isTailings ? `${dominant?.name || 'Sin información'} · ${main.p.comuna || ''}` : `${main.p.zona_dec || main.p.tipo || main.p.clasificacion || 'Zona ambiental'} · ${dominant?.name || 'Sin información'}`, main, kind, relations: ordered, clusterRadiusKm, meanDistance, dominant };
+  }
+
+  function indicatorValue(score) {
+    if (!Number.isFinite(score)) return 'No calculable';
+    if (score > 0 && score < 1) return '&lt; 1';
+    return String(Math.round(score));
   }
 
   function destroyMap(kind) {
@@ -319,7 +325,8 @@
     group.className = 'group';
     group.innerHTML = `<div class="group-title"><div><small>MICROINFORME</small><h2>${title}</h2></div><div class="group-count"><b>${result.related.length} ${isTailings ? 'relaves relacionados' : result.related.length === 1 ? 'zona relacionada' : 'zonas relacionadas'}</b>${isTailings ? `<small>${result.detected.length} relaves detectados en el área territorial analizada</small>` : ''}</div></div>`;
     if (!result.related.length) {
-      const emptyMessage = isTailings ? 'Sin entidades relevantes<br>en el área territorial analizada.' : 'Sin zonas relevantes<br>en el viewport analizado.';
+      const emptyMessage = isTailings ? 'Sin entidades relevantes en el área territorial analizada.' : '<b>Zonas Saturadas / Latentes:</b> sin entidades relevantes en el viewport.';
+      group.classList.add('group--empty');
       group.innerHTML += `<div class="empty">${result.error ? 'Grupo no disponible por un error de análisis.' : emptyMessage}</div>`;
       target.replaceChildren(group);
       return null;
@@ -333,7 +340,7 @@
     const metrics = isTailings
       ? [['Relave más cercano', row.entity], ['Relaves relacionados', row.relations.length], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Estado predominante', A.dominant(row.relations, item => item.p.estado || item.p.tipo_deposito)?.name || 'Sin información'], ['Superficie total', areas.length ? `${fmt(totalArea / 1e6)} km²` : 'Sin información'], ['Superficie media', areas.length ? `${fmt(totalArea / areas.length / 1e6)} km²` : 'Sin información']]
       : [['Zona principal', row.entity], ['Clasificación', p.zona_dec || p.tipo || p.clasificacion || 'Zona ambiental'], ['Contaminante', row.dominant.name], ['Posición', row.main.inside ? 'Interior' : 'Exterior'], ['Distancia al borde', `${fmt(row.distance)} km`], ...(row.main.inside ? [['Profundidad relativa', row.main.depth !== null ? fmt(row.main.depth) : 'No aplica']] : [['Diámetro equivalente', row.main.diameter ? `${fmt(row.main.diameter)} km` : 'Sin información'], ['Relación territorial', row.main.ratio !== null ? `${fmt(row.main.ratio)} diámetros` : 'No aplica']])];
-    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${row.score}</strong> · ${row.semantics.interpretation}`;
+    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${indicatorValue(row.score)}</strong> · ${row.semantics.interpretation}`;
     const scale = !isTailings ? `<div class="territorial-scale" aria-label="Escala de ${row.semantics.concept.toLowerCase()} territorial"><div class="territorial-scale__bar"></div><div>${['Muy alta', 'Alta', 'Media', 'Baja', 'Muy baja'].map(level => `<span>${row.semantics.concept} ${level.toLowerCase()}</span>`).join('')}</div><small>${row.main.inside ? 'Mayor profundidad relativa implica mayor inmersión territorial dentro de la zona.' : 'Menor cantidad de diámetros implica mayor proximidad territorial.'}</small></div>` : '';
     const mapId = isTailings ? 'relaves-map' : 'map-zonas';
     group.innerHTML += `<div class="micro"><div><div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small style="color:white">${row.semantics.code}</small><br>${index}</div><div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div>${scale}${isTailings ? `<div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, index) => `<div><span>${esc(item.name)}</span><i><em class="color-${index}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count}</strong></div>`).join('')}</div><div class="legend">${distribution.map((item, index) => `<span class="legend-${index}">● ${esc(item.name)} · ${item.count}</span>`).join('')}</div></div>` : ''}</div><div id="${mapId}" class="map" aria-label="Mapa independiente de ${title}"></div></div>`;
@@ -391,7 +398,7 @@
   }
 
   function renderIerCard(row) {
-    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${row.score}</strong><span>Exposición ${row.category}</span>`;
+    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${indicatorValue(row.score)}</strong><span>Exposición ${row.category}</span>`;
     return `<div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small>IER</small>${index}</div>`;
   }
 
@@ -406,7 +413,10 @@
     const metrics = [['Relaves relacionados', row.relations.length], ['Relave más cercano', row.entity], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Estado predominante', dominantState], ['Superficie total', areaLabel(totalArea)]];
     if (areas.length) metrics.push(['Superficie media', areaLabel(totalArea / areas.length, true)]);
     const summary = `El clúster está compuesto por ${row.relations.length} relaves contenidos en el viewport consultado. Su radio de ${fmt(row.clusterRadiusKm)} km está definido por el relave más lejano del grupo seleccionado. El relave más cercano se ubica a ${fmt(row.distance)} km y la distancia media del conjunto alcanza ${fmt(row.meanDistance)} km. El recurso dominante es ${String(row.dominant.name).toLowerCase()}, presente en ${row.dominant.count} de los ${row.relations.length} depósitos.`;
-    container.innerHTML = `<div class="tailings-cluster-layout"><div class="tailings-cluster-kpis">${renderIerCard(row)}<div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div></div><div class="tailings-cluster-chart"><div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, chartIndex) => `<div><span>${esc(item.name)}</span><i><em class="color-${chartIndex}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count} · ${Math.round(item.count / row.relations.length * 100)} %</strong></div>`).join('')}</div></div></div></div><div class="tailings-cluster-summary"><strong>Síntesis automática del clúster</strong><p>${esc(summary)}</p></div>`;
+    const resourcePanel = distribution.length === 1
+      ? `<div class="dominant-resource"><b>Recurso dominante</b><strong>${esc(distribution[0].name)} — 100 %</strong></div>`
+      : `<div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, chartIndex) => `<div><span>${esc(item.name)}</span><i><em class="color-${chartIndex}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count} · ${Math.round(item.count / row.relations.length * 100)} %</strong></div>`).join('')}</div></div>`;
+    container.innerHTML = `<div class="tailings-cluster-layout"><div class="tailings-cluster-kpis">${renderIerCard(row)}<div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div></div><div class="tailings-cluster-chart">${resourcePanel}</div></div><div class="tailings-cluster-summary"><strong>Síntesis automática del clúster</strong><p>${esc(summary)}</p></div>`;
   }
 
   function safeRender(label, render) {
@@ -429,7 +439,7 @@
     const tailings = state.rows.find(item => item.kind === 'relaves');
     const zone = state.rows.find(item => item.kind === 'zonas');
     const sentences = [];
-    if (tailings) sentences.push(`Se analizaron ${analysisResults.relaves.related.length} relaves seleccionados dentro del viewport consultado, contenidos en un radio de ${fmt(tailings.clusterRadiusKm)} km. El relave más próximo, ${tailings.entity}, se ubica a ${fmt(tailings.distance)} km. ${tailings.score === null ? 'No fue posible calcular el IER con la información disponible.' : `El clúster presenta una ${tailings.semantics.interpretation.toLowerCase()} territorial (IER ${tailings.score}).`}`);
+    if (tailings) sentences.push(`Se analizaron ${analysisResults.relaves.related.length} relaves seleccionados dentro del viewport consultado, contenidos en un radio de ${fmt(tailings.clusterRadiusKm)} km. El relave más próximo, ${tailings.entity}, se ubica a ${fmt(tailings.distance)} km. ${tailings.score === null ? 'No fue posible calcular el IER con la información disponible.' : `El clúster presenta una ${tailings.semantics.interpretation.toLowerCase()} territorial (IER ${indicatorValue(tailings.score).replace('&lt;', '<')}).`}`);
     else sentences.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el viewport consultado.');
     if (zone) sentences.push(zone.main.inside ? `El punto se encuentra al interior de la zona ${zone.entity}. La profundidad relativa alcanza ${fmt(zone.main.depth)}, lo que representa una ${zone.semantics.interpretation.toLowerCase()} territorial.` : `La zona ${zone.entity} se encuentra a ${fmt(zone.distance)} km del punto, equivalente a ${zone.main.ratio === null ? 'una relación no calculable' : `${fmt(zone.main.ratio)} diámetros`}. La ${zone.semantics.interpretation.toLowerCase()} territorial.`);
     else sentences.push(analysisResults.zonas.error ? 'No fue posible analizar las zonas saturadas o latentes.' : 'No se detectaron Zonas Saturadas o Latentes dentro del viewport analizado.');
@@ -439,7 +449,7 @@
 
   function renderComplementaryTable() {
     document.getElementById('details').innerHTML = state.rows.flatMap(row => row.kind === 'relaves'
-      ? row.relations.map((item, index) => { const metadata = tailingsMetadata(item, index, row.relations.length); return `<tr><td>${row.group}</td><td>${esc(metadata.name)}</td><td>${distanceLabel(metadata.distanceKm)}</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : row.score}</td><td>${esc(metadata.role)}</td><td>${esc([metadata.resource, metadata.status, areaM2Label(metadata.area), metadata.owner, metadata.commune, metadata.region, metadata.id].filter(present).join(' · '))}</td></tr>`; })
+      ? row.relations.map((item, index) => { const metadata = tailingsMetadata(item, index, row.relations.length); return `<tr><td>${row.group}</td><td>${esc(metadata.name)}</td><td>${distanceLabel(metadata.distanceKm)}</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : indicatorValue(row.score)}</td><td>${esc(metadata.role)}</td><td>${esc([metadata.resource, metadata.status, areaM2Label(metadata.area), metadata.owner, metadata.commune, metadata.region, metadata.id].filter(present).join(' · '))}</td></tr>`; })
       : [`<tr><td>${row.group}</td><td>${esc(row.entity)}</td><td>${distanceLabel(row.distance)}</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : row.score}</td><td>${row.semantics.interpretation}</td><td>${esc(row.detail)}</td></tr>`]).join('') || '<tr><td colspan="6">Sin entidades relevantes.</td></tr>';
   }
 
@@ -466,13 +476,15 @@
   }
 
   async function init() {
+    document.getElementById('report-date').textContent = `Fecha de consulta · ${new Date().toLocaleDateString('es-CL')}`;
+    document.getElementById('report-coordinates').textContent = `Coordenadas · ${lat.toFixed(6)}, ${lon.toFixed(6)}`;
     try { await runFullAnalysis(); }
     catch (error) { console.error('GeoNOXA: error general', error); state.failures.push({ stage: 'general', error }); }
     finally { finalizeLoadingStates(); }
   }
 
   document.getElementById('back').onclick = () => { const query = new URLSearchParams(params); query.set('lat', params.get('viewLat') || lat); query.set('lon', params.get('viewLon') || lon); location.href = `../index.html?${query}`; };
-  document.getElementById('pdf').onclick = () => html2pdf().set({ margin: 8, filename: 'geonoxa-informe-exposicion.pdf', html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } }).from(document.getElementById('report')).save();
+  document.getElementById('pdf').onclick = () => html2pdf().set({ margin: 8, filename: 'geonoxa-informe-exposicion.pdf', html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], before: '.tailings-cluster-panel', avoid: ['.report-card', '.report-card__header'] } }).from(document.getElementById('report')).save();
   document.getElementById('kml').onclick = () => {
     const exporter = GeoQueryKmlExporter;
     const styles = exporter.geoNoxaStyles();
