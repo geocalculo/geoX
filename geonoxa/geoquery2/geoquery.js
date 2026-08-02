@@ -178,7 +178,7 @@
     (basemap === 'sat' ? sat : osm).addTo(map);
     const poiMarker = L.circleMarker(center, { radius: 8, color: '#fff', weight: 3, fillColor: '#ef233c', fillOpacity: 1 }).addTo(map).bindPopup('POI');
     const setActiveTailing = (index, openPopup = false) => {
-      document.querySelectorAll('.tailing-row').forEach((row, rowIndex) => row.classList.toggle('is-active', rowIndex === index));
+      document.querySelectorAll('.tailings-list__item').forEach((row, rowIndex) => row.classList.toggle('is-active', rowIndex === index));
       tailingsMarkers.forEach((marker, markerIndex) => {
         const nearest = markerIndex === 0;
         marker.setStyle({ ...T.entityStyle('relaves', basemap, nearest || markerIndex === index), radius: nearest || markerIndex === index ? 9 : 6, fillOpacity: .85 });
@@ -196,7 +196,7 @@
       tailingsMarkers.set(index, marker);
       marker.on('click', () => setActiveTailing(index));
     });
-    document.querySelectorAll('.tailing-row').forEach((row, index) => {
+    document.querySelectorAll('.tailings-list__item').forEach((row, index) => {
       row.addEventListener('mouseenter', () => setActiveTailing(index, true));
       row.addEventListener('focus', () => setActiveTailing(index, true));
       row.addEventListener('click', () => setActiveTailing(index, true));
@@ -318,12 +318,44 @@
     return `${Number(areaM2 / 10000).toLocaleString('es-CL', { maximumFractionDigits: average ? 2 : 1 })} ha`;
   }
 
-  function renderTailingsIndicators(result) {
+  function renderTailingsPanelsShell(result) {
     const target = document.getElementById('tailings-report');
     if (!result.related.length) return renderGroup('relaves', result, false);
     const row = buildRow('relaves', result.related);
     result.ier = row.score;
     state.rows.push(row);
+    target.innerHTML = `<section class="report-card tailings-related-panel">
+      <header class="report-card__header"><div><span class="eyebrow">RELAVES</span><h2>Relaves relacionados</h2><p>Los ${row.relations.length} relaves más cercanos al punto consultado.</p></div>
+      <div class="report-card__meta"><strong>${row.relations.length} relaves seleccionados</strong><span>Radio del clúster: ${fmt(row.clusterRadiusKm)} km</span></div></header>
+      <div class="tailings-related-layout"><div id="tailings-list-container"></div><div id="relaves-map" aria-label="Mapa del clúster de relaves"></div></div>
+    </section>
+    <section class="report-card tailings-cluster-panel">
+      <header class="report-card__header"><div><span class="eyebrow">ANÁLISIS TERRITORIAL</span><h2>Descripción del clúster de relaves</h2><p>Indicadores calculados sobre los ${row.relations.length} relaves relacionados.</p></div></header>
+      <div id="tailings-cluster-content"></div>
+    </section>`;
+    return row;
+  }
+
+  function renderTailingsList(relatedTailings) {
+    const container = document.getElementById('tailings-list-container');
+    if (!container) return;
+    container.innerHTML = `<ol class="tailings-list">${relatedTailings.map((item, index) => {
+      const name = entityName('relaves', item);
+      const classes = ['tailings-list__item', index === 0 ? 'is-nearest is-active' : '', index === relatedTailings.length - 1 ? 'is-radius-limit' : ''].filter(Boolean).join(' ');
+      const badge = index === 0 ? '<small>Más cercano</small>' : index === relatedTailings.length - 1 ? '<small>Límite del clúster</small>' : '';
+      return `<li class="${classes}" data-tailings-index="${index}" tabindex="0" title="${esc(name)}"><span class="tailings-list__order">${String(index + 1).padStart(2, '0')}</span><span class="tailings-list__main"><strong>${esc(name)}</strong><small>${esc(item.p.recurso || 'Sin recurso')}</small></span><span class="tailings-list__distance">${fmt(item.distanceKm)} km${badge}</span></li>`;
+    }).join('')}</ol>`;
+  }
+
+  function renderIerCard(row) {
+    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${row.score}</strong><span>Exposición ${row.category}</span>`;
+    return `<div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small>IER</small>${index}</div>`;
+  }
+
+  function renderTailingsClusterDescription(result) {
+    const container = document.getElementById('tailings-cluster-content');
+    if (!container || !result.related.length) return;
+    const row = buildRow('relaves', result.related);
     const areas = row.relations.map(item => Number(item.area)).filter(value => Number.isFinite(value) && value > 0);
     const totalArea = areas.reduce((sum, value) => sum + value, 0);
     const dominantState = A.dominant(row.relations, item => item.p.estado || item.p.tipo_deposito)?.name || 'Sin información';
@@ -331,30 +363,7 @@
     const metrics = [['Relaves relacionados', row.relations.length], ['Relave más cercano', row.entity], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Estado predominante', dominantState], ['Superficie total', areaLabel(totalArea)]];
     if (areas.length) metrics.push(['Superficie media', areaLabel(totalArea / areas.length, true)]);
     const summary = `El clúster está compuesto por ${row.relations.length} relaves contenidos en un radio de ${fmt(row.clusterRadiusKm)} km. El relave más cercano se ubica a ${fmt(row.distance)} km y la distancia media del conjunto alcanza ${fmt(row.meanDistance)} km. El recurso dominante es ${String(row.dominant.name).toLowerCase()}, presente en ${row.dominant.count} de los ${row.relations.length} depósitos.`;
-    const list = row.relations.map((item, index) => {
-      const name = entityName('relaves', item);
-      const resource = item.p.recurso || 'Sin información';
-      const classes = ['tailing-row', index === 0 ? 'is-nearest is-active' : '', index === row.relations.length - 1 ? 'is-radius' : ''].filter(Boolean).join(' ');
-      const badge = index === 0 ? '<small>Más cercano</small>' : index === row.relations.length - 1 ? '<small>Define el radio</small>' : '';
-      return `<button type="button" class="${classes}" data-index="${index}" title="${esc(name)}"><b>${String(index + 1).padStart(2, '0')}</b><span><strong>${esc(name)}</strong><em>${esc(resource)} · ${fmt(item.distanceKm)} km</em></span>${badge}</button>`;
-    }).join('');
-    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${row.score}</strong><span>Exposición ${row.category}</span>`;
-    target.innerHTML = `<section class="group tailings-overview"><div class="group-title"><div><small>RELAVES RELACIONADOS</small><h2>${row.relations.length} relaves seleccionados</h2><p>Radio del clúster: ${fmt(row.clusterRadiusKm)} km</p></div></div><div class="tailings-layout"><div class="tailings-list" aria-label="Relaves ordenados por distancia">${list}</div><div id="relaves-map" class="map" aria-label="Mapa del clúster de relaves"></div></div></section><section class="group cluster-description"><div class="group-title"><div><small>DESCRIPCIÓN DEL CLÚSTER DE RELAVES</small><h2>Indicadores del clúster</h2><p>Indicadores calculados sobre los ${row.relations.length} relaves más cercanos al punto consultado.</p></div></div><p class="cluster-summary">${esc(summary)}</p><div class="cluster-content"><div><div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div><div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, chartIndex) => `<div><span>${esc(item.name)}</span><i><em class="color-${chartIndex}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count} · ${Math.round(item.count / row.relations.length * 100)} %</strong></div>`).join('')}</div></div></div><div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small>IER</small>${index}</div></div></section>`;
-    return row;
-  }
-  function renderTailingsMap(result) {
-    requestAnimationFrame(() => {
-      try { initializeTailingsMap(result); }
-      catch (error) {
-        console.error('GeoNOXA GeoQuery2: error al inicializar mapa de Relaves', error);
-        state.failures.push({ stage: 'Mapa de RELAVES', error });
-        safeRender('resumen de consulta', renderQuerySummary);
-      }
-    });
-  }
-  function renderTailingsDistribution(result) {
-    // La distribución se completa en el panel de indicadores y no condiciona el mapa.
-    return result.related?.length || 0;
+    container.innerHTML = `<div class="tailings-cluster-layout"><div class="tailings-cluster-kpis">${renderIerCard(row)}<div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div></div><div class="tailings-cluster-chart"><div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, chartIndex) => `<div><span>${esc(item.name)}</span><i><em class="color-${chartIndex}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count} · ${Math.round(item.count / row.relations.length * 100)} %</strong></div>`).join('')}</div></div></div></div><div class="tailings-cluster-summary"><strong>Síntesis automática del clúster</strong><p>${esc(summary)}</p></div>`;
   }
 
   function safeRender(label, render) {
@@ -402,9 +411,10 @@
     Object.assign(analysisResults.zonas, zonesResult);
     state.sourceCount = tailingsResult.sourceCount + zonesResult.sourceCount;
     state.rows = [];
-    safeRender('indicadores de Relaves', () => renderTailingsIndicators(tailingsResult));
-    safeRender('mapa de Relaves', () => renderTailingsMap(tailingsResult));
-    safeRender('distribución de Relaves', () => renderTailingsDistribution(tailingsResult));
+    safeRender('paneles de Relaves', () => renderTailingsPanelsShell(tailingsResult));
+    safeRender('lista de Relaves', () => renderTailingsList(tailingsResult.related));
+    safeRender('descripción del clúster', () => renderTailingsClusterDescription(tailingsResult));
+    requestAnimationFrame(() => safeRender('mapa de Relaves', () => initializeTailingsMap(tailingsResult)));
     safeRender('Zonas', () => renderGroup('zonas', zonesResult));
     safeRender('síntesis ejecutiva', renderExecutiveSummary);
     safeRender('tabla complementaria', renderComplementaryTable);
