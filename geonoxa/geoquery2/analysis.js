@@ -50,7 +50,9 @@
   }
   function pointTailingsExposure(distanceKm, areaM2) {
     const diameter = equivalentDiameterKm(areaM2);
-    return clamp(100 * Math.exp(-(Number(distanceKm) || 0) / Math.max(diameter || 5, 0.25)));
+    // Conserva la precisión del cálculo. El redondeo corresponde a la capa de
+    // presentación; hacerlo aquí convertía exposiciones pequeñas pero válidas en 0.
+    return Math.max(0, Math.min(100, 100 * Math.exp(-(Number(distanceKm) || 0) / Math.max(diameter || 5, 0.25))));
   }
   function dominant(items, getter) {
     const counts = new Map();
