@@ -11,6 +11,14 @@ test('doubles viewport dimensions around its center', () => {
   assert.deepEqual(A.expandedViewport({ west: 0, east: 2, south: 2, north: 4 }), { west: -1, east: 3, south: 1, north: 5 });
 });
 
+test('prefilters candidate geometries against the original viewport bbox', () => {
+  const viewport = [-72, -31, -71, -30];
+  assert.equal(A.bboxIntersects([-71.5, -30.5, -70.5, -29.5], viewport), true);
+  assert.equal(A.bboxIntersects([-70.9, -30.5, -70.1, -29.5], viewport), false);
+  assert.equal(A.bboxIntersects([-72.5, -31.5, -72, -31], viewport), true);
+  assert.equal(A.bboxIntersects([NaN, -31, -71, -30], viewport), false);
+});
+
 test('exposure indices remain bounded and categories share the requested scale', () => {
   assert.equal(A.relativeExposure({ inside: true, depthRatio: 1 }), 100);
   assert.equal(A.relativeExposure({ inside: true, depthRatio: 0.38 }), 38);

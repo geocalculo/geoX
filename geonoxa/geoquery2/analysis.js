@@ -25,6 +25,11 @@
     const cx = (west + east) / 2, cy = (south + north) / 2;
     return { west: cx - (east - west), east: cx + (east - west), south: cy - (north - south), north: cy + (north - south) };
   }
+  function bboxIntersects(a, b) {
+    return Array.isArray(a) && a.length === 4 && Array.isArray(b) && b.length === 4 &&
+      [...a, ...b].every(Number.isFinite) &&
+      !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
+  }
   function exposureCategory(score) {
     const value = clamp(score);
     if (value <= 20) return { label: 'Muy baja', color: '#16803a' };
@@ -109,5 +114,5 @@
     const shown = ordered.slice(0, visibleLimit - 1);
     return [...shown, { name: 'Otros', count: ordered.slice(visibleLimit - 1).reduce((sum, item) => sum + item.count, 0) }];
   }
-  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, indicatorSemantics, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, createAnalysisResults, totalRelatedEntities, distribution };
+  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, bboxIntersects, exposureCategory, indicatorSemantics, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, createAnalysisResults, totalRelatedEntities, distribution };
 });
