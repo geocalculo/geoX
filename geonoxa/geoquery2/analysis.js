@@ -93,6 +93,43 @@
     const value = candidates.find(item => item !== null && item !== undefined && String(item).trim() !== '');
     return value === undefined ? 'Relave sin nombre' : String(value).trim();
   }
+  const firstProperty = (item, names) => {
+    const p = item?.feature?.properties || item?.properties || item?.p || {};
+    const key = names.find(name => p[name] !== null && p[name] !== undefined && String(p[name]).trim() !== '');
+    return key ? p[key] : '';
+  };
+  const getRelaveName = item => getTailingsName(item?.feature || item);
+  const getRelaveResource = item => firstProperty(item, ['recurso', 'RECURSO', 'mineral', 'MINERAL']);
+  const getRelaveStatus = item => firstProperty(item, ['estado', 'ESTADO', 'tipo_deposito', 'TIPO_DEPOSITO', 'tipo']);
+  const getRelaveArea = item => {
+    const value = Number(item?.area ?? firstProperty(item, ['shape_area_m2', 'superficie_m2', 'area_m2', 'superficie', 'Shape_Area']));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  };
+  const getRelaveOwner = item => firstProperty(item, ['empresa', 'EMPRESA', 'titular', 'TITULAR', 'propietario']);
+  const getRelaveCommune = item => firstProperty(item, ['comuna', 'COMUNA']);
+  const getRelaveRegion = item => firstProperty(item, ['region', 'REGION', 'región', 'nombre_region', 'cut_reg']);
+  const getRelaveId = item => firstProperty(item, ['id_relave', 'ID_RELAVE', 'identificador', 'IDENTIFICADOR', 'objectid', 'OBJECTID', 'id', 'ID']);
+  function buildTailingsKmlMetadata(item, index, total) {
+    const isNearest = index === 0;
+    const isClusterLimit = index === total - 1;
+    return {
+      order: index + 1,
+      total,
+      name: getRelaveName(item),
+      resource: getRelaveResource(item),
+      status: getRelaveStatus(item),
+      distanceKm: Number.isFinite(Number(item?.distanceKm)) ? Number(item.distanceKm) : null,
+      area: getRelaveArea(item),
+      owner: getRelaveOwner(item),
+      commune: getRelaveCommune(item),
+      region: getRelaveRegion(item),
+      id: getRelaveId(item),
+      role: isNearest ? 'Relave más cercano' : isClusterLimit ? 'Límite del clúster' : 'Relave relacionado'
+    };
+  }
+  function escapeXml(value = '') {
+    return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  }
   function createAnalysisResults() {
     return {
       relaves: { detected: [], related: [], ier: null },
@@ -114,5 +151,5 @@
     const shown = ordered.slice(0, visibleLimit - 1);
     return [...shown, { name: 'Otros', count: ordered.slice(visibleLimit - 1).reduce((sum, item) => sum + item.count, 0) }];
   }
-  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, bboxIntersects, exposureCategory, indicatorSemantics, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, createAnalysisResults, totalRelatedEntities, distribution };
+  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, bboxIntersects, exposureCategory, indicatorSemantics, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, getRelaveName, getRelaveResource, getRelaveStatus, getRelaveArea, getRelaveOwner, getRelaveCommune, getRelaveRegion, getRelaveId, buildTailingsKmlMetadata, escapeXml, createAnalysisResults, totalRelatedEntities, distribution };
 });

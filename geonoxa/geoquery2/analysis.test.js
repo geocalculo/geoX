@@ -79,3 +79,12 @@ test('normalizes tailings coordinates from geometry and known property variants'
   assert.deepEqual(A.getRelaveCoordinates({ properties: { latitud: '-30.3', longitud: '-71.2' } }), { lat: -30.3, lon: -71.2 });
   assert.equal(A.getRelaveCoordinates({ properties: { latitud: 200, longitud: -71 } }), null);
 });
+
+test('builds complete tailings metadata from the original feature', () => {
+  const feature = { properties: { faena: 'A & B', recurso: 'COBRE', tipo_deposito: 'TRANQUE', shape_area_m2: 12080.6, empresa: 'Titular', comuna: 'Ovalle', region: 'Coquimbo', id_relave: 'R-7' } };
+  const first = A.buildTailingsKmlMetadata({ feature, distanceKm: 10.1 }, 0, 10);
+  const last = A.buildTailingsKmlMetadata({ feature, distanceKm: 10.8 }, 9, 10);
+  assert.deepEqual(first, { order: 1, total: 10, name: 'A & B', resource: 'COBRE', status: 'TRANQUE', distanceKm: 10.1, area: 12080.6, owner: 'Titular', commune: 'Ovalle', region: 'Coquimbo', id: 'R-7', role: 'Relave más cercano' });
+  assert.equal(last.role, 'Límite del clúster');
+  assert.equal(A.escapeXml(`A&B <x> "q" 's'`), 'A&amp;B &lt;x&gt; &quot;q&quot; &apos;s&apos;');
+});

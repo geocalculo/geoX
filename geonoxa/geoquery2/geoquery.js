@@ -25,6 +25,18 @@
   const tailingsMarkers = new Map();
   const fmt = value => Number(value).toLocaleString('es-CL', { maximumFractionDigits: 1 });
   const esc = value => String(value ?? 'Sin información').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+  const present = value => value !== null && value !== undefined && String(value).trim() !== '';
+  const distanceLabel = value => Number.isFinite(Number(value)) ? `${fmt(value)} km` : 'Sin información';
+  const areaM2Label = value => Number.isFinite(Number(value)) && Number(value) > 0 ? `${Number(value).toLocaleString('es-CL', { maximumFractionDigits: 1 })} m²` : 'Sin información';
+  const metadataTable = (title, entries) => `<div style="font-family:Arial,sans-serif;font-size:13px"><h3 style="margin:0 0 8px">${esc(title)}</h3><table>${entries.filter(([, value]) => present(value)).map(([label, value]) => `<tr><td style="padding:2px 10px 2px 0"><strong>${esc(label)}:</strong></td><td>${esc(value)}</td></tr>`).join('')}</table></div>`;
+  function tailingsMetadata(item, index, total) { return A.buildTailingsKmlMetadata(item, index, total); }
+  function tailingsMetadataEntries(metadata) {
+    return [['Orden', `${metadata.order} de ${metadata.total}`], ['Recurso', metadata.resource], ['Estado', metadata.status], ['Distancia al POI', distanceLabel(metadata.distanceKm)], ['Superficie', areaM2Label(metadata.area)], ['Empresa o titular', metadata.owner], ['Comuna', metadata.commune], ['Región', metadata.region], ['Identificador original', metadata.id], ['Rol', metadata.role]];
+  }
+  function tailingsDescription(metadata) { return metadataTable(metadata.name, tailingsMetadataEntries(metadata)); }
+  function tailingsExtendedData(metadata) {
+    return Object.fromEntries(tailingsMetadataEntries(metadata).map(([name, value]) => [name, value]).filter(([, value]) => present(value) && value !== 'Sin información'));
+  }
   const validFeature = feature => feature && feature.type === 'Feature' && feature.geometry && feature.geometry.type;
 
   function insideBbox(feature) {
@@ -207,9 +219,8 @@
     validTailings.forEach(({ item, coordinates }) => {
       const index = nearestTailings.indexOf(item);
       const selected = item === nearestTailings[0];
-      const p = item.feature?.properties || item.p || {};
-      const area = Number(item.area ?? p.shape_area_m2);
-      const popup = `<b>${esc(entityName('relaves', item))}</b>${selected ? '<br><strong>Relave más cercano</strong>' : ''}<br>Recurso: ${esc(p.recurso)}<br>Estado: ${esc(p.estado || p.tipo_deposito)}<br>Distancia al POI: ${fmt(item.distanceKm)} km${Number.isFinite(area) && area > 0 ? `<br>Superficie: ${fmt(area)} m²` : ''}`;
+      const metadata = tailingsMetadata(item, index, nearestTailings.length);
+      const popup = tailingsDescription(metadata);
       const marker = L.circleMarker([coordinates.lat, coordinates.lon], { ...T.entityStyle('relaves', basemap, selected), radius: selected ? 9 : 6, fillOpacity: .85 }).addTo(map).bindPopup(popup);
       mapLayers.relaves.push({ layer: marker, kind: 'relaves', selected });
       tailingsMarkers.set(index, marker);
@@ -361,10 +372,11 @@
     const container = document.getElementById('tailings-list-container');
     if (!container) return;
     container.innerHTML = `<ol class="tailings-list">${relatedTailings.map((item, index) => {
-      const name = entityName('relaves', item);
+      const metadata = tailingsMetadata(item, index, relatedTailings.length);
+      const name = metadata.name;
       const classes = ['tailings-list__item', index === 0 ? 'is-nearest is-active' : '', index === relatedTailings.length - 1 ? 'is-radius-limit' : ''].filter(Boolean).join(' ');
       const badge = index === 0 ? '<small>Más cercano</small>' : index === relatedTailings.length - 1 ? '<small>Límite del clúster</small>' : '';
-      return `<li class="${classes}" data-tailings-index="${index}" tabindex="0" title="${esc(name)}"><span class="tailings-list__order">${String(index + 1).padStart(2, '0')}</span><span class="tailings-list__main"><strong>${esc(name)}</strong><small>${esc(item.p.recurso || 'Sin recurso')}</small></span><span class="tailings-list__distance">${fmt(item.distanceKm)} km${badge}</span></li>`;
+      return `<li class="${classes}" data-tailings-index="${index}" tabindex="0" title="${esc(tailingsMetadataEntries(metadata).map(entry => entry.join(': ')).join(' · '))}"><span class="tailings-list__order">${String(index + 1).padStart(2, '0')}</span><span class="tailings-list__main"><strong>${esc(name)}</strong><small>${esc(metadata.resource || 'Sin recurso')}</small></span><span class="tailings-list__distance">${distanceLabel(metadata.distanceKm)}${badge}</span></li>`;
     }).join('')}</ol>`;
   }
 
@@ -416,7 +428,9 @@
   }
 
   function renderComplementaryTable() {
-    document.getElementById('details').innerHTML = state.rows.map(row => `<tr><td>${row.group}</td><td>${esc(row.entity)}</td><td>${fmt(row.distance)} km</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : row.score}</td><td>${row.semantics.interpretation}</td><td>${esc(row.detail)}</td></tr>`).join('') || '<tr><td colspan="6">Sin entidades relevantes.</td></tr>';
+    document.getElementById('details').innerHTML = state.rows.flatMap(row => row.kind === 'relaves'
+      ? row.relations.map((item, index) => { const metadata = tailingsMetadata(item, index, row.relations.length); return `<tr><td>${row.group}</td><td>${esc(metadata.name)}</td><td>${distanceLabel(metadata.distanceKm)}</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : row.score}</td><td>${esc(metadata.role)}</td><td>${esc([metadata.resource, metadata.status, areaM2Label(metadata.area), metadata.owner, metadata.commune, metadata.region, metadata.id].filter(present).join(' · '))}</td></tr>`; })
+      : [`<tr><td>${row.group}</td><td>${esc(row.entity)}</td><td>${distanceLabel(row.distance)}</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : row.score}</td><td>${row.semantics.interpretation}</td><td>${esc(row.detail)}</td></tr>`]).join('') || '<tr><td colspan="6">Sin entidades relevantes.</td></tr>';
   }
 
   function finalizeLoadingStates() {
@@ -454,13 +468,31 @@
     const styles = exporter.geoNoxaStyles();
     const registry = exporter.createKmlExportRegistry();
     const add = item => exporter.addUniqueKmlItem(registry, { site: 'geonoxa', visible: true, ...item });
-    add({ id: 'geonoxa-query-point', groupId: 'general', folderId: 'query', role: 'query-point', type: 'point', name: 'POI', geometry: { type: 'Point', coordinates: [lon, lat] }, styleId: 'Style-POI', style: styles.poi });
+    const tailingsRow = state.rows.find(row => row.kind === 'relaves');
+    const poiData = { Latitud: lat.toFixed(6), Longitud: lon.toFixed(6), 'Sitio de origen': params.get('site') || 'GeoNOXA', 'Fecha de consulta': new Date().toLocaleString('es-CL'), 'Radio del clúster': tailingsRow ? distanceLabel(tailingsRow.clusterRadiusKm) : '', 'Cantidad de relaves': tailingsRow?.relations.length ?? 0, 'Recurso dominante': tailingsRow?.dominant?.name || '', IER: tailingsRow?.score ?? '', Clasificación: tailingsRow?.semantics?.interpretation || '' };
+    add({ id: 'geonoxa-query-point', groupId: 'general', folderId: 'query', role: 'query-point', type: 'point', name: 'POI', geometry: { type: 'Point', coordinates: [lon, lat] }, styleId: 'Style-POI', style: styles.poi, description: metadataTable('Punto de interés', Object.entries(poiData)), extendedData: poiData });
     state.rows.forEach(row => {
       const items = row.kind === 'relaves' ? row.relations : [row.main];
-      items.forEach((item, index) => add({ id: `geonoxa-${row.kind}-${index + 1}`, groupId: row.kind, folderId: row.kind === 'relaves' ? (index === 0 ? 'nearest-relave' : 'relaves') : 'zonas', role: row.kind === 'relaves' ? (index === 0 ? 'nearest-relave' : 'related-point') : 'related-feature', type: item.feature.geometry.type.toLowerCase(), name: entityName(row.kind, item), geometry: item.feature.geometry, styleId: row.kind === 'relaves' ? (index === 0 ? 'Style-Relave-Cercano' : 'Style-Relave') : 'Style-Zona-Saturada', style: row.kind === 'relaves' ? (index === 0 ? styles.nearest : styles.relave) : styles.zone, extendedData: { grupo: row.group, posicion: row.kind === 'zonas' ? (row.main.inside ? 'Interior' : 'Exterior') : '', indicador: row.semantics.code, valor: row.score ?? '', interpretacion: row.semantics.interpretation, distancia_km: item.distanceKm, radio_cluster_km: row.clusterRadiusKm ?? '', relave_mas_cercano: index === 0 } }));
+      items.forEach((item, index) => {
+        if (row.kind === 'relaves') {
+          const metadata = tailingsMetadata(item, index, items.length);
+          add({ id: `geonoxa-relaves-${index + 1}`, groupId: row.kind, folderId: index === 0 ? 'nearest-relave' : 'relaves', role: index === 0 ? 'nearest-relave' : 'related-point', type: item.feature.geometry.type.toLowerCase(), name: `${String(index + 1).padStart(2, '0')} · ${metadata.role} · ${metadata.name}`, geometry: item.feature.geometry, styleId: index === 0 ? 'Style-Relave-Cercano' : 'Style-Relave', style: index === 0 ? styles.nearest : styles.relave, description: tailingsDescription(metadata), extendedData: tailingsExtendedData(metadata) });
+          return;
+        }
+        const p = item.feature?.properties || item.p || {};
+        const position = item.inside ? 'Interior' : 'Exterior';
+        const zoneData = { Nombre: entityName('zonas', item), Clasificación: p.zona_dec || p.tipo || p.clasificacion || '', Contaminante: p.contaminante || p.contaminantes || p.saturado || p.latentes || '', Posición: position, 'Distancia al borde': distanceLabel(item.distanceKm), 'Diámetro equivalente': distanceLabel(item.diameter), 'Relación territorial': item.inside ? 'Inmersión' : 'Proximidad', Indicador: row.semantics.code, Valor: row.score ?? '', Interpretación: row.semantics.interpretation };
+        add({ id: `geonoxa-zonas-${index + 1}`, groupId: row.kind, folderId: 'zonas', role: 'related-feature', type: item.feature.geometry.type.toLowerCase(), name: entityName(row.kind, item), geometry: item.feature.geometry, styleId: 'Style-Zona-Saturada', style: styles.zone, description: metadataTable(zoneData.Nombre, Object.entries(zoneData).slice(1)), extendedData: zoneData });
+      });
       const nearest = row.main.nearest?.geometry?.coordinates;
-      if (nearest) add({ id: `geonoxa-distance-${row.kind}`, groupId: row.kind, folderId: 'relations', role: row.kind === 'relaves' ? 'minimum-distance' : 'zone-nearest-line', type: 'line', name: `POI → ${entityName(row.kind, row.main)}`, geometry: { type: 'LineString', coordinates: [[lon, lat], nearest] }, styleId: 'Style-Linea-Distancia', style: styles.distance, extendedData: { distancia_km: row.main.distanceKm } });
-      if (row.kind === 'relaves' && Number.isFinite(row.clusterRadiusKm)) add({ id: 'geonoxa-cluster-circle', groupId: 'cluster', folderId: 'cluster', role: 'cluster-circle', type: 'polygon', name: `Radio del clúster: ${fmt(row.clusterRadiusKm)} km`, geometry: turf.circle([lon, lat], row.clusterRadiusKm, { steps: 128, units: 'kilometers' }).geometry, styleId: 'Style-Radio', style: styles.radius, extendedData: { radio_km: row.clusterRadiusKm } });
+      if (nearest) {
+        const lineData = { Origen: 'POI', Destino: entityName(row.kind, row.main), Distancia: distanceLabel(row.main.distanceKm), Tipo: row.kind === 'relaves' ? 'Distancia mínima' : 'Distancia al borde' };
+        add({ id: `geonoxa-distance-${row.kind}`, groupId: row.kind, folderId: 'relations', role: row.kind === 'relaves' ? 'minimum-distance' : 'zone-nearest-line', type: 'line', name: `POI → ${entityName(row.kind, row.main)}`, geometry: { type: 'LineString', coordinates: [[lon, lat], nearest] }, styleId: 'Style-Linea-Distancia', style: styles.distance, description: metadataTable('Relación espacial', Object.entries(lineData)), extendedData: lineData });
+      }
+      if (row.kind === 'relaves' && Number.isFinite(row.clusterRadiusKm)) {
+        const circleData = { Tipo: 'Radio de análisis', Centro: `${lat.toFixed(6)}, ${lon.toFixed(6)}`, Radio: distanceLabel(row.clusterRadiusKm), Criterio: 'Distancia al décimo relave más cercano', 'Relaves incluidos': row.relations.length };
+        add({ id: 'geonoxa-cluster-circle', groupId: 'cluster', folderId: 'cluster', role: 'cluster-circle', type: 'polygon', name: `Radio del clúster: ${fmt(row.clusterRadiusKm)} km`, geometry: turf.circle([lon, lat], row.clusterRadiusKm, { steps: 128, units: 'kilometers' }).geometry, styleId: 'Style-Radio', style: styles.radius, description: metadataTable('Radio del clúster', Object.entries(circleData)), extendedData: circleData });
+      }
     });
     const features = Array.from(registry.values());
     exporter.validateKmlExportItems(features);
