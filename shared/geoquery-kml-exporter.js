@@ -9,6 +9,18 @@
   };
   function themeFor(site){ return GEOQUERY_KML_THEMES[String(site||"").toLowerCase()] || GEOQUERY_KML_THEMES.geoipt; }
   function themedStyle(site, kind="line", extra={}){ const t=themeFor(site); return { color:t.cssColor, fillColor:t.cssColor, kmlLineColor:t.lineColor, kmlFillColor:kind==="strong-fill"?t.strongerFillColor:t.fillColor, kmlTextColor:t.textColor, kmlHaloColor:t.haloColor, labelColor:"#000000", ...extra }; }
+  function geoNoxaStyles(){
+    const icon="http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png";
+    const relave={color:"#ea580c",fillColor:"#f97316",kmlIconColor:"ff1673f9",icon,iconScale:1,labelColor:"#9a3412",labelScale:.9,weight:2};
+    return {
+      poi:{color:"#dc2626",fillColor:"#dc2626",kmlIconColor:"ff2626dc",icon,iconScale:1.15,labelColor:"#dc2626",labelScale:1,weight:2},
+      relave,
+      nearest:{...relave,color:"#a16207",fillColor:"#facc15",kmlIconColor:"ff15ccfa",iconScale:1.35,labelColor:"#854d0e",labelScale:1},
+      radius:{color:"#ea580c",fillColor:"#f97316",opacity:1,fillOpacity:.12,weight:2,dashArray:"4 8",dashLengthMeters:160,gapLengthMeters:110,iconScale:0,labelScale:0},
+      distance:{color:"#38bdf8",fillColor:"#38bdf8",opacity:1,weight:3,dashArray:"4 6",dashLengthMeters:120,gapLengthMeters:80,iconScale:0,labelScale:0},
+      zone:{color:"#7c2d12",fillColor:"#fb923c",opacity:1,fillOpacity:.25,weight:2,iconScale:0,labelScale:.9}
+    };
+  }
   function finite(n){ return Number.isFinite(Number(n)); }
   function clean(v){ if(v===undefined||v===null) return ""; const s=String(v); return /undefined|null|NaN|Infinity/.test(s) ? s.replace(/undefined|null|NaN|Infinity/g, "") : s; }
   function esc(v){ return clean(v).replace(/[&<>'"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&apos;",'"':"&quot;"}[c])); }
@@ -49,5 +61,5 @@
   function fileName(site, lat, lon){ const d=new Date(), ymd=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`; return `${site}_Consulta_${Number(lat).toFixed(6)}_${Number(lon).toFixed(6)}_${ymd}.kml`.replace(/[\\/:*?"<>|\s]+/g,"_"); }
   function downloadKmlFile(kml, name){ validateKmlText(kml); const blob=new Blob([kml],{type:"application/vnd.google-earth.kml+xml;charset=utf-8"}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),0); return blob; }
   function installGeoQueryKmlButton(buildFn,onDownload){ const buttons=[...document.querySelectorAll(".download-button")].filter(b=>/KML/i.test(b.textContent)); const set=()=>{ const ok=(window.geoQueryState?.mapExport?.features||[]).some(f=>f.visible!==false&&f.folderId!=="query"); buttons.forEach(b=>{b.disabled=!ok; b.title=ok?"Descargar KML GeoQuery":"Disponible cuando exista análisis territorial.";}); }; buttons.forEach(b=>{ const handler=()=>{ try{ b.disabled=true; const old=b.textContent; b.textContent="Generando KML…"; const exp=buildFn?buildFn():window.geoQueryState.mapExport; const kml=buildGeoQueryKml(exp); const name=exp.fileName||fileName(exp.site||"GeoQuery", exp.queryPoint?.lat, exp.queryPoint?.lon); const blob=downloadKmlFile(kml,name); if(typeof onDownload==="function"){ try{ onDownload({blob,name,exportState:exp}); }catch(e){ console.warn("[GeoQuery KML] No fue posible ejecutar la acción posterior a la descarga",e); } } b.textContent=old; set(); }catch(e){ console.error("[GeoQuery KML]",e); b.textContent="Descargar KML"; set(); alert("No fue posible generar un KML válido."); }}; b.onclick=handler; b.dataset.kmlBound="1"; }); set(); return set; }
-  global.GeoQueryKmlExporter={buildGeoQueryKml,downloadKmlFile,cssColorToKmlColor,createDashedLineSegments,installGeoQueryKmlButton,fileName,GEOQUERY_KML_THEMES,themeFor,themedStyle,createKmlExportRegistry,addUniqueKmlItem,validateKmlExportItems,pointSignature};
+  global.GeoQueryKmlExporter={buildGeoQueryKml,downloadKmlFile,cssColorToKmlColor,createDashedLineSegments,installGeoQueryKmlButton,fileName,GEOQUERY_KML_THEMES,themeFor,themedStyle,geoNoxaStyles,createKmlExportRegistry,addUniqueKmlItem,validateKmlExportItems,pointSignature};
 })(window);
