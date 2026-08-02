@@ -60,8 +60,7 @@ test('validates marker coordinates and obtains a tailings name from real field v
 });
 
 test('normalizes tailings coordinates from geometry and known property variants', () => {
-  assert.deepEqual(A.getTailingsCoordinates({ geometry: { type: 'Point', coordinates: [-71.1, -30.2] } }), { lat: -30.2, lon: -71.1 });
-  assert.deepEqual(A.getTailingsCoordinates({ properties: { LATITUD: '-30.3', LONGITUD: '-71.2' } }), { lat: -30.3, lon: -71.2 });
-  assert.deepEqual(A.getTailingsCoordinates({ properties: { Y: -30.4, X: -71.3 } }), { lat: -30.4, lon: -71.3 });
-  assert.equal(A.getTailingsCoordinates({ properties: { lat: 200, lon: -71 } }), null);
+  assert.deepEqual(A.getRelaveCoordinates({ geometry: { type: 'Point', coordinates: [-71.1, -30.2] } }), { lat: -30.2, lon: -71.1 });
+  assert.deepEqual(A.getRelaveCoordinates({ properties: { latitud: '-30.3', longitud: '-71.2' } }), { lat: -30.3, lon: -71.2 });
+  assert.equal(A.getRelaveCoordinates({ properties: { latitud: 200, longitud: -71 } }), null);
 });

@@ -11,7 +11,13 @@
   const bounds = A.expandedViewport(validBounds ? rawBounds : { west: lon - .35, east: lon + .35, south: lat - .25, north: lat + .25 });
   const analysisResults = A.createAnalysisResults();
   const state = { lat, lon, basemap, sourceCount: 0, rows: [], failures: [] };
-  const maps = { relaves: null, zonas: null };
+  let relavesMapInstance = null;
+  let zonasMapInstance = null;
+  const maps = {};
+  Object.defineProperties(maps, {
+    relaves: { get: () => relavesMapInstance, set: value => { relavesMapInstance = value; } },
+    zonas: { get: () => zonasMapInstance, set: value => { zonasMapInstance = value; } }
+  });
   const mapLayers = { relaves: [], zonas: [] };
   const fmt = value => Number(value).toLocaleString('es-CL', { maximumFractionDigits: 1 });
   const esc = value => String(value ?? 'Sin información').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -138,60 +144,79 @@
     mapLayers[kind] = [];
   }
 
+  // Adaptación acotada del mapa productivo: conserva sus capas OSM/SAT, POI,
+  // marcadores, círculo dinámico, fitBounds, escala e invalidación de Leaflet.
   function initializeTailingsMap(result) {
-    const container = document.getElementById('tailings-map');
-    if (!container) throw Error('No existe el contenedor tailings-map');
-    if (maps.relaves) { maps.relaves.remove(); maps.relaves = null; }
+    const container = document.getElementById('relaves-map');
+    if (!container) throw Error('No existe el contenedor relaves-map');
+    if (relavesMapInstance) {
+      relavesMapInstance.remove();
+      relavesMapInstance = null;
+    }
     mapLayers.relaves = [];
-    const relatedTailings = (result.related || []).slice(0, 10);
-    const validTailings = relatedTailings.map(item => ({ item, coordinates: A.getTailingsCoordinates(item.feature) })).filter(entry => entry.coordinates);
-    const validPoi = A.isValidCoordinate(lat, lon);
-    if (!validPoi && !validTailings.length) {
+    const nearestTailings = result.related || [];
+    console.table(nearestTailings.map(item => ({
+      nombre: A.getTailingsName(item.feature || item),
+      coordenadas: A.getRelaveCoordinates(item.feature || item),
+      distanciaKm: item.distanceKm
+    })));
+    const validTailings = nearestTailings
+      .map(item => ({ item, coordinates: A.getRelaveCoordinates(item.feature || item) }))
+      .filter(entry => entry.coordinates);
+    if (!validTailings.length) {
       container.innerHTML = '<div class="empty">Mapa no disponible</div>';
       return;
     }
+    const validPoi = A.isValidCoordinate(lat, lon);
     const center = validPoi ? [lat, lon] : [validTailings[0].coordinates.lat, validTailings[0].coordinates.lon];
     const map = L.map(container, { zoomControl: true });
-    maps.relaves = map;
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
-    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, attribution: 'Esri' });
+    relavesMapInstance = map;
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap', crossOrigin: true });
+    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, attribution: 'Tiles &copy; Esri', crossOrigin: true });
     (basemap === 'sat' ? sat : osm).addTo(map);
-    const boundsLayers = [];
     let poiMarker = null;
-    if (validPoi) {
-      poiMarker = L.circleMarker(center, { radius: 8, color: '#fff', weight: 3, fillColor: '#ef233c', fillOpacity: 1 }).addTo(map).bindTooltip('POI');
-      boundsLayers.push(poiMarker);
-    }
-    const tailingsMarkers = validTailings.map(({ item, coordinates }) => {
-      const selected = item === relatedTailings[0];
-      const marker = L.circleMarker([coordinates.lat, coordinates.lon], { ...T.entityStyle('relaves', basemap, selected), radius: selected ? 9 : 6, fillOpacity: .85 }).addTo(map).bindTooltip(`${entityName('relaves', item)} · ${fmt(item.distanceKm)} km`);
+    if (validPoi) poiMarker = L.circleMarker(center, { radius: 8, color: '#fff', weight: 3, fillColor: '#ef233c', fillOpacity: 1 }).addTo(map).bindPopup('POI');
+    const relaveMarkers = validTailings.map(({ item, coordinates }) => {
+      const selected = item === nearestTailings[0];
+      const p = item.feature?.properties || item.p || {};
+      const area = Number(item.area ?? p.shape_area_m2);
+      const popup = `<b>${esc(entityName('relaves', item))}</b>${selected ? '<br><strong>Relave más cercano</strong>' : ''}<br>Recurso: ${esc(p.recurso)}<br>Estado: ${esc(p.estado || p.tipo_deposito)}<br>Distancia al POI: ${fmt(item.distanceKm)} km${Number.isFinite(area) && area > 0 ? `<br>Superficie: ${fmt(area)} m²` : ''}`;
+      const marker = L.circleMarker([coordinates.lat, coordinates.lon], { ...T.entityStyle('relaves', basemap, selected), radius: selected ? 9 : 6, fillOpacity: .85 }).addTo(map).bindPopup(popup);
       mapLayers.relaves.push({ layer: marker, kind: 'relaves', selected });
       return marker;
     });
-    boundsLayers.push(...tailingsMarkers);
-    const nearestCoordinates = validTailings.find(entry => entry.item === relatedTailings[0])?.coordinates;
+    const nearestCoordinates = validTailings.find(entry => entry.item === nearestTailings[0])?.coordinates;
     if (validPoi && nearestCoordinates) {
-      const line = L.polyline([center, [nearestCoordinates.lat, nearestCoordinates.lon]], T.distanceStyle).addTo(map).bindTooltip(`${fmt(relatedTailings[0].distanceKm)} km`);
+      const line = L.polyline([center, [nearestCoordinates.lat, nearestCoordinates.lon]], T.distanceStyleFor(basemap)).addTo(map).bindTooltip(`${fmt(nearestTailings[0].distanceKm)} km`);
       mapLayers.relaves.push({ layer: line, kind: 'distance', selected: false });
     }
-    const clusterRadiusKm = relatedTailings.length ? relatedTailings[relatedTailings.length - 1].distanceKm : null;
+    const radioClusterKm = nearestTailings.length ? nearestTailings[nearestTailings.length - 1].distanceKm : null;
     let clusterCircle = null;
-    if (validPoi && Number.isFinite(clusterRadiusKm) && clusterRadiusKm >= 0) {
-      clusterCircle = L.circle(center, { ...T.clusterStyle(basemap), radius: clusterRadiusKm * 1000 }).addTo(map).bindTooltip(`Radio del clúster: ${fmt(clusterRadiusKm)} km`);
+    if (validPoi && Number.isFinite(radioClusterKm) && radioClusterKm >= 0) {
+      clusterCircle = L.circle(center, { radius: radioClusterKm * 1000, ...T.clusterStyle(basemap) }).addTo(map).bindTooltip(`Radio del clúster: ${fmt(radioClusterKm)} km`);
       mapLayers.relaves.push({ layer: clusterCircle, kind: 'cluster', selected: false });
-      boundsLayers.push(clusterCircle);
     }
+    const boundsLayers = [poiMarker, ...relaveMarkers, clusterCircle].filter(Boolean);
     const boundsGroup = L.featureGroup(boundsLayers);
     const mapBounds = boundsGroup.getBounds();
-    if (mapBounds.isValid()) map.fitBounds(mapBounds, { padding: [28, 28], maxZoom: 13 });
+    if (mapBounds.isValid()) map.fitBounds(mapBounds, { padding: [24, 24], maxZoom: 13 });
     else map.setView(center, 10);
     L.control.layers({ OSM: osm, SAT: sat }).addTo(map);
     L.control.scale({ metric: true, imperial: false }).addTo(map);
     const legend = L.control({ position: 'bottomright' });
-    legend.onAdd = () => { const element = L.DomUtil.create('div', 'map-legend'); element.innerHTML = '<b>Relaves</b><br><i style="background:#ef233c"></i>POI<br><i style="background:#f97316"></i>Relave relacionado<br>━ Línea al más cercano<br>┄ Radio del clúster'; return element; };
+    let legendElement;
+    const updateLegend = theme => {
+      const relaveColor = theme === 'sat' ? '#eaff00' : '#f97316';
+      legendElement.innerHTML = `<i style="background:#ef233c"></i>POI<br><i style="background:${relaveColor}"></i>Relaves relacionados<br><i class="nearest" style="background:${relaveColor}"></i>Relave más cercano<br><span style="color:${relaveColor}">◯</span> Radio de los 10 más cercanos<br><span class="distance-key">--- </span>Distancia mínima`;
+    };
+    legend.onAdd = () => { legendElement = L.DomUtil.create('div', 'map-legend'); updateLegend(basemap); return legendElement; };
     legend.addTo(map);
-    map.on('baselayerchange', event => T.restyle(mapLayers.relaves, event.name === 'SAT' ? 'sat' : 'osm'));
-    setTimeout(() => { if (maps.relaves === map) map.invalidateSize(); }, 100);
+    map.on('baselayerchange', event => {
+      const theme = event.name === 'SAT' ? 'sat' : 'osm';
+      T.restyle(mapLayers.relaves, theme);
+      updateLegend(theme);
+    });
+    setTimeout(() => { if (relavesMapInstance === map) relavesMapInstance.invalidateSize(); }, 150);
   }
 
   function createMap(id, relations, kind, primary) {
@@ -252,7 +277,7 @@
       ? [['Relave más cercano', row.entity], ['Relaves relacionados', row.relations.length], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Estado predominante', A.dominant(row.relations, item => item.p.estado || item.p.tipo_deposito)?.name || 'Sin información'], ['Superficie total', areas.length ? `${fmt(totalArea / 1e6)} km²` : 'Sin información'], ['Superficie media', areas.length ? `${fmt(totalArea / areas.length / 1e6)} km²` : 'Sin información']]
       : [['Zona principal', row.entity], ['Clasificación', p.zona_dec || p.tipo || p.clasificacion || 'Zona ambiental'], ['Contaminante', row.dominant.name], ['Posición', row.main.inside ? 'Interior' : 'Exterior'], ['Distancia al borde', `${fmt(row.distance)} km`], ['Diámetro equivalente', row.main.diameter ? `${fmt(row.main.diameter)} km` : 'Sin información'], ['Relación territorial', row.main.ratio !== null ? `${fmt(row.main.ratio)} diámetros` : 'No aplica'], ['Profundidad relativa', row.main.depth !== null ? `${fmt(row.main.depth * 100)} %` : 'No aplica']];
     const index = row.score === null ? '<strong>IER no calculable</strong>' : `<strong>${row.score}</strong> · Exposición ${row.category}`;
-    const mapId = isTailings ? 'tailings-map' : 'map-zonas';
+    const mapId = isTailings ? 'relaves-map' : 'map-zonas';
     group.innerHTML += `<div class="micro"><div><div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small style="color:white">${isTailings ? 'IER' : 'IEZ'}</small><br>${index}</div><div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div>${isTailings ? `<div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, index) => `<div><span>${esc(item.name)}</span><i><em class="color-${index}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count}</strong></div>`).join('')}</div><div class="legend">${distribution.map((item, index) => `<span class="legend-${index}">● ${esc(item.name)} · ${item.count}</span>`).join('')}</div></div>` : ''}</div><div id="${mapId}" class="map" aria-label="Mapa independiente de ${title}"></div></div>`;
     target.replaceChildren(group);
     state.rows.push(row);
@@ -273,7 +298,7 @@
     requestAnimationFrame(() => {
       try { initializeTailingsMap(result); }
       catch (error) {
-        console.error('GeoNOXA: error al crear mapa de relaves', error);
+        console.error('GeoNOXA GeoQuery2: error al inicializar mapa de Relaves', error);
         state.failures.push({ stage: 'Mapa de RELAVES', error });
         safeRender('resumen de consulta', renderQuerySummary);
       }
