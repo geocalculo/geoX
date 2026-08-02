@@ -7,16 +7,31 @@ test('groups fragmented geometries as one logical entity', () => {
   assert.equal(A.groupLogicalEntities(features, 'zonas').length, 1);
 });
 
-test('doubles viewport dimensions around its center', () => {
-  assert.deepEqual(A.expandedViewport({ west: 0, east: 2, south: 2, north: 4 }), { west: -1, east: 3, south: 1, north: 5 });
-});
-
 test('prefilters candidate geometries against the original viewport bbox', () => {
   const viewport = [-72, -31, -71, -30];
   assert.equal(A.bboxIntersects([-71.5, -30.5, -70.5, -29.5], viewport), true);
   assert.equal(A.bboxIntersects([-70.9, -30.5, -70.1, -29.5], viewport), false);
   assert.equal(A.bboxIntersects([-72.5, -31.5, -72, -31], viewport), true);
   assert.equal(A.bboxIntersects([NaN, -31, -71, -30], viewport), false);
+});
+
+test('includes point tailings only when their coordinates are inside the original viewport', () => {
+  const viewport = { west: -72, south: -31, east: -71, north: -30 };
+  assert.equal(A.pointInsideViewport(-30.5, -71.5, viewport), true);
+  assert.equal(A.pointInsideViewport(-30, -71, viewport), true);
+  assert.equal(A.pointInsideViewport(-30.5, -70.999, viewport), false);
+  assert.equal(A.pointInsideViewport(-29.999, -71.5, viewport), false);
+});
+
+test('does not complete a tailings selection with candidates outside the viewport', () => {
+  const viewport = { west: -72, south: -31, east: -71, north: -30 };
+  const candidates = [
+    { lat: -30.2, lon: -71.2, distanceKm: 20 },
+    { lat: -30.4, lon: -71.4, distanceKm: 10 },
+    { lat: -30.5, lon: -70.5, distanceKm: 5 }
+  ];
+  const detected = candidates.filter(item => A.pointInsideViewport(item.lat, item.lon, viewport));
+  assert.deepEqual(A.selectNearestTailings(detected, 10).map(item => item.distanceKm), [10, 20]);
 });
 
 test('exposure indices remain bounded and categories share the requested scale', () => {
