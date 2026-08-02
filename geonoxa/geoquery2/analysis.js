@@ -35,7 +35,13 @@
   }
   function equivalentDiameterKm(areaM2) { return areaM2 > 0 ? (2 * Math.sqrt(Number(areaM2) / Math.PI)) / 1000 : null; }
   function relativeExposure({ inside, distanceKm, diameterKm, depthRatio }) {
-    return clamp(inside ? 65 + 35 * Math.max(0, Math.min(1, Number(depthRatio) || 0)) : 100 * Math.exp(-1.45 * (Number(distanceKm) || 0) / Math.max(Number(diameterKm) || 1, 0.001)));
+    return clamp(inside ? 100 * Math.max(0, Math.min(1, Number(depthRatio) || 0)) : 100 * Math.exp(-1.45 * (Number(distanceKm) || 0) / Math.max(Number(diameterKm) || 1, 0.001)));
+  }
+  function indicatorSemantics(kind, inside, score) {
+    const category = score === null ? null : exposureCategory(score);
+    if (kind === 'relaves') return { code: 'IER', name: 'Índice de Exposición a Relaves', concept: 'Exposición', interpretation: category ? `Exposición ${category.label.toLowerCase()}` : 'No calculable', category };
+    if (inside) return { code: 'IIT', name: 'Índice de Inmersión Territorial', concept: 'Inmersión', interpretation: category ? `Inmersión ${category.label.toLowerCase()}` : 'No calculable', category };
+    return { code: 'IPT', name: 'Índice de Proximidad Territorial', concept: 'Proximidad', interpretation: category ? `Proximidad ${category.label.toLowerCase()}` : 'No calculable', category };
   }
   function pointTailingsExposure(distanceKm, areaM2) {
     const diameter = equivalentDiameterKm(areaM2);
@@ -103,5 +109,5 @@
     const shown = ordered.slice(0, visibleLimit - 1);
     return [...shown, { name: 'Otros', count: ordered.slice(visibleLimit - 1).reduce((sum, item) => sum + item.count, 0) }];
   }
-  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, createAnalysisResults, totalRelatedEntities, distribution };
+  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, indicatorSemantics, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, createAnalysisResults, totalRelatedEntities, distribution };
 });

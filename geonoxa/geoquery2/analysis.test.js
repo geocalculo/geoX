@@ -13,10 +13,17 @@ test('doubles viewport dimensions around its center', () => {
 
 test('exposure indices remain bounded and categories share the requested scale', () => {
   assert.equal(A.relativeExposure({ inside: true, depthRatio: 1 }), 100);
+  assert.equal(A.relativeExposure({ inside: true, depthRatio: 0.38 }), 38);
   assert.equal(A.pointTailingsExposure(0, 100), 100);
   assert.equal(A.exposureCategory(20).label, 'Muy baja');
   assert.equal(A.exposureCategory(21).label, 'Baja');
   assert.equal(A.exposureCategory(81).label, 'Muy alta');
+});
+
+test('uses exposure for tailings and position-dependent semantics for zones', () => {
+  assert.deepEqual([A.indicatorSemantics('relaves', false, 64).code, A.indicatorSemantics('relaves', false, 64).interpretation], ['IER', 'Exposición alta']);
+  assert.deepEqual([A.indicatorSemantics('zonas', false, 43).code, A.indicatorSemantics('zonas', false, 43).interpretation], ['IPT', 'Proximidad media']);
+  assert.deepEqual([A.indicatorSemantics('zonas', true, 72).code, A.indicatorSemantics('zonas', true, 72).interpretation], ['IIT', 'Inmersión alta']);
 });
 
 test('does not invent an equivalent diameter without area', () => {

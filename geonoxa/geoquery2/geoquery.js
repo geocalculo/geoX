@@ -60,7 +60,7 @@
       if (!area) area = turf.area(feature) || null;
       const boundary = nearestBoundary(point, feature);
       nearest = boundary.point;
-      distanceKm = kind === 'zonas' && inside ? 0 : boundary.distanceKm;
+      distanceKm = boundary.distanceKm;
       const diameterForDepth = A.equivalentDiameterKm(area);
       if (inside) depth = Math.min(1, boundary.distanceKm / Math.max((diameterForDepth || 1) / 2, .001));
     } else {
@@ -134,10 +134,11 @@
     const dominant = A.dominant(ordered, item => isTailings ? item.p.recurso : (item.p.contaminante || item.p.contaminantes || item.p.saturado || item.p.latentes));
     const scores = ordered.map(item => Number(item.score)).filter(Number.isFinite);
     const score = scores.length ? (isTailings ? Math.round(scores.reduce((sum, item) => sum + item, 0) / scores.length) : scores[0]) : null;
-    const category = score === null ? null : A.exposureCategory(score);
+    const semantics = A.indicatorSemantics(kind, main.inside, score);
+    const category = semantics.category;
     const clusterRadiusKm = isTailings ? ordered.at(-1)?.distanceKm ?? null : null;
     const meanDistance = isTailings ? ordered.reduce((sum, item) => sum + item.distanceKm, 0) / ordered.length : null;
-    return { group: isTailings ? 'RELAVES' : 'ZONAS SATURADAS / LATENTES', entity: entityName(kind, main), distance: main.distanceKm, score, category: category?.label || 'Sin información', categoryData: category, detail: isTailings ? `${dominant?.name || 'Sin información'} · ${main.p.comuna || ''}` : `${main.p.zona_dec || main.p.tipo || main.p.clasificacion || 'Zona ambiental'} · ${dominant?.name || 'Sin información'}`, main, kind, relations: ordered, clusterRadiusKm, meanDistance, dominant };
+    return { group: isTailings ? 'Relaves' : 'Zona Saturada', entity: entityName(kind, main), distance: main.distanceKm, score, category: category?.label || 'Sin información', categoryData: category, semantics, detail: isTailings ? `${dominant?.name || 'Sin información'} · ${main.p.comuna || ''}` : `${main.p.zona_dec || main.p.tipo || main.p.clasificacion || 'Zona ambiental'} · ${dominant?.name || 'Sin información'}`, main, kind, relations: ordered, clusterRadiusKm, meanDistance, dominant };
   }
 
   function destroyMap(kind) {
@@ -294,10 +295,11 @@
     const p = row.main.p;
     const metrics = isTailings
       ? [['Relave más cercano', row.entity], ['Relaves relacionados', row.relations.length], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Estado predominante', A.dominant(row.relations, item => item.p.estado || item.p.tipo_deposito)?.name || 'Sin información'], ['Superficie total', areas.length ? `${fmt(totalArea / 1e6)} km²` : 'Sin información'], ['Superficie media', areas.length ? `${fmt(totalArea / areas.length / 1e6)} km²` : 'Sin información']]
-      : [['Zona principal', row.entity], ['Clasificación', p.zona_dec || p.tipo || p.clasificacion || 'Zona ambiental'], ['Contaminante', row.dominant.name], ['Posición', row.main.inside ? 'Interior' : 'Exterior'], ['Distancia al borde', `${fmt(row.distance)} km`], ['Diámetro equivalente', row.main.diameter ? `${fmt(row.main.diameter)} km` : 'Sin información'], ['Relación territorial', row.main.ratio !== null ? `${fmt(row.main.ratio)} diámetros` : 'No aplica'], ['Profundidad relativa', row.main.depth !== null ? `${fmt(row.main.depth * 100)} %` : 'No aplica']];
-    const index = row.score === null ? '<strong>IER no calculable</strong>' : `<strong>${row.score}</strong> · Exposición ${row.category}`;
+      : [['Zona principal', row.entity], ['Clasificación', p.zona_dec || p.tipo || p.clasificacion || 'Zona ambiental'], ['Contaminante', row.dominant.name], ['Posición', row.main.inside ? 'Interior' : 'Exterior'], ['Distancia al borde', `${fmt(row.distance)} km`], ...(row.main.inside ? [['Profundidad relativa', row.main.depth !== null ? fmt(row.main.depth) : 'No aplica']] : [['Diámetro equivalente', row.main.diameter ? `${fmt(row.main.diameter)} km` : 'Sin información'], ['Relación territorial', row.main.ratio !== null ? `${fmt(row.main.ratio)} diámetros` : 'No aplica']])];
+    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${row.score}</strong> · ${row.semantics.interpretation}`;
+    const scale = !isTailings ? `<div class="territorial-scale" aria-label="Escala de ${row.semantics.concept.toLowerCase()} territorial"><div class="territorial-scale__bar"></div><div>${['Muy alta', 'Alta', 'Media', 'Baja', 'Muy baja'].map(level => `<span>${row.semantics.concept} ${level.toLowerCase()}</span>`).join('')}</div><small>${row.main.inside ? 'Mayor profundidad relativa implica mayor inmersión territorial dentro de la zona.' : 'Menor cantidad de diámetros implica mayor proximidad territorial.'}</small></div>` : '';
     const mapId = isTailings ? 'relaves-map' : 'map-zonas';
-    group.innerHTML += `<div class="micro"><div><div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small style="color:white">${isTailings ? 'IER' : 'IEZ'}</small><br>${index}</div><div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div>${isTailings ? `<div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, index) => `<div><span>${esc(item.name)}</span><i><em class="color-${index}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count}</strong></div>`).join('')}</div><div class="legend">${distribution.map((item, index) => `<span class="legend-${index}">● ${esc(item.name)} · ${item.count}</span>`).join('')}</div></div>` : ''}</div><div id="${mapId}" class="map" aria-label="Mapa independiente de ${title}"></div></div>`;
+    group.innerHTML += `<div class="micro"><div><div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small style="color:white">${row.semantics.code}</small><br>${index}</div><div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div>${scale}${isTailings ? `<div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, index) => `<div><span>${esc(item.name)}</span><i><em class="color-${index}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count}</strong></div>`).join('')}</div><div class="legend">${distribution.map((item, index) => `<span class="legend-${index}">● ${esc(item.name)} · ${item.count}</span>`).join('')}</div></div>` : ''}</div><div id="${mapId}" class="map" aria-label="Mapa independiente de ${title}"></div></div>`;
     target.replaceChildren(group);
     state.rows.push(row);
     if (scheduleMap) requestAnimationFrame(() => {
@@ -386,16 +388,16 @@
     const tailings = state.rows.find(item => item.kind === 'relaves');
     const zone = state.rows.find(item => item.kind === 'zonas');
     const sentences = [];
-    if (tailings) sentences.push(`Se analizaron los ${analysisResults.relaves.related.length} relaves más cercanos al punto consultado, contenidos en un radio de ${fmt(tailings.clusterRadiusKm)} km. El relave más próximo, ${tailings.entity}, se ubica a ${fmt(tailings.distance)} km. ${tailings.score === null ? 'No fue posible calcular el IER con la información disponible.' : `La exposición territorial del grupo corresponde a un IER de ${tailings.score}.`}`);
+    if (tailings) sentences.push(`Se analizaron los ${analysisResults.relaves.related.length} relaves más cercanos al punto consultado, contenidos en un radio de ${fmt(tailings.clusterRadiusKm)} km. El relave más próximo, ${tailings.entity}, se ubica a ${fmt(tailings.distance)} km. ${tailings.score === null ? 'No fue posible calcular el IER con la información disponible.' : `El clúster presenta una ${tailings.semantics.interpretation.toLowerCase()} territorial (IER ${tailings.score}).`}`);
     else sentences.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el viewport ampliado.');
-    if (zone) sentences.push(`La zona ${zone.entity} presenta un IEZ de ${zone.score}, asociado a ${zone.dominant.name}.`);
+    if (zone) sentences.push(zone.main.inside ? `El punto se encuentra al interior de la zona ${zone.entity}. La profundidad relativa alcanza ${fmt(zone.main.depth)}, lo que representa una ${zone.semantics.interpretation.toLowerCase()} territorial.` : `La zona ${zone.entity} se encuentra a ${fmt(zone.distance)} km del punto, equivalente a ${zone.main.ratio === null ? 'una relación no calculable' : `${fmt(zone.main.ratio)} diámetros`}. La ${zone.semantics.interpretation.toLowerCase()} territorial.`);
     else sentences.push(analysisResults.zonas.error ? 'No fue posible analizar las zonas saturadas o latentes.' : 'No se detectaron zonas saturadas o latentes relacionadas.');
     if (state.failures.length) sentences.push('Análisis parcial completado; los resultados disponibles se mantienen vigentes.');
     document.getElementById('synthesis').textContent = sentences.join(' ');
   }
 
   function renderComplementaryTable() {
-    document.getElementById('details').innerHTML = state.rows.map(row => `<tr><td>${row.group}</td><td>${esc(row.entity)}</td><td>${fmt(row.distance)} km</td><td>${row.score === null ? 'No calculable' : row.score}</td><td>${row.category}</td><td>${esc(row.detail)}</td></tr>`).join('') || '<tr><td colspan="6">Sin entidades relevantes.</td></tr>';
+    document.getElementById('details').innerHTML = state.rows.map(row => `<tr><td>${row.group}</td><td>${esc(row.entity)}</td><td>${fmt(row.distance)} km</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : row.score}</td><td>${row.semantics.interpretation}</td><td>${esc(row.detail)}</td></tr>`).join('') || '<tr><td colspan="6">Sin entidades relevantes.</td></tr>';
   }
 
   function finalizeLoadingStates() {
@@ -432,7 +434,7 @@
     const geometryKml = feature => { const geometry = feature.geometry; if (geometry.type === 'Point') return `<Point><coordinates>${geometry.coordinates.join(',')}</coordinates></Point>`; if (geometry.type === 'Polygon') return `<Polygon><outerBoundaryIs><LinearRing><coordinates>${geometry.coordinates[0].map(coordinate => coordinate.join(',')).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon>`; const center = turf.centroid(feature).geometry.coordinates; return `<Point><coordinates>${center.join(',')}</coordinates></Point>`; };
     const placemarks = [`<Placemark><name>POI</name><Point><coordinates>${lon},${lat}</coordinates></Point></Placemark>`];
     state.rows.forEach(row => {
-      (row.kind === 'relaves' ? row.relations : [row.main]).forEach((item, index) => placemarks.push(`<Placemark><name>${esc(entityName(row.kind, item))}</name><ExtendedData><Data name="distancia_km"><value>${item.distanceKm}</value></Data><Data name="indice"><value>${row.score ?? ''}</value></Data><Data name="clasificacion"><value>${row.category}</value></Data><Data name="radio_cluster_km"><value>${row.clusterRadiusKm ?? ''}</value></Data><Data name="relave_mas_cercano"><value>${index === 0}</value></Data></ExtendedData>${geometryKml(item.feature)}</Placemark>`));
+      (row.kind === 'relaves' ? row.relations : [row.main]).forEach((item, index) => placemarks.push(`<Placemark><name>${esc(entityName(row.kind, item))}</name><ExtendedData><Data name="grupo"><value>${row.group}</value></Data>${row.kind === 'zonas' ? `<Data name="posicion"><value>${row.main.inside ? 'Interior' : 'Exterior'}</value></Data>` : ''}<Data name="indicador"><value>${row.semantics.code}</value></Data><Data name="valor"><value>${row.score ?? ''}</value></Data><Data name="interpretacion"><value>${row.semantics.interpretation}</value></Data><Data name="distancia_km"><value>${item.distanceKm}</value></Data><Data name="radio_cluster_km"><value>${row.clusterRadiusKm ?? ''}</value></Data><Data name="relave_mas_cercano"><value>${index === 0}</value></Data></ExtendedData>${geometryKml(item.feature)}</Placemark>`));
       const nearest = row.main.nearest.geometry.coordinates;
       placemarks.push(`<Placemark><name>Distancia ${row.group}</name><LineString><coordinates>${lon},${lat} ${nearest[0]},${nearest[1]}</coordinates></LineString></Placemark>`);
       if (row.kind === 'relaves' && Number.isFinite(row.clusterRadiusKm)) { const ring = []; for (let bearing = 0; bearing <= 360; bearing += 6) ring.push(turf.destination(turf.point([lon, lat]), row.clusterRadiusKm, bearing).geometry.coordinates.join(',')); placemarks.push(`<Placemark><name>Radio del clúster</name><ExtendedData><Data name="radio_km"><value>${row.clusterRadiusKm}</value></Data></ExtendedData><Polygon><outerBoundaryIs><LinearRing><coordinates>${ring.join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`); }
