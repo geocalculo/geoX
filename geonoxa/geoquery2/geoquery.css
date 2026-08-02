@@ -25,4 +25,43 @@
 .resource-bars>div{grid-template-columns:minmax(100px,1fr) 3fr minmax(72px,auto)}
 .resource-bars strong{text-align:right;white-space:nowrap}
 @media(max-width:760px){.report-card__header{display:grid}.report-card__meta{text-align:left}.tailings-related-layout,.tailings-cluster-layout,.tailings-cluster-kpis{grid-template-columns:1fr}#relaves-map{min-height:360px}.tailings-cluster-kpis .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media print{.tailings-related-panel{break-inside:avoid;page-break-inside:avoid}.tailings-related-layout{grid-template-columns:40% 60%;gap:10px}#relaves-map{min-height:350px}.tailings-list__item{padding:4px 6px}.tailings-cluster-panel{break-before:page;page-break-before:always;break-inside:avoid;page-break-inside:avoid}.tailings-cluster-panel .report-card__header{break-after:avoid;page-break-after:avoid}.tailings-cluster-layout{grid-template-columns:minmax(0,4fr) minmax(165px,1fr);gap:10px}.tailings-cluster-kpis{grid-template-columns:100px minmax(0,1fr);gap:9px}.tailings-cluster-kpis .metric{padding:7px}.tailings-cluster-kpis .index{min-height:130px}.tailings-cluster-summary{margin-top:10px;padding:9px 12px}}
+@media print{.tailings-related-panel{break-inside:avoid;page-break-inside:avoid}.tailings-related-layout{grid-template-columns:40% 60%;gap:10px}#relaves-map{min-height:350px}.tailings-list__item{padding:4px 6px}.tailings-cluster-panel{break-inside:avoid;page-break-inside:avoid}.tailings-cluster-panel .report-card__header{break-after:avoid;page-break-after:avoid}.tailings-cluster-layout{grid-template-columns:minmax(0,4fr) minmax(165px,1fr);gap:10px}.tailings-cluster-kpis{grid-template-columns:100px minmax(0,1fr);gap:9px}.tailings-cluster-kpis .metric{padding:7px}.tailings-cluster-kpis .index{min-height:130px}.tailings-cluster-summary{margin-top:10px;padding:9px 12px}}
+
+/* La exportación 2.0 conserva el contenido ejecutivo y aplica la disciplina de paginación productiva. */
+@page{size:letter portrait;margin:8mm 10mm}
+@media print{
+  main{margin-top:10px;margin-bottom:10px}
+  nav{display:none}
+  body{background:#fff}
+  .pdf-export-content{font-size:.94em}
+  .summary,.report-identity{break-inside:avoid;page-break-inside:avoid}
+  .group,.panel{break-inside:auto;page-break-inside:auto}
+  .report-card,.group,.panel{margin-top:10px;padding:12px 14px}
+  .map{height:320px}
+  .tailings-related-panel{break-before:auto;page-break-before:auto;break-inside:avoid;page-break-inside:avoid}
+  .tailings-related-panel .report-card__header{break-after:avoid;page-break-after:avoid}
+  .tailings-related-layout{grid-template-columns:40% 60%;gap:10px;margin-top:10px}
+  #relaves-map{height:330px;min-height:330px;aspect-ratio:16/10}
+  .tailings-list{gap:3px}
+  .tailings-list__item{min-height:30px;padding:3px 6px}
+  .tailings-cluster-panel{break-before:auto;page-break-before:auto;break-inside:avoid;page-break-inside:avoid}
+  .tailings-cluster-panel .report-card__header{break-after:avoid;page-break-after:avoid}
+  .tailings-cluster-layout{grid-template-columns:minmax(0,4fr) minmax(165px,1fr);gap:10px;margin-top:10px}
+  .tailings-cluster-kpis{grid-template-columns:100px minmax(0,1fr);gap:9px}
+  .tailings-cluster-kpis .metric{padding:6px}
+  .tailings-cluster-kpis .index{min-height:120px}
+  .tailings-cluster-summary{margin-top:8px;padding:8px 12px}
+  .group--empty{padding:8px 12px;break-inside:avoid;page-break-inside:avoid}
+  .group--empty .empty{padding:2px}
+  .group--empty .map{display:none}
+  .executive-summary-panel{margin-bottom:8px}
+  .complementary-information-panel{margin-top:8px}
+  .complementary-information-heading{break-after:avoid;page-break-after:avoid}
+  .complementary-information-heading+.table-wrap{break-before:avoid;page-break-before:avoid}
+  .table-wrap{overflow:visible}
+  table{font-size:10px}
+  thead{display:table-header-group}
+  tr{break-inside:avoid;page-break-inside:avoid}
+  tbody tr:first-child{break-before:avoid;page-break-before:avoid}
+  th,td{padding:5px}
+}

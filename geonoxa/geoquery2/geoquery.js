@@ -483,9 +483,41 @@
     finally { finalizeLoadingStates(); }
   }
 
+  function waitForExportMaps(timeout = 2500) {
+    Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize(false));
+    if (!document.querySelector('#report .leaflet-tile-loading')) return Promise.resolve();
+    return new Promise(resolve => {
+      const startedAt = Date.now();
+      const check = () => {
+        if (!document.querySelector('#report .leaflet-tile-loading') || Date.now() - startedAt >= timeout) resolve();
+        else setTimeout(check, 80);
+      };
+      check();
+    });
+  }
+
+  async function exportPdf() {
+    const exportDate = new Date();
+    const filename = buildExportFilename('geonoxa', 'pdf', exportDate);
+    const report = document.getElementById('report');
+    await waitForExportMaps();
+    return html2pdf().set({
+      margin: [8, 10, 8, 10],
+      filename,
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait', compress: true },
+      pagebreak: {
+        mode: ['css', 'legacy'],
+        avoid: ['.tailings-related-panel', '.report-card__header', '.complementary-information-heading', 'tr']
+      }
+    }).from(report).save();
+  }
+
   document.getElementById('back').onclick = () => { const query = new URLSearchParams(params); query.set('lat', params.get('viewLat') || lat); query.set('lon', params.get('viewLon') || lon); location.href = `../index.html?${query}`; };
-  document.getElementById('pdf').onclick = () => html2pdf().set({ margin: 8, filename: 'geonoxa-informe-exposicion.pdf', html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], before: '.tailings-cluster-panel', avoid: ['.report-card', '.report-card__header'] } }).from(document.getElementById('report')).save();
+  document.getElementById('pdf').onclick = exportPdf;
   document.getElementById('kml').onclick = () => {
+    const exportDate = new Date();
+    const filename = buildExportFilename('geonoxa', 'kml', exportDate);
     const exporter = GeoQueryKmlExporter;
     const styles = exporter.geoNoxaStyles();
     const registry = exporter.createKmlExportRegistry();
@@ -519,7 +551,7 @@
     const features = Array.from(registry.values());
     exporter.validateKmlExportItems(features);
     const kml = exporter.buildGeoQueryKml({ site: 'geonoxa', documentName: 'GeoQuery GeoNOXA', documentDescription: document.getElementById('synthesis').textContent, queryPoint: { lat, lon }, folders: [{ id: 'query', name: 'POI' }, { id: 'relaves', name: 'Relaves relacionados' }, { id: 'nearest-relave', name: 'Relave más cercano' }, { id: 'cluster', name: 'Radio del clúster' }, { id: 'relations', name: 'Distancia mínima' }, { id: 'zonas', name: 'Zona Saturada' }], features, debugTheme: false });
-    exporter.downloadKmlFile(kml, 'geonoxa-exposicion.kml');
+    exporter.downloadKmlFile(kml, filename);
   };
   init();
 })();
