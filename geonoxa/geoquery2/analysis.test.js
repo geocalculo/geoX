@@ -57,3 +57,12 @@ test('resource distribution keeps five categories and groups the remainder', () 
   assert.equal(result.reduce((sum, item) => sum + item.count, 0), values.length);
   assert.equal(result.at(-1).name, 'Otros');
 });
+
+test('validates marker coordinates and obtains a tailings name from real field variants', () => {
+  assert.equal(A.isValidCoordinate(-30.2, -71.1), true);
+  assert.equal(A.isValidCoordinate(NaN, -71.1), false);
+  assert.equal(A.isValidCoordinate(-91, -71.1), false);
+  assert.equal(A.getTailingsName({ properties: { faena: '  El Sauce  ' } }), 'El Sauce');
+  assert.equal(A.getTailingsName({ properties: { NOMBRE_RELAVE: 'Depósito 4' } }), 'Depósito 4');
+  assert.equal(A.getTailingsName({ properties: {} }), 'Relave sin nombre');
+});
