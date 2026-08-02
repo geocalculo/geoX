@@ -30,6 +30,26 @@ test('selects at most the ten nearest tailings with finite distances', () => {
   assert.deepEqual(A.selectNearestTailings([{ distanceKm: 2 }, { distanceKm: 1 }]).map(item => item.distanceKm), [1, 2]);
 });
 
+test('tailings selection cannot overwrite detected or related zones', () => {
+  const results = A.createAnalysisResults();
+  results.relaves.detected = Array.from({ length: 12 }, (_, distanceKm) => ({ distanceKm }));
+  results.zonas.detected = [{ score: 80, distanceKm: 0 }, { score: 30, distanceKm: 2 }];
+  results.zonas.related = A.selectRelatedZones(results.zonas.detected);
+  results.relaves.related = A.selectNearestTailings(results.relaves.detected, 10);
+  assert.equal(results.relaves.related.length, 10);
+  assert.deepEqual(results.zonas.related, [{ score: 80, distanceKm: 0 }]);
+  assert.equal(A.totalRelatedEntities(results), 11);
+});
+
+test('maximum exposure accepts either valid index and has an explicit empty state', () => {
+  const results = A.createAnalysisResults();
+  assert.equal(A.maximumExposure(results), null);
+  results.zonas.iez = 63;
+  assert.deepEqual(A.maximumExposure(results), { group: 'ZONAS SATURADAS / LATENTES', kind: 'zonas', index: 63 });
+  results.relaves.ier = 72;
+  assert.deepEqual(A.maximumExposure(results), { group: 'RELAVES', kind: 'relaves', index: 72 });
+});
+
 test('resource distribution keeps five categories and groups the remainder', () => {
   const values = ['Oro', 'Oro', 'Cobre', 'Cobre', 'Hierro', 'Plata', 'Zinc', 'Litio'];
   const result = A.distribution(values, value => value, 5);
