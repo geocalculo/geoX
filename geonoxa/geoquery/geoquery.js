@@ -1086,13 +1086,7 @@ function buildGeoNoxaMapExport(relavesResult, zonasResult) {
  const state=window.geoQueryState||{};
  const folders=[{id:"query",name:"POI"},{id:"relaves",name:"Relaves relacionados"},{id:"nearest-relave",name:"Relave más cercano"},{id:"cluster",name:"Radio del clúster"},{id:"relations",name:"Distancia mínima"},{id:"zonas",name:"Zona Saturada"}];
  const registry=GeoQueryKmlExporter.createKmlExportRegistry();
- const icon="http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png";
- const poiStyle={color:"#dc2626",fillColor:"#dc2626",kmlIconColor:"ff2626dc",icon,iconScale:1.15,labelColor:"#dc2626",labelScale:1,weight:2};
- const relaveStyle={color:"#ea580c",fillColor:"#f97316",kmlIconColor:"ff1673f9",icon,iconScale:1,labelColor:"#9a3412",labelScale:.9,weight:2};
- const nearestStyle={...relaveStyle,color:"#a16207",fillColor:"#facc15",kmlIconColor:"ff15ccfa",iconScale:1.35,labelColor:"#854d0e",labelScale:1};
- const radiusStyle={color:"#ea580c",fillColor:"#f97316",opacity:1,fillOpacity:.12,weight:2,dashArray:"4 8",dashLengthMeters:160,gapLengthMeters:110,iconScale:0,labelScale:0};
- const distanceStyle={color:"#38bdf8",fillColor:"#38bdf8",opacity:1,weight:3,dashArray:"4 6",dashLengthMeters:120,gapLengthMeters:80,iconScale:0,labelScale:0};
- const zoneStyle={color:"#7c2d12",fillColor:"#fb923c",opacity:1,fillOpacity:.25,weight:2,iconScale:0,labelScale:.9};
+ const {poi:poiStyle,relave:relaveStyle,nearest:nearestStyle,radius:radiusStyle,distance:distanceStyle,zone:zoneStyle}=GeoQueryKmlExporter.geoNoxaStyles();
  GeoQueryKmlExporter.addUniqueKmlItem(registry,{id:"geonoxa-query-point",site:"geonoxa",groupId:"general",folderId:"query",role:"query-point",type:"point",name:"POI",geometry:{type:"Point",coordinates:[state.lon,state.lat]},styleId:"Style-POI",style:poiStyle,description:`<h2>POI</h2>${htmlTable([`<tr><th>Latitud</th><td>${escapeHtml(state.lat)}</td></tr>`,`<tr><th>Longitud</th><td>${escapeHtml(state.lon)}</td></tr>`])}`,visible:true});
  const rels=(Array.isArray(relavesResult?.selectedRelaves)?relavesResult.selectedRelaves:(relavesResult?.items||[])).slice(0,10);
  if(relavesResult?.status==="resolved"&&rels.length){
