@@ -8,7 +8,10 @@
   const basemap = (params.get('basemap') || 'osm').toLowerCase().includes('sat') ? 'sat' : 'osm';
   const rawBounds = { west: number('viewWest'), south: number('viewSouth'), east: number('viewEast'), north: number('viewNorth') };
   const validBounds = Object.values(rawBounds).every(Number.isFinite) && rawBounds.east > rawBounds.west && rawBounds.north > rawBounds.south;
-  const bounds = A.expandedViewport(validBounds ? rawBounds : { west: lon - .35, east: lon + .35, south: lat - .25, north: lat + .25 });
+  const originalBounds = validBounds ? rawBounds : { west: lon - .35, east: lon + .35, south: lat - .25, north: lat + .25 };
+  const bounds = A.expandedViewport(originalBounds);
+  const originalViewportBbox = [originalBounds.west, originalBounds.south, originalBounds.east, originalBounds.north];
+  const originalViewportPolygon = turf.bboxPolygon(originalViewportBbox);
   const analysisResults = A.createAnalysisResults();
   const state = { lat, lon, basemap, sourceCount: 0, rows: [], failures: [] };
   let relavesMapInstance = null;
@@ -105,7 +108,22 @@
   async function analyzeZones() {
     const data = await loadGroup('../capas_geoquery/geonoxa_zonas_query.geojson');
     const entities = A.groupLogicalEntities(data.features.filter(validFeature), 'zonas');
-    const detected = analyzeEntities(entities, 'zonas');
+    const detected = [];
+    entities.forEach(entity => {
+      const intersectingRelations = entity.features.flatMap(zone => {
+        try {
+          const zoneBbox = turf.bbox(zone);
+          if (!A.bboxIntersects(zoneBbox, originalViewportBbox)) return [];
+          if (!turf.booleanIntersects(zone, originalViewportPolygon)) return [];
+          return [relation(zone, 'zonas')];
+        } catch (error) {
+          console.warn('GeoNOXA: zona inválida para filtro de viewport', error);
+          return [];
+        }
+      });
+      const relatedFragment = A.selectRelatedZones(intersectingRelations)[0];
+      if (relatedFragment) detected.push(relatedFragment);
+    });
     return { detected, related: A.selectRelatedZones(detected), iez: null, sourceCount: entities.length, error: null };
   }
 
@@ -283,7 +301,8 @@
     group.className = 'group';
     group.innerHTML = `<div class="group-title"><div><small>MICROINFORME</small><h2>${title}</h2></div><div class="group-count"><b>${result.related.length} ${isTailings ? 'relaves relacionados' : result.related.length === 1 ? 'zona relacionada' : 'zonas relacionadas'}</b>${isTailings ? `<small>${result.detected.length} relaves detectados en el área territorial analizada</small>` : ''}</div></div>`;
     if (!result.related.length) {
-      group.innerHTML += `<div class="empty">${result.error ? 'Grupo no disponible por un error de análisis.' : 'Sin entidades relevantes<br>en el área territorial analizada.'}</div>`;
+      const emptyMessage = isTailings ? 'Sin entidades relevantes<br>en el área territorial analizada.' : 'Sin zonas relevantes<br>en el viewport analizado.';
+      group.innerHTML += `<div class="empty">${result.error ? 'Grupo no disponible por un error de análisis.' : emptyMessage}</div>`;
       target.replaceChildren(group);
       return null;
     }
@@ -391,7 +410,7 @@
     if (tailings) sentences.push(`Se analizaron los ${analysisResults.relaves.related.length} relaves más cercanos al punto consultado, contenidos en un radio de ${fmt(tailings.clusterRadiusKm)} km. El relave más próximo, ${tailings.entity}, se ubica a ${fmt(tailings.distance)} km. ${tailings.score === null ? 'No fue posible calcular el IER con la información disponible.' : `El clúster presenta una ${tailings.semantics.interpretation.toLowerCase()} territorial (IER ${tailings.score}).`}`);
     else sentences.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el viewport ampliado.');
     if (zone) sentences.push(zone.main.inside ? `El punto se encuentra al interior de la zona ${zone.entity}. La profundidad relativa alcanza ${fmt(zone.main.depth)}, lo que representa una ${zone.semantics.interpretation.toLowerCase()} territorial.` : `La zona ${zone.entity} se encuentra a ${fmt(zone.distance)} km del punto, equivalente a ${zone.main.ratio === null ? 'una relación no calculable' : `${fmt(zone.main.ratio)} diámetros`}. La ${zone.semantics.interpretation.toLowerCase()} territorial.`);
-    else sentences.push(analysisResults.zonas.error ? 'No fue posible analizar las zonas saturadas o latentes.' : 'No se detectaron zonas saturadas o latentes relacionadas.');
+    else sentences.push(analysisResults.zonas.error ? 'No fue posible analizar las zonas saturadas o latentes.' : 'No se detectaron Zonas Saturadas o Latentes dentro del viewport analizado.');
     if (state.failures.length) sentences.push('Análisis parcial completado; los resultados disponibles se mantienen vigentes.');
     document.getElementById('synthesis').textContent = sentences.join(' ');
   }
