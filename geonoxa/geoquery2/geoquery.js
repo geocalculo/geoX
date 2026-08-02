@@ -19,6 +19,7 @@
     zonas: { get: () => zonasMapInstance, set: value => { zonasMapInstance = value; } }
   });
   const mapLayers = { relaves: [], zonas: [] };
+  const tailingsMarkers = new Map();
   const fmt = value => Number(value).toLocaleString('es-CL', { maximumFractionDigits: 1 });
   const esc = value => String(value ?? 'Sin información').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const validFeature = feature => feature && feature.type === 'Feature' && feature.geometry && feature.geometry.type;
@@ -155,6 +156,7 @@
       relavesMapInstance = null;
     }
     mapLayers.relaves = [];
+    tailingsMarkers.clear();
     const nearestTailings = result.related || [];
     console.table(nearestTailings.map(item => ({
       nombre: A.getTailingsName(item.feature || item),
@@ -175,14 +177,29 @@
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, attribution: 'Tiles &copy; Esri', crossOrigin: true });
     (basemap === 'sat' ? sat : osm).addTo(map);
     const poiMarker = L.circleMarker(center, { radius: 8, color: '#fff', weight: 3, fillColor: '#ef233c', fillOpacity: 1 }).addTo(map).bindPopup('POI');
-    const relaveMarkers = validTailings.map(({ item, coordinates }) => {
+    const setActiveTailing = (index, openPopup = false) => {
+      document.querySelectorAll('.tailing-row').forEach((row, rowIndex) => row.classList.toggle('is-active', rowIndex === index));
+      tailingsMarkers.forEach((marker, markerIndex) => {
+        const nearest = markerIndex === 0;
+        marker.setStyle({ ...T.entityStyle('relaves', basemap, nearest || markerIndex === index), radius: nearest || markerIndex === index ? 9 : 6, fillOpacity: .85 });
+      });
+      if (openPopup) tailingsMarkers.get(index)?.openPopup();
+    };
+    validTailings.forEach(({ item, coordinates }) => {
+      const index = nearestTailings.indexOf(item);
       const selected = item === nearestTailings[0];
       const p = item.feature?.properties || item.p || {};
       const area = Number(item.area ?? p.shape_area_m2);
       const popup = `<b>${esc(entityName('relaves', item))}</b>${selected ? '<br><strong>Relave más cercano</strong>' : ''}<br>Recurso: ${esc(p.recurso)}<br>Estado: ${esc(p.estado || p.tipo_deposito)}<br>Distancia al POI: ${fmt(item.distanceKm)} km${Number.isFinite(area) && area > 0 ? `<br>Superficie: ${fmt(area)} m²` : ''}`;
       const marker = L.circleMarker([coordinates.lat, coordinates.lon], { ...T.entityStyle('relaves', basemap, selected), radius: selected ? 9 : 6, fillOpacity: .85 }).addTo(map).bindPopup(popup);
       mapLayers.relaves.push({ layer: marker, kind: 'relaves', selected });
-      return marker;
+      tailingsMarkers.set(index, marker);
+      marker.on('click', () => setActiveTailing(index));
+    });
+    document.querySelectorAll('.tailing-row').forEach((row, index) => {
+      row.addEventListener('mouseenter', () => setActiveTailing(index, true));
+      row.addEventListener('focus', () => setActiveTailing(index, true));
+      row.addEventListener('click', () => setActiveTailing(index, true));
     });
     const nearestCoordinates = validTailings.find(entry => entry.item === nearestTailings[0])?.coordinates;
     if (nearestCoordinates) {
@@ -295,7 +312,36 @@
     return row;
   }
 
-  function renderTailingsIndicators(result) { return renderGroup('relaves', result, false); }
+  function areaLabel(areaM2, average = false) {
+    if (!Number.isFinite(areaM2) || areaM2 <= 0) return 'Sin información suficiente';
+    if (areaM2 >= 100000) return `${Number(areaM2 / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km²`;
+    return `${Number(areaM2 / 10000).toLocaleString('es-CL', { maximumFractionDigits: average ? 2 : 1 })} ha`;
+  }
+
+  function renderTailingsIndicators(result) {
+    const target = document.getElementById('tailings-report');
+    if (!result.related.length) return renderGroup('relaves', result, false);
+    const row = buildRow('relaves', result.related);
+    result.ier = row.score;
+    state.rows.push(row);
+    const areas = row.relations.map(item => Number(item.area)).filter(value => Number.isFinite(value) && value > 0);
+    const totalArea = areas.reduce((sum, value) => sum + value, 0);
+    const dominantState = A.dominant(row.relations, item => item.p.estado || item.p.tipo_deposito)?.name || 'Sin información';
+    const distribution = A.distribution(row.relations, item => item.p.recurso || 'Sin información', 5);
+    const metrics = [['Relaves relacionados', row.relations.length], ['Relave más cercano', row.entity], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Estado predominante', dominantState], ['Superficie total', areaLabel(totalArea)]];
+    if (areas.length) metrics.push(['Superficie media', areaLabel(totalArea / areas.length, true)]);
+    const summary = `El clúster está compuesto por ${row.relations.length} relaves contenidos en un radio de ${fmt(row.clusterRadiusKm)} km. El relave más cercano se ubica a ${fmt(row.distance)} km y la distancia media del conjunto alcanza ${fmt(row.meanDistance)} km. El recurso dominante es ${String(row.dominant.name).toLowerCase()}, presente en ${row.dominant.count} de los ${row.relations.length} depósitos.`;
+    const list = row.relations.map((item, index) => {
+      const name = entityName('relaves', item);
+      const resource = item.p.recurso || 'Sin información';
+      const classes = ['tailing-row', index === 0 ? 'is-nearest is-active' : '', index === row.relations.length - 1 ? 'is-radius' : ''].filter(Boolean).join(' ');
+      const badge = index === 0 ? '<small>Más cercano</small>' : index === row.relations.length - 1 ? '<small>Define el radio</small>' : '';
+      return `<button type="button" class="${classes}" data-index="${index}" title="${esc(name)}"><b>${String(index + 1).padStart(2, '0')}</b><span><strong>${esc(name)}</strong><em>${esc(resource)} · ${fmt(item.distanceKm)} km</em></span>${badge}</button>`;
+    }).join('');
+    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${row.score}</strong><span>Exposición ${row.category}</span>`;
+    target.innerHTML = `<section class="group tailings-overview"><div class="group-title"><div><small>RELAVES RELACIONADOS</small><h2>${row.relations.length} relaves seleccionados</h2><p>Radio del clúster: ${fmt(row.clusterRadiusKm)} km</p></div></div><div class="tailings-layout"><div class="tailings-list" aria-label="Relaves ordenados por distancia">${list}</div><div id="relaves-map" class="map" aria-label="Mapa del clúster de relaves"></div></div></section><section class="group cluster-description"><div class="group-title"><div><small>DESCRIPCIÓN DEL CLÚSTER DE RELAVES</small><h2>Indicadores del clúster</h2><p>Indicadores calculados sobre los ${row.relations.length} relaves más cercanos al punto consultado.</p></div></div><p class="cluster-summary">${esc(summary)}</p><div class="cluster-content"><div><div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div><div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, chartIndex) => `<div><span>${esc(item.name)}</span><i><em class="color-${chartIndex}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count} · ${Math.round(item.count / row.relations.length * 100)} %</strong></div>`).join('')}</div></div></div><div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small>IER</small>${index}</div></div></section>`;
+    return row;
+  }
   function renderTailingsMap(result) {
     requestAnimationFrame(() => {
       try { initializeTailingsMap(result); }
