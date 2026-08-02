@@ -2,29 +2,26 @@
 .group-count{text-align:right}.group-count small{display:block;color:var(--muted);font-size:11px;letter-spacing:0;margin-top:3px}.resource-bars{display:grid;gap:7px;margin-top:10px}.resource-bars>div{display:grid;grid-template-columns:minmax(90px,1fr) 3fr 24px;align-items:center;gap:8px;font-size:12px}.resource-bars i{height:12px;background:#e2e8f0;border-radius:8px;overflow:hidden}.resource-bars em{display:block;height:100%;background:#f97316}.resource-bars .color-1{background:#fbbf24}.resource-bars .color-2{background:#0ea5e9}.resource-bars .color-3{background:#8b5cf6}.resource-bars .color-4{background:#10b981}.legend-0{color:#c2410c}.legend-1{color:#a16207}.legend-2{color:#0369a1}.legend-3{color:#6d28d9}.legend-4{color:#047857}
 .map-legend .nearest{width:12px;height:12px;border:2px solid #fff;box-shadow:0 0 0 1px currentColor}.map-legend .distance-key{color:#06b6d4;font-weight:900}
 
-/* GeoEVA-style two-panel tailings report */
-.group-title p{margin:0 0 14px;color:var(--muted)}
-.tailings-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:18px;margin-top:18px;align-items:stretch}
-.tailings-layout .map{height:460px}
-.tailings-list{display:grid;gap:5px;align-content:start}
-.tailing-row{width:100%;min-width:0;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 9px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:var(--ink);text-align:left;cursor:pointer}
-.tailing-row>b{color:#64748b;font-variant-numeric:tabular-nums}
-.tailing-row span{min-width:0;display:block}
-.tailing-row strong,.tailing-row em{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tailing-row strong{font-size:13px}
-.tailing-row em{color:var(--muted);font-size:11px;font-style:normal}
-.tailing-row small{font-size:9px;letter-spacing:.02em;color:#047857;white-space:nowrap}
-.tailing-row.is-nearest{border-left:4px solid #f97316}
-.tailing-row.is-radius{border-right:4px solid #047857}
-.tailing-row.is-active{background:#ecfdf5;border-color:#10b981;box-shadow:0 0 0 2px #10b98122}
-.cluster-summary{margin:16px 0;padding:14px 16px;background:#ecfdf5;border-left:4px solid #10b981;border-radius:8px;font-weight:650}
-.cluster-content{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:18px;align-items:start}
-.cluster-content .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
-.cluster-content .index{grid-column:auto;display:flex;min-height:155px;flex-direction:column;justify-content:center;align-items:center;text-align:center}
-.cluster-content .index small{color:white}
-.cluster-content .index strong{font-size:42px;line-height:1.1}
-.cluster-content .index span{display:block;font-weight:800}
+/* Relaves se genera como dos tarjetas hermanas: lista/mapa y análisis. */
+.report-card{margin-top:16px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 25px #0f172a0d;padding:20px}
+.report-card__header{min-height:0;padding:0 0 14px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--ink);display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
+.report-card__header h2{margin:4px 0}.report-card__header p{margin:0;color:var(--muted)}
+.report-card__header .eyebrow{color:#047857;font-size:12px;letter-spacing:.1em}
+.report-card__meta{display:grid;text-align:right;white-space:nowrap}.report-card__meta span{color:var(--muted);font-weight:400}
+.tailings-related-layout{display:grid;grid-template-columns:minmax(320px,38%) minmax(0,62%);gap:18px;align-items:stretch;margin-top:18px}
+#tailings-list-container{min-width:0}
+#relaves-map{width:100%;min-height:430px;border-radius:12px;overflow:hidden}
+.tailings-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.tailings-list__item{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:40px;padding:7px 10px;border:1px solid #dce8e4;border-radius:8px;background:#f7faf9;cursor:pointer}
+.tailings-list__order{color:#64748b;font-weight:800;font-variant-numeric:tabular-nums}
+.tailings-list__main{min-width:0}.tailings-list__main strong{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.tailings-list__main small{display:block;color:#64748b;font-size:10px;letter-spacing:.02em}
+.tailings-list__distance{font-weight:700;white-space:nowrap;text-align:right}.tailings-list__distance small{display:block;font-size:9px;letter-spacing:.02em}
+.tailings-list__item.is-nearest{border-left:4px solid #f97316}.tailings-list__item.is-radius-limit{border-left:4px solid #0f766e}.tailings-list__item.is-active{background:#ecfdf5;border-color:#10b981;box-shadow:0 0 0 2px #10b98122}
+.tailings-cluster-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:18px;margin-top:18px;align-items:start}
+.tailings-cluster-kpis{display:grid;grid-template-columns:190px minmax(0,1fr);gap:14px}.tailings-cluster-kpis .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tailings-cluster-kpis .index{grid-column:auto;display:flex;min-height:155px;flex-direction:column;justify-content:center;align-items:center;text-align:center}.tailings-cluster-kpis .index small{color:#fff}.tailings-cluster-kpis .index span{display:block;font-weight:800}
+.tailings-cluster-chart .chart{margin-top:0}.tailings-cluster-summary{margin-top:18px;padding:14px 16px;background:#ecfdf5;border-left:4px solid #10b981;border-radius:8px}.tailings-cluster-summary p{margin:5px 0 0}
 .resource-bars>div{grid-template-columns:minmax(100px,1fr) 3fr minmax(72px,auto)}
 .resource-bars strong{text-align:right;white-space:nowrap}
-@media(max-width:800px){.tailings-layout,.cluster-content{grid-template-columns:1fr}.tailings-layout .map{height:340px}.cluster-content .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.cluster-content .index{min-height:120px}}
-@media print{.tailings-overview{break-inside:avoid;page-break-inside:avoid}.tailings-layout{grid-template-columns:40% 60%;gap:10px}.tailings-layout .map{height:350px}.tailing-row{padding:4px 6px}.cluster-description{break-before:page}.cluster-content .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.report-card__header{display:grid}.report-card__meta{text-align:left}.tailings-related-layout,.tailings-cluster-layout,.tailings-cluster-kpis{grid-template-columns:1fr}#relaves-map{min-height:360px}.tailings-cluster-kpis .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media print{.tailings-related-panel{break-inside:avoid;page-break-inside:avoid}.tailings-related-layout{grid-template-columns:40% 60%;gap:10px}#relaves-map{min-height:350px}.tailings-list__item{padding:4px 6px}.tailings-cluster-panel{break-before:page}}
