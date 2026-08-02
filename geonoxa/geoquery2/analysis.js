@@ -58,6 +58,15 @@
       .sort((a, b) => b.score - a.score || a.distanceKm - b.distanceKm)
       .slice(0, 1);
   }
+  function isValidCoordinate(lat, lon) {
+    return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+  }
+  function getTailingsName(feature) {
+    const p = feature?.properties || {};
+    const candidates = [p.NOMBRE, p.Nombre, p.nombre, p.NOM_RELAVE, p.NOMBRE_RELAVE, p.FAENA, p.Faena, p.faena, p.EMPRESA, p.Empresa, p.empresa, p.INSTALACION, p.IDENTIFICADOR, p.ID, p.id_relave, p.id];
+    const value = candidates.find(item => item !== null && item !== undefined && String(item).trim() !== '');
+    return value === undefined ? 'Relave sin nombre' : String(value).trim();
+  }
   function createAnalysisResults() {
     return {
       relaves: { detected: [], related: [], ier: null },
@@ -84,5 +93,5 @@
     const shown = ordered.slice(0, visibleLimit - 1);
     return [...shown, { name: 'Otros', count: ordered.slice(visibleLimit - 1).reduce((sum, item) => sum + item.count, 0) }];
   }
-  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, createAnalysisResults, totalRelatedEntities, maximumExposure, distribution };
+  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getTailingsName, createAnalysisResults, totalRelatedEntities, maximumExposure, distribution };
 });
