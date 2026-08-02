@@ -20,15 +20,15 @@
     });
     return [...grouped.values()];
   }
-  function expandedViewport(bounds) {
-    const west = Number(bounds.west), east = Number(bounds.east), south = Number(bounds.south), north = Number(bounds.north);
-    const cx = (west + east) / 2, cy = (south + north) / 2;
-    return { west: cx - (east - west), east: cx + (east - west), south: cy - (north - south), north: cy + (north - south) };
-  }
   function bboxIntersects(a, b) {
     return Array.isArray(a) && a.length === 4 && Array.isArray(b) && b.length === 4 &&
       [...a, ...b].every(Number.isFinite) &&
       !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
+  }
+  function pointInsideViewport(lat, lon, viewport) {
+    return Number.isFinite(Number(lat)) && Number.isFinite(Number(lon)) &&
+      Number(lon) >= viewport.west && Number(lon) <= viewport.east &&
+      Number(lat) >= viewport.south && Number(lat) <= viewport.north;
   }
   function exposureCategory(score) {
     const value = clamp(score);
@@ -151,5 +151,5 @@
     const shown = ordered.slice(0, visibleLimit - 1);
     return [...shown, { name: 'Otros', count: ordered.slice(visibleLimit - 1).reduce((sum, item) => sum + item.count, 0) }];
   }
-  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, bboxIntersects, exposureCategory, indicatorSemantics, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, getRelaveName, getRelaveResource, getRelaveStatus, getRelaveArea, getRelaveOwner, getRelaveCommune, getRelaveRegion, getRelaveId, buildTailingsKmlMetadata, escapeXml, createAnalysisResults, totalRelatedEntities, distribution };
+  return { clamp, normalize, entityKey, groupLogicalEntities, bboxIntersects, pointInsideViewport, exposureCategory, indicatorSemantics, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, getRelaveName, getRelaveResource, getRelaveStatus, getRelaveArea, getRelaveOwner, getRelaveCommune, getRelaveRegion, getRelaveId, buildTailingsKmlMetadata, escapeXml, createAnalysisResults, totalRelatedEntities, distribution };
 });

@@ -6,11 +6,16 @@
   const lat = number('queryLat') || number('lat') || -30.25;
   const lon = number('queryLon') || number('lon') || -71.08;
   const basemap = (params.get('basemap') || 'osm').toLowerCase().includes('sat') ? 'sat' : 'osm';
-  const rawBounds = { west: number('viewWest'), south: number('viewSouth'), east: number('viewEast'), north: number('viewNorth') };
+  const viewWest = number('viewWest');
+  const viewSouth = number('viewSouth');
+  const viewEast = number('viewEast');
+  const viewNorth = number('viewNorth');
+  const rawBounds = { west: viewWest, south: viewSouth, east: viewEast, north: viewNorth };
   const validBounds = Object.values(rawBounds).every(Number.isFinite) && rawBounds.east > rawBounds.west && rawBounds.north > rawBounds.south;
   const originalBounds = validBounds ? rawBounds : { west: lon - .35, east: lon + .35, south: lat - .25, north: lat + .25 };
-  const bounds = A.expandedViewport(originalBounds);
-  const originalViewportBbox = [originalBounds.west, originalBounds.south, originalBounds.east, originalBounds.north];
+  const originalViewportBbox = validBounds
+    ? [viewWest, viewSouth, viewEast, viewNorth]
+    : [originalBounds.west, originalBounds.south, originalBounds.east, originalBounds.north];
   const originalViewportPolygon = turf.bboxPolygon(originalViewportBbox);
   const analysisResults = A.createAnalysisResults();
   const state = { lat, lon, basemap, sourceCount: 0, rows: [], failures: [] };
@@ -39,13 +44,20 @@
   }
   const validFeature = feature => feature && feature.type === 'Feature' && feature.geometry && feature.geometry.type;
 
-  function insideBbox(feature) {
+  function isTailingsInsideOriginalViewport(feature) {
     if (!validFeature(feature)) return false;
     try {
-      const box = turf.bbox(feature);
-      return box.every(Number.isFinite) && !(box[2] < bounds.west || box[0] > bounds.east || box[3] < bounds.south || box[1] > bounds.north);
+      if (feature.geometry.type === 'Point') {
+        const coordinates = A.getRelaveCoordinates(feature);
+        return coordinates ? A.pointInsideViewport(coordinates.lat, coordinates.lon, originalBounds) : false;
+      }
+      if (/Polygon/.test(feature.geometry.type)) {
+        const box = turf.bbox(feature);
+        return A.bboxIntersects(box, originalViewportBbox) && turf.booleanIntersects(feature, originalViewportPolygon);
+      }
+      return false;
     } catch (error) {
-      console.warn('GeoNOXA: geometría descartada al evaluar el viewport', feature, error);
+      console.warn('GeoNOXA: relave descartado al evaluar el viewport original', feature, error);
       return false;
     }
   }
@@ -99,21 +111,16 @@
     return data;
   }
 
-  function analyzeEntities(entities, kind) {
-    const detected = [];
-    entities.forEach(entity => {
-      const feature = entity.features.find(insideBbox);
-      if (!feature) return;
-      try { detected.push(relation(feature, kind)); }
-      catch (error) { console.warn(`GeoNOXA: entidad de ${kind} descartada`, feature?.properties, error); }
-    });
-    return detected;
-  }
-
   async function analyzeTailings() {
     const data = await loadGroup('../capas_geoquery/geonoxa_relaves_query.geojson');
     const entities = A.groupLogicalEntities(data.features.filter(validFeature), 'relaves');
-    const detected = analyzeEntities(entities, 'relaves');
+    const detected = [];
+    entities.forEach(entity => {
+      const feature = entity.features.find(isTailingsInsideOriginalViewport);
+      if (!feature) return;
+      try { detected.push(relation(feature, 'relaves')); }
+      catch (error) { console.warn('GeoNOXA: relave descartado', feature?.properties, error); }
+    });
     return { detected, related: A.selectNearestTailings(detected, 10), ier: null, sourceCount: entities.length, error: null };
   }
 
@@ -256,7 +263,7 @@
     let legendElement;
     const updateLegend = theme => {
       const relaveColor = theme === 'sat' ? '#eaff00' : '#f97316';
-      legendElement.innerHTML = `<i style="background:#ef233c"></i>POI<br><i style="background:${relaveColor}"></i>Relaves relacionados<br><i class="nearest" style="background:${relaveColor}"></i>Relave más cercano<br><span style="color:${relaveColor}">◯</span> Radio de los 10 más cercanos<br><span class="distance-key">--- </span>Distancia mínima`;
+      legendElement.innerHTML = `<i style="background:#ef233c"></i>POI<br><i style="background:${relaveColor}"></i>Relaves relacionados<br><i class="nearest" style="background:${relaveColor}"></i>Relave más cercano<br><span style="color:${relaveColor}">◯</span> Radio del grupo seleccionado<br><span class="distance-key">--- </span>Distancia mínima`;
     };
     legend.onAdd = () => { legendElement = L.DomUtil.create('div', 'map-legend'); updateLegend(basemap); return legendElement; };
     legend.addTo(map);
@@ -356,8 +363,11 @@
     const row = buildRow('relaves', result.related);
     result.ier = row.score;
     state.rows.push(row);
+    const selectionText = result.detected.length >= 10
+      ? 'Se seleccionaron los 10 relaves más cercanos entre los contenidos en el viewport.'
+      : `Se identificaron ${result.detected.length} relaves dentro del viewport consultado.`;
     target.innerHTML = `<section class="report-card tailings-related-panel">
-      <header class="report-card__header"><div><span class="eyebrow">RELAVES</span><h2>Relaves relacionados</h2><p>Los ${row.relations.length} relaves más cercanos al punto consultado.</p></div>
+      <header class="report-card__header"><div><span class="eyebrow">RELAVES</span><h2>Relaves relacionados</h2><p>Los relaves más cercanos contenidos en el viewport consultado. ${selectionText}</p></div>
       <div class="report-card__meta"><strong>${row.relations.length} relaves seleccionados</strong><span>Radio del clúster: ${fmt(row.clusterRadiusKm)} km</span></div></header>
       <div class="tailings-related-layout"><div id="tailings-list-container"></div><div id="relaves-map" aria-label="Mapa del clúster de relaves"></div></div>
     </section>
@@ -395,7 +405,7 @@
     const distribution = A.distribution(row.relations, item => item.p.recurso || 'Sin información', 5);
     const metrics = [['Relaves relacionados', row.relations.length], ['Relave más cercano', row.entity], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Estado predominante', dominantState], ['Superficie total', areaLabel(totalArea)]];
     if (areas.length) metrics.push(['Superficie media', areaLabel(totalArea / areas.length, true)]);
-    const summary = `El clúster está compuesto por ${row.relations.length} relaves contenidos en un radio de ${fmt(row.clusterRadiusKm)} km. El relave más cercano se ubica a ${fmt(row.distance)} km y la distancia media del conjunto alcanza ${fmt(row.meanDistance)} km. El recurso dominante es ${String(row.dominant.name).toLowerCase()}, presente en ${row.dominant.count} de los ${row.relations.length} depósitos.`;
+    const summary = `El clúster está compuesto por ${row.relations.length} relaves contenidos en el viewport consultado. Su radio de ${fmt(row.clusterRadiusKm)} km está definido por el relave más lejano del grupo seleccionado. El relave más cercano se ubica a ${fmt(row.distance)} km y la distancia media del conjunto alcanza ${fmt(row.meanDistance)} km. El recurso dominante es ${String(row.dominant.name).toLowerCase()}, presente en ${row.dominant.count} de los ${row.relations.length} depósitos.`;
     container.innerHTML = `<div class="tailings-cluster-layout"><div class="tailings-cluster-kpis">${renderIerCard(row)}<div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div></div><div class="tailings-cluster-chart"><div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, chartIndex) => `<div><span>${esc(item.name)}</span><i><em class="color-${chartIndex}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count} · ${Math.round(item.count / row.relations.length * 100)} %</strong></div>`).join('')}</div></div></div></div><div class="tailings-cluster-summary"><strong>Síntesis automática del clúster</strong><p>${esc(summary)}</p></div>`;
   }
 
@@ -419,8 +429,8 @@
     const tailings = state.rows.find(item => item.kind === 'relaves');
     const zone = state.rows.find(item => item.kind === 'zonas');
     const sentences = [];
-    if (tailings) sentences.push(`Se analizaron los ${analysisResults.relaves.related.length} relaves más cercanos al punto consultado, contenidos en un radio de ${fmt(tailings.clusterRadiusKm)} km. El relave más próximo, ${tailings.entity}, se ubica a ${fmt(tailings.distance)} km. ${tailings.score === null ? 'No fue posible calcular el IER con la información disponible.' : `El clúster presenta una ${tailings.semantics.interpretation.toLowerCase()} territorial (IER ${tailings.score}).`}`);
-    else sentences.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el viewport ampliado.');
+    if (tailings) sentences.push(`Se analizaron ${analysisResults.relaves.related.length} relaves seleccionados dentro del viewport consultado, contenidos en un radio de ${fmt(tailings.clusterRadiusKm)} km. El relave más próximo, ${tailings.entity}, se ubica a ${fmt(tailings.distance)} km. ${tailings.score === null ? 'No fue posible calcular el IER con la información disponible.' : `El clúster presenta una ${tailings.semantics.interpretation.toLowerCase()} territorial (IER ${tailings.score}).`}`);
+    else sentences.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el viewport consultado.');
     if (zone) sentences.push(zone.main.inside ? `El punto se encuentra al interior de la zona ${zone.entity}. La profundidad relativa alcanza ${fmt(zone.main.depth)}, lo que representa una ${zone.semantics.interpretation.toLowerCase()} territorial.` : `La zona ${zone.entity} se encuentra a ${fmt(zone.distance)} km del punto, equivalente a ${zone.main.ratio === null ? 'una relación no calculable' : `${fmt(zone.main.ratio)} diámetros`}. La ${zone.semantics.interpretation.toLowerCase()} territorial.`);
     else sentences.push(analysisResults.zonas.error ? 'No fue posible analizar las zonas saturadas o latentes.' : 'No se detectaron Zonas Saturadas o Latentes dentro del viewport analizado.');
     if (state.failures.length) sentences.push('Análisis parcial completado; los resultados disponibles se mantienen vigentes.');
@@ -490,7 +500,7 @@
         add({ id: `geonoxa-distance-${row.kind}`, groupId: row.kind, folderId: 'relations', role: row.kind === 'relaves' ? 'minimum-distance' : 'zone-nearest-line', type: 'line', name: `POI → ${entityName(row.kind, row.main)}`, geometry: { type: 'LineString', coordinates: [[lon, lat], nearest] }, styleId: 'Style-Linea-Distancia', style: styles.distance, description: metadataTable('Relación espacial', Object.entries(lineData)), extendedData: lineData });
       }
       if (row.kind === 'relaves' && Number.isFinite(row.clusterRadiusKm)) {
-        const circleData = { Tipo: 'Radio de análisis', Centro: `${lat.toFixed(6)}, ${lon.toFixed(6)}`, Radio: distanceLabel(row.clusterRadiusKm), Criterio: 'Distancia al décimo relave más cercano', 'Relaves incluidos': row.relations.length };
+        const circleData = { Tipo: 'Radio de análisis', Centro: `${lat.toFixed(6)}, ${lon.toFixed(6)}`, Radio: distanceLabel(row.clusterRadiusKm), Criterio: 'Distancia al relave más lejano del grupo seleccionado', 'Relaves incluidos': row.relations.length };
         add({ id: 'geonoxa-cluster-circle', groupId: 'cluster', folderId: 'cluster', role: 'cluster-circle', type: 'polygon', name: `Radio del clúster: ${fmt(row.clusterRadiusKm)} km`, geometry: turf.circle([lon, lat], row.clusterRadiusKm, { steps: 128, units: 'kilometers' }).geometry, styleId: 'Style-Radio', style: styles.radius, description: metadataTable('Radio del clúster', Object.entries(circleData)), extendedData: circleData });
       }
     });
