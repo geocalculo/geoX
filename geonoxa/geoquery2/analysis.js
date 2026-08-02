@@ -47,10 +47,31 @@
     return [...counts].map(([name, count]) => ({ name, count, percent: items.length ? Math.round(count * 100 / items.length) : 0 })).sort((a, b) => b.count - a.count)[0] || null;
   }
   function selectNearestTailings(results, limit = 10) {
-    return (results || [])
+    return [...(results || [])]
       .filter(item => Number.isFinite(item.distanceKm))
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, limit);
+  }
+  function selectRelatedZones(candidates) {
+    return [...(candidates || [])]
+      .filter(item => Number.isFinite(item.score))
+      .sort((a, b) => b.score - a.score || a.distanceKm - b.distanceKm)
+      .slice(0, 1);
+  }
+  function createAnalysisResults() {
+    return {
+      relaves: { detected: [], related: [], ier: null },
+      zonas: { detected: [], related: [], iez: null }
+    };
+  }
+  function totalRelatedEntities(analysisResults) {
+    return analysisResults.relaves.related.length + analysisResults.zonas.related.length;
+  }
+  function maximumExposure(analysisResults) {
+    const candidates = [];
+    if (Number.isFinite(analysisResults.relaves.ier)) candidates.push({ group: 'RELAVES', kind: 'relaves', index: analysisResults.relaves.ier });
+    if (Number.isFinite(analysisResults.zonas.iez)) candidates.push({ group: 'ZONAS SATURADAS / LATENTES', kind: 'zonas', index: analysisResults.zonas.iez });
+    return candidates.sort((a, b) => b.index - a.index)[0] || null;
   }
   function distribution(items, getter, visibleLimit = 5) {
     const counts = new Map();
@@ -63,5 +84,5 @@
     const shown = ordered.slice(0, visibleLimit - 1);
     return [...shown, { name: 'Otros', count: ordered.slice(visibleLimit - 1).reduce((sum, item) => sum + item.count, 0) }];
   }
-  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, distribution };
+  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, createAnalysisResults, totalRelatedEntities, maximumExposure, distribution };
 });
