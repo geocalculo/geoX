@@ -4,6 +4,8 @@
     const color = kind === 'relaves' ? '#f97316' : kind === 'latente' ? '#f4b400' : '#d81b60';
     return { color, fillColor: color, fillOpacity: selected ? 0.34 : 0.2, weight: selected ? 4 : 2 };
   }
-  function restyle(layers, basemap) { layers.forEach(item => item.layer.setStyle(entityStyle(item.kind, basemap, item.selected))); }
-  return { entityStyle, restyle, distanceStyle: { color: '#22d3ee', weight: 3, dashArray: '7 6' } };
+  function clusterStyle(basemap) { return { color: basemap === 'sat' ? '#eaff00' : '#ff7a00', weight: 2, dashArray: '8 6', fill: false }; }
+  function distanceStyleFor(basemap) { return { color: basemap === 'sat' ? '#22d3ee' : '#0891b2', weight: 3, dashArray: '7 6' }; }
+  function restyle(layers, basemap) { layers.forEach(item => item.layer.setStyle(item.kind === 'cluster' ? clusterStyle(basemap) : item.kind === 'distance' ? distanceStyleFor(basemap) : entityStyle(item.kind, basemap, item.selected))); }
+  return { entityStyle, clusterStyle, distanceStyleFor, restyle, distanceStyle: { color: '#22d3ee', weight: 3, dashArray: '7 6' } };
 });
