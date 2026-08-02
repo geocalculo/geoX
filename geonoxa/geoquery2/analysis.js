@@ -46,5 +46,22 @@
     items.forEach(item => { const value = getter(item) || 'Sin información'; counts.set(value, (counts.get(value) || 0) + 1); });
     return [...counts].map(([name, count]) => ({ name, count, percent: items.length ? Math.round(count * 100 / items.length) : 0 })).sort((a, b) => b.count - a.count)[0] || null;
   }
-  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant };
+  function selectNearestTailings(results, limit = 10) {
+    return (results || [])
+      .filter(item => Number.isFinite(item.distanceKm))
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, limit);
+  }
+  function distribution(items, getter, visibleLimit = 5) {
+    const counts = new Map();
+    (items || []).forEach(item => {
+      const name = getter(item) || 'Sin información';
+      counts.set(name, (counts.get(name) || 0) + 1);
+    });
+    const ordered = [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    if (ordered.length <= visibleLimit) return ordered;
+    const shown = ordered.slice(0, visibleLimit - 1);
+    return [...shown, { name: 'Otros', count: ordered.slice(visibleLimit - 1).reduce((sum, item) => sum + item.count, 0) }];
+  }
+  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, distribution };
 });
