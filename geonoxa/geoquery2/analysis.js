@@ -61,15 +61,17 @@
   function isValidCoordinate(lat, lon) {
     return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
   }
-  function getTailingsCoordinates(feature) {
+  // Reutiliza pointCoords() del GeoQuery productivo: primero GeoJSON Point y,
+  // como respaldo, los campos reales de la fuente (`latitud`/`longitud`).
+  function getRelaveCoordinates(feature) {
     const properties = feature?.properties || {};
     const geometry = feature?.geometry;
     if (geometry?.type === 'Point' && Array.isArray(geometry.coordinates)) {
       const [lon, lat] = geometry.coordinates.map(Number);
       if (isValidCoordinate(lat, lon)) return { lat, lon };
     }
-    const latCandidates = [properties.LATITUD, properties.Latitud, properties.latitud, properties.LAT, properties.lat, properties.Y];
-    const lonCandidates = [properties.LONGITUD, properties.Longitud, properties.longitud, properties.LON, properties.lng, properties.lon, properties.X];
+    const latCandidates = [properties.latitud];
+    const lonCandidates = [properties.longitud];
     const lat = Number(latCandidates.find(value => Number.isFinite(Number(value))));
     const lon = Number(lonCandidates.find(value => Number.isFinite(Number(value))));
     return isValidCoordinate(lat, lon) ? { lat, lon } : null;
@@ -101,5 +103,5 @@
     const shown = ordered.slice(0, visibleLimit - 1);
     return [...shown, { name: 'Otros', count: ordered.slice(visibleLimit - 1).reduce((sum, item) => sum + item.count, 0) }];
   }
-  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getTailingsCoordinates, getTailingsName, createAnalysisResults, totalRelatedEntities, distribution };
+  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, createAnalysisResults, totalRelatedEntities, distribution };
 });
