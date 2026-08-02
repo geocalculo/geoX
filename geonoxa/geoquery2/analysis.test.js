@@ -23,3 +23,17 @@ test('does not invent an equivalent diameter without area', () => {
   assert.equal(A.equivalentDiameterKm(null), null);
   assert.equal(A.equivalentDiameterKm(0), null);
 });
+
+test('selects at most the ten nearest tailings with finite distances', () => {
+  const candidates = [12, 3, NaN, 7, 1, 15, 2, 8, 9, 4, 6, 5, 10, 11].map(distanceKm => ({ distanceKm }));
+  assert.deepEqual(A.selectNearestTailings(candidates).map(item => item.distanceKm), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.deepEqual(A.selectNearestTailings([{ distanceKm: 2 }, { distanceKm: 1 }]).map(item => item.distanceKm), [1, 2]);
+});
+
+test('resource distribution keeps five categories and groups the remainder', () => {
+  const values = ['Oro', 'Oro', 'Cobre', 'Cobre', 'Hierro', 'Plata', 'Zinc', 'Litio'];
+  const result = A.distribution(values, value => value, 5);
+  assert.equal(result.length, 5);
+  assert.equal(result.reduce((sum, item) => sum + item.count, 0), values.length);
+  assert.equal(result.at(-1).name, 'Otros');
+});
