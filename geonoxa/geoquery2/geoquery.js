@@ -138,7 +138,64 @@
     mapLayers[kind] = [];
   }
 
+  function initializeTailingsMap(result) {
+    const container = document.getElementById('tailings-map');
+    if (!container) throw Error('No existe el contenedor tailings-map');
+    if (maps.relaves) { maps.relaves.remove(); maps.relaves = null; }
+    mapLayers.relaves = [];
+    const relatedTailings = (result.related || []).slice(0, 10);
+    const validTailings = relatedTailings.map(item => ({ item, coordinates: A.getTailingsCoordinates(item.feature) })).filter(entry => entry.coordinates);
+    const validPoi = A.isValidCoordinate(lat, lon);
+    if (!validPoi && !validTailings.length) {
+      container.innerHTML = '<div class="empty">Mapa no disponible</div>';
+      return;
+    }
+    const center = validPoi ? [lat, lon] : [validTailings[0].coordinates.lat, validTailings[0].coordinates.lon];
+    const map = L.map(container, { zoomControl: true });
+    maps.relaves = map;
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, attribution: 'Esri' });
+    (basemap === 'sat' ? sat : osm).addTo(map);
+    const boundsLayers = [];
+    let poiMarker = null;
+    if (validPoi) {
+      poiMarker = L.circleMarker(center, { radius: 8, color: '#fff', weight: 3, fillColor: '#ef233c', fillOpacity: 1 }).addTo(map).bindTooltip('POI');
+      boundsLayers.push(poiMarker);
+    }
+    const tailingsMarkers = validTailings.map(({ item, coordinates }) => {
+      const selected = item === relatedTailings[0];
+      const marker = L.circleMarker([coordinates.lat, coordinates.lon], { ...T.entityStyle('relaves', basemap, selected), radius: selected ? 9 : 6, fillOpacity: .85 }).addTo(map).bindTooltip(`${entityName('relaves', item)} · ${fmt(item.distanceKm)} km`);
+      mapLayers.relaves.push({ layer: marker, kind: 'relaves', selected });
+      return marker;
+    });
+    boundsLayers.push(...tailingsMarkers);
+    const nearestCoordinates = validTailings.find(entry => entry.item === relatedTailings[0])?.coordinates;
+    if (validPoi && nearestCoordinates) {
+      const line = L.polyline([center, [nearestCoordinates.lat, nearestCoordinates.lon]], T.distanceStyle).addTo(map).bindTooltip(`${fmt(relatedTailings[0].distanceKm)} km`);
+      mapLayers.relaves.push({ layer: line, kind: 'distance', selected: false });
+    }
+    const clusterRadiusKm = relatedTailings.length ? relatedTailings[relatedTailings.length - 1].distanceKm : null;
+    let clusterCircle = null;
+    if (validPoi && Number.isFinite(clusterRadiusKm) && clusterRadiusKm >= 0) {
+      clusterCircle = L.circle(center, { ...T.clusterStyle(basemap), radius: clusterRadiusKm * 1000 }).addTo(map).bindTooltip(`Radio del clúster: ${fmt(clusterRadiusKm)} km`);
+      mapLayers.relaves.push({ layer: clusterCircle, kind: 'cluster', selected: false });
+      boundsLayers.push(clusterCircle);
+    }
+    const boundsGroup = L.featureGroup(boundsLayers);
+    const mapBounds = boundsGroup.getBounds();
+    if (mapBounds.isValid()) map.fitBounds(mapBounds, { padding: [28, 28], maxZoom: 13 });
+    else map.setView(center, 10);
+    L.control.layers({ OSM: osm, SAT: sat }).addTo(map);
+    L.control.scale({ metric: true, imperial: false }).addTo(map);
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = () => { const element = L.DomUtil.create('div', 'map-legend'); element.innerHTML = '<b>Relaves</b><br><i style="background:#ef233c"></i>POI<br><i style="background:#f97316"></i>Relave relacionado<br>━ Línea al más cercano<br>┄ Radio del clúster'; return element; };
+    legend.addTo(map);
+    map.on('baselayerchange', event => T.restyle(mapLayers.relaves, event.name === 'SAT' ? 'sat' : 'osm'));
+    setTimeout(() => { if (maps.relaves === map) map.invalidateSize(); }, 100);
+  }
+
   function createMap(id, relations, kind, primary) {
+    if (kind === 'relaves') return initializeTailingsMap({ related: relations });
     const container = document.getElementById(id);
     if (!container) throw Error(`No existe el contenedor ${id}`);
     destroyMap(kind);
@@ -173,7 +230,7 @@
     requestAnimationFrame(() => { if (maps[kind] === map) map.invalidateSize(); });
   }
 
-  function renderGroup(kind, result) {
+  function renderGroup(kind, result, scheduleMap = true) {
     const isTailings = kind === 'relaves';
     const title = isTailings ? 'RELAVES' : 'ZONAS SATURADAS / LATENTES';
     const target = document.getElementById(isTailings ? 'tailings-report' : 'zones-report');
@@ -195,17 +252,36 @@
       ? [['Relave más cercano', row.entity], ['Relaves relacionados', row.relations.length], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Estado predominante', A.dominant(row.relations, item => item.p.estado || item.p.tipo_deposito)?.name || 'Sin información'], ['Superficie total', areas.length ? `${fmt(totalArea / 1e6)} km²` : 'Sin información'], ['Superficie media', areas.length ? `${fmt(totalArea / areas.length / 1e6)} km²` : 'Sin información']]
       : [['Zona principal', row.entity], ['Clasificación', p.zona_dec || p.tipo || p.clasificacion || 'Zona ambiental'], ['Contaminante', row.dominant.name], ['Posición', row.main.inside ? 'Interior' : 'Exterior'], ['Distancia al borde', `${fmt(row.distance)} km`], ['Diámetro equivalente', row.main.diameter ? `${fmt(row.main.diameter)} km` : 'Sin información'], ['Relación territorial', row.main.ratio !== null ? `${fmt(row.main.ratio)} diámetros` : 'No aplica'], ['Profundidad relativa', row.main.depth !== null ? `${fmt(row.main.depth * 100)} %` : 'No aplica']];
     const index = row.score === null ? '<strong>IER no calculable</strong>' : `<strong>${row.score}</strong> · Exposición ${row.category}`;
-    const mapId = `map-${kind}`;
+    const mapId = isTailings ? 'tailings-map' : 'map-zonas';
     group.innerHTML += `<div class="micro"><div><div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small style="color:white">${isTailings ? 'IER' : 'IEZ'}</small><br>${index}</div><div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div>${isTailings ? `<div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, index) => `<div><span>${esc(item.name)}</span><i><em class="color-${index}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count}</strong></div>`).join('')}</div><div class="legend">${distribution.map((item, index) => `<span class="legend-${index}">● ${esc(item.name)} · ${item.count}</span>`).join('')}</div></div>` : ''}</div><div id="${mapId}" class="map" aria-label="Mapa independiente de ${title}"></div></div>`;
     target.replaceChildren(group);
     state.rows.push(row);
-    try { createMap(mapId, row.relations, kind, row.main); }
-    catch (error) {
-      console.error(`GeoNOXA: fallo al renderizar mapa de ${title}`, error);
-      state.failures.push({ stage: `Mapa de ${title}`, error });
-      document.getElementById(mapId).innerHTML = '<div class="empty">Mapa no disponible. Los resultados del grupo siguen vigentes.</div>';
-    }
+    if (scheduleMap) requestAnimationFrame(() => {
+      try { createMap(mapId, row.relations, kind, row.main); }
+      catch (error) {
+        console.error(isTailings ? 'GeoNOXA: error al crear mapa de relaves' : `GeoNOXA: fallo al renderizar mapa de ${title}`, error);
+        state.failures.push({ stage: `Mapa de ${title}`, error });
+        if (!isTailings) document.getElementById(mapId).innerHTML = '<div class="empty">Mapa no disponible. Los resultados del grupo siguen vigentes.</div>';
+        safeRender('resumen de consulta', renderQuerySummary);
+      }
+    });
     return row;
+  }
+
+  function renderTailingsIndicators(result) { return renderGroup('relaves', result, false); }
+  function renderTailingsMap(result) {
+    requestAnimationFrame(() => {
+      try { initializeTailingsMap(result); }
+      catch (error) {
+        console.error('GeoNOXA: error al crear mapa de relaves', error);
+        state.failures.push({ stage: 'Mapa de RELAVES', error });
+        safeRender('resumen de consulta', renderQuerySummary);
+      }
+    });
+  }
+  function renderTailingsDistribution(result) {
+    // La distribución se completa en el panel de indicadores y no condiciona el mapa.
+    return result.related?.length || 0;
   }
 
   function safeRender(label, render) {
@@ -223,13 +299,6 @@
     document.getElementById('query-grid').innerHTML = fields.map(field => `<div class="datum"><b>${field[0]}</b>${esc(field[1])}</div>`).join('');
   }
 
-  function renderOverallExposure() {
-    const maximum = A.maximumExposure(analysisResults);
-    const row = maximum && state.rows.find(item => item.kind === maximum.kind);
-    const panel = document.getElementById('greatest');
-    panel.classList.remove('loading');
-    panel.innerHTML = row ? `<small>MAYOR EXPOSICIÓN TERRITORIAL</small><h2>${esc(maximum.group)}</h2><div class="score">${maximum.kind === 'relaves' ? 'IER' : 'IEZ'} ${maximum.index}</div><b>${esc(row.entity)}</b><span>Exposición ${row.category}</span>` : '<small>MAYOR EXPOSICIÓN TERRITORIAL</small><h2>Sin exposición territorial calculable</h2>';
-  }
 
   function renderExecutiveSummary() {
     const tailings = state.rows.find(item => item.kind === 'relaves');
@@ -248,9 +317,6 @@
   }
 
   function finalizeLoadingStates() {
-    const greatest = document.getElementById('greatest');
-    greatest.classList.remove('loading');
-    if (/Calculando/.test(greatest.textContent)) greatest.innerHTML = `<small>MAYOR EXPOSICIÓN TERRITORIAL</small><h2>${state.failures.length ? 'Análisis parcial completado' : 'Sin exposición territorial calculable'}</h2>`;
     const synthesis = document.getElementById('synthesis');
     if (/Analizando/.test(synthesis.textContent)) synthesis.textContent = state.failures.length ? 'Análisis parcial completado.' : 'Análisis completado sin entidades relacionadas.';
     safeRender('resumen de consulta', renderQuerySummary);
@@ -263,9 +329,10 @@
     Object.assign(analysisResults.zonas, zonesResult);
     state.sourceCount = tailingsResult.sourceCount + zonesResult.sourceCount;
     state.rows = [];
-    safeRender('Relaves', () => renderGroup('relaves', tailingsResult));
+    safeRender('indicadores de Relaves', () => renderTailingsIndicators(tailingsResult));
+    safeRender('mapa de Relaves', () => renderTailingsMap(tailingsResult));
+    safeRender('distribución de Relaves', () => renderTailingsDistribution(tailingsResult));
     safeRender('Zonas', () => renderGroup('zonas', zonesResult));
-    safeRender('mayor exposición', renderOverallExposure);
     safeRender('síntesis ejecutiva', renderExecutiveSummary);
     safeRender('tabla complementaria', renderComplementaryTable);
   }

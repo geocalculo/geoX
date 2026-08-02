@@ -14,3 +14,9 @@ test('restyle uses setStyle and does not recreate data', () => {
   theme.restyle([{ layer, kind: 'saturada', selected: true }], 'sat');
   assert.equal(applied.color, '#eaff00');
 });
+
+test('cluster and distance layers change style with the basemap', () => {
+  assert.equal(theme.clusterStyle('osm').color, '#ff7a00');
+  assert.equal(theme.clusterStyle('sat').color, '#eaff00');
+  assert.equal(theme.distanceStyleFor('sat').color, '#22d3ee');
+});

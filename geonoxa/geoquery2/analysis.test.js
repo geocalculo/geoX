@@ -41,14 +41,6 @@ test('tailings selection cannot overwrite detected or related zones', () => {
   assert.equal(A.totalRelatedEntities(results), 11);
 });
 
-test('maximum exposure accepts either valid index and has an explicit empty state', () => {
-  const results = A.createAnalysisResults();
-  assert.equal(A.maximumExposure(results), null);
-  results.zonas.iez = 63;
-  assert.deepEqual(A.maximumExposure(results), { group: 'ZONAS SATURADAS / LATENTES', kind: 'zonas', index: 63 });
-  results.relaves.ier = 72;
-  assert.deepEqual(A.maximumExposure(results), { group: 'RELAVES', kind: 'relaves', index: 72 });
-});
 
 test('resource distribution keeps five categories and groups the remainder', () => {
   const values = ['Oro', 'Oro', 'Cobre', 'Cobre', 'Hierro', 'Plata', 'Zinc', 'Litio'];
@@ -65,4 +57,11 @@ test('validates marker coordinates and obtains a tailings name from real field v
   assert.equal(A.getTailingsName({ properties: { faena: '  El Sauce  ' } }), 'El Sauce');
   assert.equal(A.getTailingsName({ properties: { NOMBRE_RELAVE: 'Depósito 4' } }), 'Depósito 4');
   assert.equal(A.getTailingsName({ properties: {} }), 'Relave sin nombre');
+});
+
+test('normalizes tailings coordinates from geometry and known property variants', () => {
+  assert.deepEqual(A.getTailingsCoordinates({ geometry: { type: 'Point', coordinates: [-71.1, -30.2] } }), { lat: -30.2, lon: -71.1 });
+  assert.deepEqual(A.getTailingsCoordinates({ properties: { LATITUD: '-30.3', LONGITUD: '-71.2' } }), { lat: -30.3, lon: -71.2 });
+  assert.deepEqual(A.getTailingsCoordinates({ properties: { Y: -30.4, X: -71.3 } }), { lat: -30.4, lon: -71.3 });
+  assert.equal(A.getTailingsCoordinates({ properties: { lat: 200, lon: -71 } }), null);
 });

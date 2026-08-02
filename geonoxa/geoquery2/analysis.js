@@ -61,6 +61,19 @@
   function isValidCoordinate(lat, lon) {
     return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
   }
+  function getTailingsCoordinates(feature) {
+    const properties = feature?.properties || {};
+    const geometry = feature?.geometry;
+    if (geometry?.type === 'Point' && Array.isArray(geometry.coordinates)) {
+      const [lon, lat] = geometry.coordinates.map(Number);
+      if (isValidCoordinate(lat, lon)) return { lat, lon };
+    }
+    const latCandidates = [properties.LATITUD, properties.Latitud, properties.latitud, properties.LAT, properties.lat, properties.Y];
+    const lonCandidates = [properties.LONGITUD, properties.Longitud, properties.longitud, properties.LON, properties.lng, properties.lon, properties.X];
+    const lat = Number(latCandidates.find(value => Number.isFinite(Number(value))));
+    const lon = Number(lonCandidates.find(value => Number.isFinite(Number(value))));
+    return isValidCoordinate(lat, lon) ? { lat, lon } : null;
+  }
   function getTailingsName(feature) {
     const p = feature?.properties || {};
     const candidates = [p.NOMBRE, p.Nombre, p.nombre, p.NOM_RELAVE, p.NOMBRE_RELAVE, p.FAENA, p.Faena, p.faena, p.EMPRESA, p.Empresa, p.empresa, p.INSTALACION, p.IDENTIFICADOR, p.ID, p.id_relave, p.id];
@@ -76,12 +89,7 @@
   function totalRelatedEntities(analysisResults) {
     return analysisResults.relaves.related.length + analysisResults.zonas.related.length;
   }
-  function maximumExposure(analysisResults) {
-    const candidates = [];
-    if (Number.isFinite(analysisResults.relaves.ier)) candidates.push({ group: 'RELAVES', kind: 'relaves', index: analysisResults.relaves.ier });
-    if (Number.isFinite(analysisResults.zonas.iez)) candidates.push({ group: 'ZONAS SATURADAS / LATENTES', kind: 'zonas', index: analysisResults.zonas.iez });
-    return candidates.sort((a, b) => b.index - a.index)[0] || null;
-  }
+
   function distribution(items, getter, visibleLimit = 5) {
     const counts = new Map();
     (items || []).forEach(item => {
@@ -93,5 +101,5 @@
     const shown = ordered.slice(0, visibleLimit - 1);
     return [...shown, { name: 'Otros', count: ordered.slice(visibleLimit - 1).reduce((sum, item) => sum + item.count, 0) }];
   }
-  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getTailingsName, createAnalysisResults, totalRelatedEntities, maximumExposure, distribution };
+  return { clamp, normalize, entityKey, groupLogicalEntities, expandedViewport, exposureCategory, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getTailingsCoordinates, getTailingsName, createAnalysisResults, totalRelatedEntities, distribution };
 });
