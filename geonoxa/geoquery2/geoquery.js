@@ -149,6 +149,7 @@
   function initializeTailingsMap(result) {
     const container = document.getElementById('relaves-map');
     if (!container) throw Error('No existe el contenedor relaves-map');
+    if (!A.isValidCoordinate(lat, lon)) throw Error('Las coordenadas del POI no son válidas');
     if (relavesMapInstance) {
       relavesMapInstance.remove();
       relavesMapInstance = null;
@@ -167,15 +168,13 @@
       container.innerHTML = '<div class="empty">Mapa no disponible</div>';
       return;
     }
-    const validPoi = A.isValidCoordinate(lat, lon);
-    const center = validPoi ? [lat, lon] : [validTailings[0].coordinates.lat, validTailings[0].coordinates.lon];
-    const map = L.map(container, { zoomControl: true });
+    const center = [lat, lon];
+    const map = L.map(container, { zoomControl: true }).setView(center, 10);
     relavesMapInstance = map;
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap', crossOrigin: true });
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, attribution: 'Tiles &copy; Esri', crossOrigin: true });
     (basemap === 'sat' ? sat : osm).addTo(map);
-    let poiMarker = null;
-    if (validPoi) poiMarker = L.circleMarker(center, { radius: 8, color: '#fff', weight: 3, fillColor: '#ef233c', fillOpacity: 1 }).addTo(map).bindPopup('POI');
+    const poiMarker = L.circleMarker(center, { radius: 8, color: '#fff', weight: 3, fillColor: '#ef233c', fillOpacity: 1 }).addTo(map).bindPopup('POI');
     const relaveMarkers = validTailings.map(({ item, coordinates }) => {
       const selected = item === nearestTailings[0];
       const p = item.feature?.properties || item.p || {};
@@ -186,19 +185,22 @@
       return marker;
     });
     const nearestCoordinates = validTailings.find(entry => entry.item === nearestTailings[0])?.coordinates;
-    if (validPoi && nearestCoordinates) {
+    if (nearestCoordinates) {
       const line = L.polyline([center, [nearestCoordinates.lat, nearestCoordinates.lon]], T.distanceStyleFor(basemap)).addTo(map).bindTooltip(`${fmt(nearestTailings[0].distanceKm)} km`);
       mapLayers.relaves.push({ layer: line, kind: 'distance', selected: false });
     }
     const radioClusterKm = nearestTailings.length ? nearestTailings[nearestTailings.length - 1].distanceKm : null;
     let clusterCircle = null;
-    if (validPoi && Number.isFinite(radioClusterKm) && radioClusterKm >= 0) {
+    if (Number.isFinite(radioClusterKm) && radioClusterKm >= 0) {
       clusterCircle = L.circle(center, { radius: radioClusterKm * 1000, ...T.clusterStyle(basemap) }).addTo(map).bindTooltip(`Radio del clúster: ${fmt(radioClusterKm)} km`);
       mapLayers.relaves.push({ layer: clusterCircle, kind: 'cluster', selected: false });
     }
-    const boundsLayers = [poiMarker, ...relaveMarkers, clusterCircle].filter(Boolean);
-    const boundsGroup = L.featureGroup(boundsLayers);
-    const mapBounds = boundsGroup.getBounds();
+    const mapBounds = L.latLngBounds([center]);
+    validTailings.forEach(({ coordinates }) => mapBounds.extend([coordinates.lat, coordinates.lon]));
+    if (clusterCircle) {
+      const circleBounds = clusterCircle.getBounds();
+      if (circleBounds.isValid()) mapBounds.extend(circleBounds);
+    }
     if (mapBounds.isValid()) map.fitBounds(mapBounds, { padding: [24, 24], maxZoom: 13 });
     else map.setView(center, 10);
     L.control.layers({ OSM: osm, SAT: sat }).addTo(map);
