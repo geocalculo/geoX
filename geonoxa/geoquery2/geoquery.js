@@ -44,18 +44,19 @@
   }
   function buildCompactTailingsPopup(item, index, total) {
     const metadata = tailingsMetadata(item, index, total);
-    const isNearest = index === 0;
-    const isClusterLimit = index === total - 1;
-    let role = '';
-
-    if (isNearest) role = 'Relave más cercano';
-    else if (isClusterLimit) role = 'Límite del clúster';
+    const fields = [
+      ['Recurso', metadata.resource || 'Sin información'],
+      ['Estado', metadata.status || 'Sin información'],
+      ['Superficie', areaM2Label(metadata.area)],
+      ['Distancia al POI', distanceLabel(metadata.distanceKm)],
+      ['Empresa', metadata.owner || 'Sin información'],
+      ['Comuna', metadata.commune || 'Sin información'],
+      ['Rol', metadata.role]
+    ];
 
     return `<div class="tailings-popup-compact">
       <strong>${esc(metadata.name)}</strong>
-      <span>${esc(metadata.resource || 'Sin recurso')}</span>
-      <span>${distanceLabel(metadata.distanceKm)}</span>
-      ${role ? `<small>${role}</small>` : ''}
+      <dl>${fields.map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>
     </div>`;
   }
   function clearTailingsSelection() {

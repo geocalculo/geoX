@@ -12,16 +12,19 @@
 .tailings-related-layout{display:grid;grid-template-columns:minmax(320px,38%) minmax(0,62%);gap:18px;align-items:stretch;margin-top:18px}
 #tailings-list-container{min-width:0}
 #relaves-map{width:100%;min-height:430px;border-radius:12px;overflow:hidden}
-.tailings-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.tailings-list__item{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:40px;padding:7px 10px;border:1px solid #dce8e4;border-radius:8px;background:#f7faf9;cursor:pointer}
+.tailings-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.tailings-list__item{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:8px;align-items:center;min-height:39px;padding:5px 8px;border:1px solid #dce8e4;border-radius:8px;background:#f7faf9;cursor:pointer}
 .tailings-list__order{color:#64748b;font-weight:800;font-variant-numeric:tabular-nums}
-.tailings-list__main{min-width:0}.tailings-list__main strong{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.tailings-list__main small{display:block;color:#64748b;font-size:10px;letter-spacing:.02em}
-.tailings-list__distance{font-weight:700;white-space:nowrap;text-align:right}.tailings-list__distance small{display:block;font-size:9px;letter-spacing:.02em}
+.tailings-list__main{min-width:0}.tailings-list__main strong{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px;line-height:1.15}.tailings-list__main small{display:block;margin-top:2px;color:#64748b;font-size:11px;line-height:1.1;letter-spacing:.02em}
+.tailings-list__distance{font-weight:700;white-space:nowrap;text-align:right}.tailings-list__distance small{display:block;margin-top:2px;font-size:10px;line-height:1.1;letter-spacing:.02em}
 .tailings-list__item.is-nearest{border-left:4px solid #f97316}.tailings-list__item.is-radius-limit{border-left:4px solid #0f766e}.tailings-list__item.is-active{background:#ecfdf5;border-color:#10b981;box-shadow:0 0 0 2px #10b98122}
-.tailings-popup-compact{min-width:150px;max-width:220px;font-family:inherit}
-.tailings-popup-compact strong{display:block;font-size:13px;line-height:1.15;margin-bottom:5px}
-.tailings-popup-compact span{display:block;font-size:11px;line-height:1.25}
-.tailings-popup-compact small{display:block;margin-top:5px;font-size:10px;font-weight:700;color:#087f5b}
+.tailings-popup-compact{min-width:220px;max-width:280px;font-family:inherit;color:var(--ink)}
+.tailings-popup-compact>strong{display:block;padding-bottom:7px;border-bottom:1px solid var(--line);font-size:14px;line-height:1.2}
+.tailings-popup-compact dl{display:grid;gap:4px;margin:7px 0 0}
+.tailings-popup-compact dl div{display:grid;grid-template-columns:minmax(82px,.85fr) minmax(0,1.15fr);gap:8px;font-size:11px;line-height:1.25}
+.tailings-popup-compact dt{color:var(--muted);font-weight:700}
+.tailings-popup-compact dd{margin:0;overflow-wrap:anywhere}
+.tailings-popup-compact dl div:last-child dd{color:#087f5b;font-weight:800}
 .is-pdf-export .tailings-related-panel .report-card__header{margin-bottom:8px;padding-bottom:8px}
 .is-pdf-export .tailings-related-panel h2{font-size:17px;margin-bottom:2px}
 .is-pdf-export .tailings-related-panel p{font-size:9px;line-height:1.2}
