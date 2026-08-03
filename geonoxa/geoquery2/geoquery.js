@@ -42,6 +42,26 @@
   function tailingsExtendedData(metadata) {
     return Object.fromEntries(tailingsMetadataEntries(metadata).map(([name, value]) => [name, value]).filter(([, value]) => present(value) && value !== 'Sin información'));
   }
+  function buildCompactTailingsPopup(item, index, total) {
+    const metadata = tailingsMetadata(item, index, total);
+    const isNearest = index === 0;
+    const isClusterLimit = index === total - 1;
+    let role = '';
+
+    if (isNearest) role = 'Relave más cercano';
+    else if (isClusterLimit) role = 'Límite del clúster';
+
+    return `<div class="tailings-popup-compact">
+      <strong>${esc(metadata.name)}</strong>
+      <span>${esc(metadata.resource || 'Sin recurso')}</span>
+      <span>${distanceLabel(metadata.distanceKm)}</span>
+      ${role ? `<small>${role}</small>` : ''}
+    </div>`;
+  }
+  function clearTailingsSelection() {
+    document.querySelectorAll('.tailings-list__item').forEach(row => row.classList.remove('is-active'));
+    if (relavesMapInstance) relavesMapInstance.closePopup();
+  }
   const validFeature = feature => feature && feature.type === 'Feature' && feature.geometry && feature.geometry.type;
 
   function isTailingsInsideOriginalViewport(feature) {
@@ -232,8 +252,7 @@
     validTailings.forEach(({ item, coordinates }) => {
       const index = nearestTailings.indexOf(item);
       const selected = item === nearestTailings[0];
-      const metadata = tailingsMetadata(item, index, nearestTailings.length);
-      const popup = tailingsDescription(metadata);
+      const popup = buildCompactTailingsPopup(item, index, nearestTailings.length);
       const marker = L.circleMarker([coordinates.lat, coordinates.lon], { ...T.entityStyle('relaves', basemap, selected), radius: selected ? 9 : 6, fillOpacity: .85 }).addTo(map).bindPopup(popup);
       mapLayers.relaves.push({ layer: marker, kind: 'relaves', selected });
       tailingsMarkers.set(index, marker);
@@ -484,6 +503,7 @@
   }
 
   function waitForExportMaps(timeout = 2500) {
+    if (relavesMapInstance) relavesMapInstance.closePopup();
     Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize(false));
     if (!document.querySelector('#report .leaflet-tile-loading')) return Promise.resolve();
     return new Promise(resolve => {
@@ -500,6 +520,8 @@
     const exportDate = new Date();
     const filename = buildExportFilename('geonoxa', 'pdf', exportDate);
     const report = document.getElementById('report');
+    clearTailingsSelection();
+    if (relavesMapInstance) relavesMapInstance.closePopup();
     report.classList.add('pdf-export-root');
     try {
       await waitForExportMaps();
