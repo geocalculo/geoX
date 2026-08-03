@@ -500,21 +500,44 @@
     const exportDate = new Date();
     const filename = buildExportFilename('geonoxa', 'pdf', exportDate);
     const report = document.getElementById('report');
-    report.classList.add('is-pdf-export');
+    report.classList.add('pdf-export-root');
     try {
       await waitForExportMaps();
-      await html2pdf().set({
-        margin: [8, 10, 8, 10],
+      const worker = html2pdf().set({
+        // GeoQuery productivo reserva 13 + 8 mm arriba y 14 + 8 mm abajo.
+        margin: [21, 10, 22, 10],
         filename,
+        // La escala conserva la resolución del mapa; la densidad tipográfica se
+        // controla exclusivamente mediante .pdf-export-root, no con zoom.
         html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
         jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait', compress: true },
         pagebreak: {
           mode: ['css', 'legacy'],
           avoid: ['.tailings-related-panel', '.report-card__header', '.complementary-information-heading', 'tr']
         }
-      }).from(report).save();
+      }).from(report).toPdf();
+      const pdf = await worker.get('pdf');
+      const pages = pdf.getNumberOfPages();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const date = exportDate.toLocaleDateString('es-CL');
+      for (let page = 1; page <= pages; page += 1) {
+        pdf.setPage(page);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.setTextColor(14, 116, 144);
+        pdf.text('GeoNOXA | Informe Ejecutivo de Exposición Ambiental', 10, 13);
+        pdf.setDrawColor(220, 226, 235);
+        pdf.line(10, 16, pageWidth - 10, 16);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(107, 114, 128);
+        pdf.text(`Fecha de generación: ${date}`, 10, pageHeight - 12);
+        pdf.text(`Página ${page} de ${pages}`, pageWidth - 35, pageHeight - 12);
+      }
+      await worker.save();
     } finally {
-      report.classList.remove('is-pdf-export');
+      report.classList.remove('pdf-export-root');
       Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize(false));
     }
   }
