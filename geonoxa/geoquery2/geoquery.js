@@ -42,9 +42,9 @@
   function tailingsExtendedData(metadata) {
     return Object.fromEntries(tailingsMetadataEntries(metadata).map(([name, value]) => [name, value]).filter(([, value]) => present(value) && value !== 'Sin información'));
   }
-  function buildCompactTailingsPopup(item, index, total) {
+  function tailingsSummaryModel(item, index, total) {
     const metadata = tailingsMetadata(item, index, total);
-    const fields = [
+    return { metadata, fields: [
       ['Recurso', metadata.resource || 'Sin información'],
       ['Estado', metadata.status || 'Sin información'],
       ['Superficie', areaM2Label(metadata.area)],
@@ -52,12 +52,11 @@
       ['Empresa', metadata.owner || 'Sin información'],
       ['Comuna', metadata.commune || 'Sin información'],
       ['Rol', metadata.role]
-    ];
-
-    return `<div class="tailings-popup-compact">
-      <strong>${esc(metadata.name)}</strong>
-      <dl>${fields.map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>
-    </div>`;
+    ] };
+  }
+  function buildCompactTailingsPopup(item, index, total) {
+    const { metadata, fields } = tailingsSummaryModel(item, index, total);
+    return ReportEngine.components.renderDefinitionCard({ title: metadata.name, fields, className: 'tailings-popup-compact' });
   }
   function clearTailingsSelection() {
     document.querySelectorAll('.tailings-list__item').forEach(row => row.classList.remove('is-active'));
@@ -409,11 +408,11 @@
     const container = document.getElementById('tailings-list-container');
     if (!container) return;
     container.innerHTML = `<ol class="tailings-list">${relatedTailings.map((item, index) => {
-      const metadata = tailingsMetadata(item, index, relatedTailings.length);
+      const { metadata, fields } = tailingsSummaryModel(item, index, relatedTailings.length);
       const name = metadata.name;
       const classes = ['tailings-list__item', index === 0 ? 'is-nearest is-active' : '', index === relatedTailings.length - 1 ? 'is-radius-limit' : ''].filter(Boolean).join(' ');
       const badge = index === 0 ? '<small class="tailings-list__badge">Más cercano</small>' : index === relatedTailings.length - 1 ? '<small class="tailings-list__badge">Límite del clúster</small>' : '';
-      return `<li class="${classes}" data-tailings-index="${index}" tabindex="0" title="${esc(tailingsMetadataEntries(metadata).map(entry => entry.join(': ')).join(' · '))}"><span class="tailings-list__order">${String(index + 1).padStart(2, '0')}</span><span class="tailings-list__main"><strong>${esc(name)}</strong><small>${esc(metadata.resource || 'Sin recurso')}</small></span><span class="tailings-list__distance">${distanceLabel(metadata.distanceKm)}${badge}</span></li>`;
+      return `<li class="${classes}" data-tailings-index="${index}" tabindex="0" title="${esc(fields.map(entry => entry.join(': ')).join(' · '))}"><span class="tailings-list__order">${String(index + 1).padStart(2, '0')}</span><span class="tailings-list__main"><strong>${esc(name)}</strong><small>${esc(metadata.resource || 'Sin recurso')}</small></span><span class="tailings-list__distance">${distanceLabel(metadata.distanceKm)}${badge}</span></li>`;
     }).join('')}</ol>`;
   }
 
@@ -517,60 +516,7 @@
     });
   }
 
-  async function exportPdf() {
-    const exportDate = new Date();
-    const filename = buildExportFilename('geonoxa', 'pdf', exportDate);
-    const report = document.getElementById('report');
-    clearTailingsSelection();
-    if (relavesMapInstance) relavesMapInstance.closePopup();
-    report.classList.add('pdf-export-root');
-    try {
-      await waitForExportMaps();
-      const worker = html2pdf().set({
-        // GeoQuery productivo reserva 13 + 8 mm arriba y 14 + 8 mm abajo.
-        margin: [21, 10, 22, 10],
-        filename,
-        // La escala conserva la resolución del mapa; la densidad tipográfica se
-        // controla exclusivamente mediante .pdf-export-root, no con zoom.
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-        jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait', compress: true },
-        pagebreak: {
-          mode: ['css', 'legacy'],
-          avoid: ['.tailings-related-panel', '.report-card__header', '.complementary-information-heading', 'tr']
-        }
-      }).from(report).toPdf();
-      const pdf = await worker.get('pdf');
-      const pages = pdf.getNumberOfPages();
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const date = exportDate.toLocaleDateString('es-CL');
-      for (let page = 1; page <= pages; page += 1) {
-        pdf.setPage(page);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8);
-        pdf.setTextColor(14, 116, 144);
-        pdf.text('GeoNOXA | Informe Ejecutivo de Exposición Ambiental', 10, 13);
-        pdf.setDrawColor(220, 226, 235);
-        pdf.line(10, 16, pageWidth - 10, 16);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(7.5);
-        pdf.setTextColor(107, 114, 128);
-        pdf.text(`Fecha de generación: ${date}`, 10, pageHeight - 12);
-        pdf.text(`Página ${page} de ${pages}`, pageWidth - 35, pageHeight - 12);
-      }
-      await worker.save();
-    } finally {
-      report.classList.remove('pdf-export-root');
-      Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize(false));
-    }
-  }
-
-  document.getElementById('back').onclick = () => { const query = new URLSearchParams(params); query.set('lat', params.get('viewLat') || lat); query.set('lon', params.get('viewLon') || lon); location.href = `../index.html?${query}`; };
-  document.getElementById('pdf').onclick = exportPdf;
-  document.getElementById('kml').onclick = () => {
-    const exportDate = new Date();
-    const filename = buildExportFilename('geonoxa', 'kml', exportDate);
-    const exporter = GeoQueryKmlExporter;
+  function buildKmlConfig(exporter) {
     const styles = exporter.geoNoxaStyles();
     const registry = exporter.createKmlExportRegistry();
     const add = item => exporter.addUniqueKmlItem(registry, { site: 'geonoxa', visible: true, ...item });
@@ -601,9 +547,26 @@
       }
     });
     const features = Array.from(registry.values());
-    exporter.validateKmlExportItems(features);
-    const kml = exporter.buildGeoQueryKml({ site: 'geonoxa', documentName: 'GeoQuery GeoNOXA', documentDescription: document.getElementById('synthesis').textContent, queryPoint: { lat, lon }, folders: [{ id: 'query', name: 'POI' }, { id: 'relaves', name: 'Relaves relacionados' }, { id: 'nearest-relave', name: 'Relave más cercano' }, { id: 'cluster', name: 'Radio del clúster' }, { id: 'relations', name: 'Distancia mínima' }, { id: 'zonas', name: 'Zona Saturada' }], features, debugTheme: false });
-    exporter.downloadKmlFile(kml, filename);
-  };
+    return { site: 'geonoxa', documentName: 'GeoQuery GeoNOXA', documentDescription: document.getElementById('synthesis').textContent, queryPoint: { lat, lon }, folders: [{ id: 'query', name: 'POI' }, { id: 'relaves', name: 'Relaves relacionados' }, { id: 'nearest-relave', name: 'Relave más cercano' }, { id: 'cluster', name: 'Radio del clúster' }, { id: 'relations', name: 'Distancia mínima' }, { id: 'zonas', name: 'Zona Saturada' }], features, debugTheme: false };
+  }
+
+  function reportData(extension) {
+    const generatedAt = new Date();
+    return {
+      element: document.getElementById('report'),
+      filename: buildExportFilename('geonoxa', extension, generatedAt),
+      generatedAt,
+      locale: 'es-CL',
+      title: 'Informe Ejecutivo de Exposición Ambiental',
+      header: 'GeoNOXA | Informe Ejecutivo de Exposición Ambiental',
+      beforeExport: async () => { clearTailingsSelection(); await waitForExportMaps(); },
+      afterExport: () => Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize(false)),
+      buildKML: buildKmlConfig
+    };
+  }
+
+  document.getElementById('back').onclick = () => { const query = new URLSearchParams(params); query.set('lat', params.get('viewLat') || lat); query.set('lon', params.get('viewLon') || lon); location.href = `../index.html?${query}`; };
+  document.getElementById('pdf').onclick = () => ReportEngine.exportPDF(reportData('pdf'));
+  document.getElementById('kml').onclick = () => ReportEngine.exportKML(reportData('kml'));
   init();
 })();

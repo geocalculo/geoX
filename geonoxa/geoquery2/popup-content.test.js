@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, 'geoquery.js'), 'utf8');
 const popupBuilder = source.slice(
-  source.indexOf('function buildCompactTailingsPopup'),
+  source.indexOf('function tailingsSummaryModel'),
   source.indexOf('function clearTailingsSelection')
 );
 
@@ -21,4 +21,5 @@ test('tailings popup contains only useful card concepts', () => {
 
 test('tailings role comes from the shared production-compatible metadata', () => {
   assert.match(popupBuilder, /\['Rol', metadata\.role\]/);
+  assert.match(popupBuilder, /renderDefinitionCard\(\{ title: metadata\.name, fields/);
 });
