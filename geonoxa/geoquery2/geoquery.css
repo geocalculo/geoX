@@ -98,6 +98,10 @@
   --pdf-font-subtitle:8.5pt;
   --pdf-font-body:8.6pt;
   --pdf-font-small:7.2pt;
+  --pdf-font-list-body:10px;
+  --pdf-font-list-small:9px;
+  --pdf-font-compact:9.5px;
+  --pdf-line-compact:1.1;
   --pdf-font-label:6.8pt;
   --pdf-font-table:7.3pt;
   --pdf-font-footer:7.5pt;
@@ -128,17 +132,17 @@
 .pdf-export-root .report-card__header{padding-bottom:2mm;gap:3mm}
 .pdf-export-root .tailings-related-layout{grid-template-columns:40% 60%;gap:3mm;margin-top:2.5mm}
 .pdf-export-root #relaves-map{height:100%;min-height:0}
-.pdf-export-root .tailings-list{gap:.8mm}
-.pdf-export-root .tailings-list__item{grid-template-columns:7mm minmax(0,1fr) auto;min-height:auto;padding:1.1mm 1.6mm;gap:1.6mm;border-radius:1.5mm}
-.pdf-export-root .tailings-list__order,
+.pdf-export-root .tailings-list{gap:2px}
+.pdf-export-root .tailings-list__item{grid-template-columns:7mm minmax(0,1fr) auto;min-height:31px;padding:3px 6px;column-gap:6px;border-radius:1.5mm}
+.pdf-export-root .tailings-list__order{font-size:var(--pdf-font-compact);line-height:var(--pdf-line-compact)}
 .pdf-export-root .tailings-list__name,
 .pdf-export-root .tailings-list__main strong,
-.pdf-export-root .tailings-list__distance{font-size:var(--pdf-font-body);line-height:var(--pdf-line-height)}
+.pdf-export-root .tailings-list__distance{font-size:var(--pdf-font-list-body);line-height:var(--pdf-line-compact)}
 .pdf-export-root .tailings-list__main strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pdf-export-root .tailings-list__resource,
 .pdf-export-root .tailings-list__main small,
 .pdf-export-root .tailings-list__badge,
-.pdf-export-root .tailings-list__distance small{font-size:var(--pdf-font-small);line-height:1.2}
+.pdf-export-root .tailings-list__distance small{font-size:var(--pdf-font-list-small);line-height:1;margin-top:0}
 .pdf-export-root .tailings-cluster-layout{gap:3mm;margin-top:2.5mm}
 .pdf-export-root .tailings-cluster-kpis{grid-template-columns:27mm minmax(0,1fr);gap:2.2mm}
 .pdf-export-root .tailings-cluster-kpis .metrics{gap:1.6mm}
