@@ -172,3 +172,45 @@
   .pdf-export-root .summary,
   .pdf-export-root .report-identity{break-inside:avoid;page-break-inside:avoid}
 }
+
+/* Acabado editorial común para la plantilla maestra de GeoQuery 2.0. */
+.section-heading{display:grid;gap:0;margin-bottom:14px}
+.section-heading small,.section-heading .eyebrow{display:block;color:#047857;font-size:12px;font-weight:900;letter-spacing:.1em;line-height:1.2}
+.section-heading h2{margin:4px 0 2px;color:var(--ink);font-size:20px;line-height:1.25}
+.section-heading p{margin:0;color:var(--muted);font-size:14px}
+.group-title .section-heading,.report-card__header .section-heading{margin-bottom:0}
+.summary>div,.panel,.group,.report-card{width:100%}
+.group,.panel,.report-card{margin-top:24px}
+.report-card__header>div:first-child{display:grid;gap:0}
+.report-card__header h2{color:var(--ink)}
+.report-card__header p{color:var(--muted)}
+.tailings-list__item{grid-template-columns:40px minmax(0,1fr) auto;min-height:43px;padding-top:7px;padding-bottom:7px}
+.tailings-list__order{width:40px}
+.tailings-list__main small{color:#475569}
+.resource-bars i{height:14px}
+.leaflet-bottom .map-legend{margin-bottom:8px}
+.map-legend{padding:5px 6px;font-size:9px;line-height:1.4}
+.map-legend i{width:8px;height:8px;margin-right:4px}
+.map-legend .nearest{width:10px;height:10px}
+.tailings-cluster-kpis .index,.tailings-cluster-kpis .metric,.dominant-resource,.tailings-cluster-summary{border-radius:10px;box-shadow:0 3px 12px #0f172a0a}
+.tailings-cluster-kpis .metric{padding:12px}
+.executive-summary-panel ul{display:grid;gap:7px;margin:0;padding-left:20px}
+.executive-summary-panel li::marker{color:#10b981}
+.territorial-diagnosis-panel{border-left:4px solid #10b981}
+.territorial-diagnosis-panel>p{margin:0;color:#334155;line-height:1.55}
+.report-card,.group,.panel,.summary,.report-identity,.chart,.table-wrap,.territorial-diagnosis-panel{break-inside:avoid;page-break-inside:avoid}
+
+@media print{
+  .group,.panel,.report-card{margin-top:24px}
+  .tailings-list__item{grid-template-columns:40px minmax(0,1fr) auto;min-height:34px}
+  .tailings-list__order{width:40px}
+  .resource-bars i{height:10px}
+  .section-heading{margin-bottom:2.5mm}
+  .section-heading p{font-size:var(--pdf-font-body)}
+  .territorial-diagnosis-panel,.executive-summary-panel,.complementary-information-panel{break-inside:avoid;page-break-inside:avoid}
+}
+
+.pdf-export-root .tailings-list__item{grid-template-columns:40px minmax(0,1fr) auto}
+.pdf-export-root .tailings-list__order{width:40px}
+.pdf-export-root .section-heading h2{font-size:var(--pdf-font-section)}
+.pdf-export-root .section-heading p{font-size:var(--pdf-font-body);line-height:var(--pdf-line-height)}

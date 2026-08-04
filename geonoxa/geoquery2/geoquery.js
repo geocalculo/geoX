@@ -2,6 +2,7 @@
   'use strict';
   const A = window.GeoNoxaAnalysis, T = window.GeoNoxaMapTheme;
   const params = new URLSearchParams(location.search);
+  const siteName = /^geonoxa$/i.test(params.get('site') || '') ? 'GeoNOXA' : (params.get('site') || 'GeoNOXA');
   const number = key => Number(params.get(key));
   const lat = number('queryLat') || number('lat') || -30.25;
   const lon = number('queryLon') || number('lon') || -71.08;
@@ -342,7 +343,7 @@
     const target = document.getElementById(isTailings ? 'tailings-report' : 'zones-report');
     const group = document.createElement('section');
     group.className = 'group';
-    group.innerHTML = `<div class="group-title"><div><small>MICROINFORME</small><h2>${title}</h2></div><div class="group-count"><b>${result.related.length} ${isTailings ? 'relaves relacionados' : result.related.length === 1 ? 'zona relacionada' : 'zonas relacionadas'}</b>${isTailings ? `<small>${result.detected.length} relaves detectados en el área territorial analizada</small>` : ''}</div></div>`;
+    group.innerHTML = `<div class="group-title"><div class="section-heading"><small>MICROINFORME</small><h2>${title}</h2><p>${isTailings ? 'Infraestructura de relaves considerada en el análisis territorial.' : 'Zonas ambientales consideradas en el análisis territorial.'}</p></div><div class="group-count"><b>${result.related.length} ${isTailings ? 'relaves analizados' : result.related.length === 1 ? 'zona analizada' : 'zonas analizadas'}</b>${isTailings ? `<small>${result.detected.length} relaves encontrados en el área territorial analizada</small>` : ''}</div></div>`;
     if (!result.related.length) {
       const emptyMessage = isTailings ? 'Sin entidades relevantes en el área territorial analizada.' : '<b>Zonas Saturadas / Latentes:</b> sin entidades relevantes en el viewport.';
       group.classList.add('group--empty');
@@ -448,8 +449,8 @@
   }
 
   function renderQuerySummary() {
-    const fields = [['Latitud', lat.toFixed(6)], ['Longitud', lon.toFixed(6)], ['Sitio de origen', params.get('site') || 'GeoNOXA'], ['Estado', state.failures.length ? 'Análisis parcial completado' : 'Análisis completado'], ['Grupos ambientales', '2'], ['Entidades fuente', state.sourceCount], ['Entidades detectadas en ViewPort', analysisResults.relaves.detected.length + analysisResults.zonas.detected.length], ['Entidades relacionadas', A.totalRelatedEntities(analysisResults)]];
-    document.getElementById('site').textContent = params.get('site') || 'Consulta territorial';
+    const fields = [['Latitud', lat.toFixed(6)], ['Longitud', lon.toFixed(6)], ['Sitio de origen', siteName], ['Estado', state.failures.length ? 'Análisis parcial completado' : 'Análisis completado'], ['Grupos analizados', '2'], ['Registros fuente', state.sourceCount], ['Relaves encontrados', analysisResults.relaves.detected.length + analysisResults.zonas.detected.length], ['Relaves analizados', A.totalRelatedEntities(analysisResults)]];
+    document.getElementById('site').textContent = siteName === 'GeoNOXA' ? 'Consulta territorial' : siteName;
     document.getElementById('query-grid').innerHTML = fields.map(field => `<div class="datum"><b>${field[0]}</b>${esc(field[1])}</div>`).join('');
   }
 
@@ -457,13 +458,30 @@
   function renderExecutiveSummary() {
     const tailings = state.rows.find(item => item.kind === 'relaves');
     const zone = state.rows.find(item => item.kind === 'zonas');
-    const sentences = [];
-    if (tailings) sentences.push(`Se analizaron ${analysisResults.relaves.related.length} relaves seleccionados dentro del viewport consultado, contenidos en un radio de ${fmt(tailings.clusterRadiusKm)} km. El relave más próximo, ${tailings.entity}, se ubica a ${fmt(tailings.distance)} km. ${tailings.score === null ? 'No fue posible calcular el IER con la información disponible.' : `El clúster presenta una ${tailings.semantics.interpretation.toLowerCase()} territorial (IER ${indicatorValue(tailings.score).replace('&lt;', '<')}).`}`);
-    else sentences.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el viewport consultado.');
-    if (zone) sentences.push(zone.main.inside ? `El punto se encuentra al interior de la zona ${zone.entity}. La profundidad relativa alcanza ${fmt(zone.main.depth)}, lo que representa una ${zone.semantics.interpretation.toLowerCase()} territorial.` : `La zona ${zone.entity} se encuentra a ${fmt(zone.distance)} km del punto, equivalente a ${zone.main.ratio === null ? 'una relación no calculable' : `${fmt(zone.main.ratio)} diámetros`}. La ${zone.semantics.interpretation.toLowerCase()} territorial.`);
-    else sentences.push(analysisResults.zonas.error ? 'No fue posible analizar las zonas saturadas o latentes.' : 'No se detectaron Zonas Saturadas o Latentes dentro del viewport analizado.');
-    if (state.failures.length) sentences.push('Análisis parcial completado; los resultados disponibles se mantienen vigentes.');
-    document.getElementById('synthesis').textContent = sentences.join(' ');
+    const conclusions = [];
+    if (tailings) {
+      conclusions.push(`Se identificaron ${analysisResults.relaves.related.length} relaves dentro del área analizada.`);
+      conclusions.push(`El recurso dominante corresponde a ${tailings.dominant.name} (${tailings.dominant.percent} %).`);
+      conclusions.push(`La distancia mínima al punto consultado es de ${fmt(tailings.distance)} km.`);
+      conclusions.push(`El radio del clúster alcanza ${fmt(tailings.clusterRadiusKm)} km${tailings.score === null ? '.' : ` y presenta ${tailings.semantics.interpretation.toLowerCase()} territorial.`}`);
+    } else conclusions.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el área analizada.');
+    if (zone) conclusions.push(zone.main.inside ? `El punto se encuentra al interior de ${zone.entity}, con ${zone.semantics.interpretation.toLowerCase()} territorial.` : `${zone.entity} se encuentra a ${fmt(zone.distance)} km del punto consultado.`);
+    if (state.failures.length) conclusions.push('El análisis se completó parcialmente; los resultados disponibles se mantienen vigentes.');
+    document.getElementById('synthesis').innerHTML = `<ul>${conclusions.map(sentence => `<li>${esc(sentence)}</li>`).join('')}</ul>`;
+  }
+
+  function renderTerritorialDiagnosis() {
+    const tailings = state.rows.find(item => item.kind === 'relaves');
+    const zone = state.rows.find(item => item.kind === 'zonas');
+    let diagnosis;
+    if (tailings) {
+      const indicator = tailings.score === null ? 'sin un IER calculable' : `con un nivel de ${tailings.semantics.interpretation.toLowerCase()} territorial`;
+      const zoneContext = zone ? (zone.main.inside ? ` El punto también se sitúa dentro de ${zone.entity}.` : ` La zona ambiental más próxima se localiza a ${fmt(zone.distance)} km.`) : '';
+      diagnosis = `El área consultada concentra ${tailings.relations.length} relaves, principalmente asociados a ${String(tailings.dominant.name).toLowerCase()}. La instalación más próxima se ubica a ${fmt(tailings.distance)} km y el conjunto se extiende hasta un radio de ${fmt(tailings.clusterRadiusKm)} km, ${indicator}.${zoneContext}`;
+    } else {
+      diagnosis = analysisResults.relaves.error ? 'La información disponible no permite consolidar un diagnóstico de infraestructura de relaves para el punto consultado.' : 'No se identificó infraestructura de relaves dentro del área territorial analizada; el diagnóstico se limita a los demás indicadores ambientales disponibles.';
+    }
+    document.getElementById('territorial-diagnosis').textContent = diagnosis;
   }
 
   function renderComplementaryTable() {
@@ -492,6 +510,7 @@
     safeRender('Zonas', () => renderGroup('zonas', zonesResult));
     safeRender('síntesis ejecutiva', renderExecutiveSummary);
     safeRender('tabla complementaria', renderComplementaryTable);
+    safeRender('diagnóstico territorial', renderTerritorialDiagnosis);
   }
 
   async function init() {
@@ -519,9 +538,9 @@
   function buildKmlConfig(exporter) {
     const styles = exporter.geoNoxaStyles();
     const registry = exporter.createKmlExportRegistry();
-    const add = item => exporter.addUniqueKmlItem(registry, { site: 'geonoxa', visible: true, ...item });
+    const add = item => exporter.addUniqueKmlItem(registry, { site: 'GeoNOXA', visible: true, ...item });
     const tailingsRow = state.rows.find(row => row.kind === 'relaves');
-    const poiData = { Latitud: lat.toFixed(6), Longitud: lon.toFixed(6), 'Sitio de origen': params.get('site') || 'GeoNOXA', 'Fecha de consulta': new Date().toLocaleString('es-CL'), 'Radio del clúster': tailingsRow ? distanceLabel(tailingsRow.clusterRadiusKm) : '', 'Cantidad de relaves': tailingsRow?.relations.length ?? 0, 'Recurso dominante': tailingsRow?.dominant?.name || '', IER: tailingsRow?.score ?? '', Clasificación: tailingsRow?.semantics?.interpretation || '' };
+    const poiData = { Latitud: lat.toFixed(6), Longitud: lon.toFixed(6), 'Sitio de origen': siteName, 'Fecha de consulta': new Date().toLocaleString('es-CL'), 'Radio del clúster': tailingsRow ? distanceLabel(tailingsRow.clusterRadiusKm) : '', 'Cantidad de relaves': tailingsRow?.relations.length ?? 0, 'Recurso dominante': tailingsRow?.dominant?.name || '', IER: tailingsRow?.score ?? '', Clasificación: tailingsRow?.semantics?.interpretation || '' };
     add({ id: 'geonoxa-query-point', groupId: 'general', folderId: 'query', role: 'query-point', type: 'point', name: 'POI', geometry: { type: 'Point', coordinates: [lon, lat] }, styleId: 'Style-POI', style: styles.poi, description: metadataTable('Punto de interés', Object.entries(poiData)), extendedData: poiData });
     state.rows.forEach(row => {
       const items = row.kind === 'relaves' ? row.relations : [row.main];
@@ -547,14 +566,14 @@
       }
     });
     const features = Array.from(registry.values());
-    return { site: 'geonoxa', documentName: 'GeoQuery GeoNOXA', documentDescription: document.getElementById('synthesis').textContent, queryPoint: { lat, lon }, folders: [{ id: 'query', name: 'POI' }, { id: 'relaves', name: 'Relaves relacionados' }, { id: 'nearest-relave', name: 'Relave más cercano' }, { id: 'cluster', name: 'Radio del clúster' }, { id: 'relations', name: 'Distancia mínima' }, { id: 'zonas', name: 'Zona Saturada' }], features, debugTheme: false };
+    return { site: 'GeoNOXA', documentName: 'GeoQuery GeoNOXA', documentDescription: document.getElementById('synthesis').textContent, queryPoint: { lat, lon }, folders: [{ id: 'query', name: 'POI' }, { id: 'relaves', name: 'Relaves relacionados' }, { id: 'nearest-relave', name: 'Relave más cercano' }, { id: 'cluster', name: 'Radio del clúster' }, { id: 'relations', name: 'Distancia mínima' }, { id: 'zonas', name: 'Zona Saturada' }], features, debugTheme: false };
   }
 
   function reportData(extension) {
     const generatedAt = new Date();
     return {
       element: document.getElementById('report'),
-      filename: buildExportFilename('geonoxa', extension, generatedAt),
+      filename: buildExportFilename('GeoNOXA', extension, generatedAt),
       generatedAt,
       locale: 'es-CL',
       title: 'Informe Ejecutivo de Exposición Ambiental',
