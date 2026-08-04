@@ -404,7 +404,7 @@
       <div class="report-card__meta"><strong>${row.relations.length} relaves seleccionados</strong><span>Radio del clúster: ${fmt(row.clusterRadiusKm)} km</span></div></header>
       <div class="tailings-related-layout"><div id="tailings-list-container"></div><div id="relaves-map" aria-label="Mapa del clúster de relaves"></div></div>
     </section>
-    <section class="report-card resource-magnitude-panel" id="resource-magnitude-panel">
+    <section class="report-card geoquery-card resource-magnitude-panel" id="resource-magnitude-panel">
       <header class="report-card__header"><div><span class="eyebrow">ANÁLISIS DE MAGNITUD</span><h2>Distribución territorial por recurso</h2><p>Comparación entre la composición del clúster y la superficie acumulada de los relaves seleccionados.</p></div></header>
       <div id="resource-magnitude-content"></div>
     </section>
@@ -423,7 +423,7 @@
       const name = metadata.name;
       const classes = ['tailings-list__item', index === 0 ? 'is-nearest is-active' : '', index === relatedTailings.length - 1 ? 'is-radius-limit' : ''].filter(Boolean).join(' ');
       const badge = index === 0 ? '<small class="tailings-list__badge">Más cercano</small>' : index === relatedTailings.length - 1 ? '<small class="tailings-list__badge">Límite del clúster</small>' : '';
-      return `<li class="${classes}" data-tailings-index="${index}" tabindex="0" title="${esc(fields.map(entry => entry.join(': ')).join(' · '))}"><span class="tailings-list__order">${String(index + 1).padStart(2, '0')}</span><span class="tailings-list__main"><strong>${esc(name)}</strong><small>${esc(metadata.resource || 'Sin recurso')}</small></span><span class="tailings-list__distance">${distanceLabel(metadata.distanceKm)}${badge}</span></li>`;
+      return `<li class="${classes}" data-tailings-index="${index}" tabindex="0" title="${esc(fields.map(entry => entry.join(': ')).join(' · '))}"><span class="tailings-list__order">${String(index + 1).padStart(2, '0')}</span><span class="tailings-list__main"><span class="tailings-list__name">${esc(name)}</span><small class="tailings-list__resource">${esc(metadata.resource || 'Sin recurso')}</small></span><span class="tailings-list__distance">${distanceLabel(metadata.distanceKm)}${badge}</span></li>`;
     }).join('')}</ol>`;
   }
 
@@ -441,7 +441,7 @@
     const circumference = 2 * Math.PI * radius;
     const slices = magnitude.categories.map((item, index) => {
       const length = item.countPercent / 100 * circumference;
-      const slice = `<circle cx="80" cy="80" r="${radius}" fill="none" stroke="${resourceColors[index % resourceColors.length]}" stroke-width="34" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}"/>`;
+      const slice = `<circle cx="80" cy="80" r="${radius}" fill="none" stroke="${resourceColors[index % resourceColors.length]}" stroke-width="41" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}"/>`;
       offset += length;
       return slice;
     }).join('');
@@ -451,7 +451,10 @@
       const colorIndex = magnitude.categories.findIndex(category => category.name === item.name);
       return `<li><span>${esc(item.name)}</span><div><i style="width:${item.areaPercent}%;background:${resourceColors[colorIndex % resourceColors.length]}"></i></div><strong>${(item.areaM2 / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km² · ${Math.round(item.areaPercent)} %</strong></li>`;
     }).join('') : '<li class="resource-surface-empty">Sin registros con superficie informada.</li>';
-    container.innerHTML = `<div class="resource-magnitude-kpis"><span><b>Relaves analizados:</b> ${magnitude.totalCount}</span><span><b>Superficie total:</b> ${magnitude.totalAreaM2 ? `${(magnitude.totalAreaM2 / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km²` : 'Sin información'}</span></div><div class="resource-charts"><section><h3>Cantidad de relaves por recurso</h3><div class="resource-pie"><svg viewBox="0 0 160 160" role="img" aria-label="Distribución de cantidad de relaves por recurso">${slices}<circle cx="80" cy="80" r="43" fill="#fff"/><text x="80" y="77" text-anchor="middle">${magnitude.totalCount}</text><text x="80" y="94" text-anchor="middle">relaves</text></svg></div><ul class="resource-legend">${legend}</ul></section><section><h3>Superficie acumulada por recurso</h3><ul class="resource-surface-bars">${bars}</ul>${magnitude.missingAreaCount ? '<p class="resource-area-note">La superficie acumulada considera únicamente registros con superficie informada.</p>' : ''}</section></div>`;
+    const resourceCount = magnitude.categories.length;
+    const areaRecordCount = magnitude.totalCount - magnitude.missingAreaCount;
+    const meanAreaLabel = areaRecordCount ? `${(magnitude.totalAreaM2 / areaRecordCount / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km²` : 'Sin información';
+    container.innerHTML = `<div class="resource-magnitude-kpis geoquery-indicator"><span><b>Relaves analizados:</b> ${magnitude.totalCount}</span><span><b>Superficie total:</b> ${magnitude.totalAreaM2 ? `${(magnitude.totalAreaM2 / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km²` : 'Sin información'}</span></div><div class="resource-charts geoquery-chart"><section><h3>Cantidad de relaves por recurso</h3><div class="resource-pie"><svg viewBox="0 0 160 160" role="img" aria-label="Distribución de cantidad de relaves por recurso">${slices}<circle cx="80" cy="80" r="40" fill="#fff"/><text class="resource-pie__total" x="80" y="70" text-anchor="middle">${magnitude.totalCount}</text><text x="80" y="85" text-anchor="middle">Relaves</text><text class="resource-pie__detail" x="80" y="99" text-anchor="middle">${resourceCount} ${resourceCount === 1 ? 'recurso' : 'recursos'}</text></svg></div><ul class="resource-legend">${legend}</ul></section><section><h3>Superficie acumulada por recurso</h3><ul class="resource-surface-bars">${bars}</ul><div class="resource-surface-average"><span>Superficie media por relave</span><strong>${meanAreaLabel}</strong></div>${magnitude.missingAreaCount ? '<p class="resource-area-note">La superficie acumulada y la media consideran únicamente registros con superficie informada.</p>' : ''}</section></div>`;
   }
 
   function renderTailingsClusterDescription(result) {
@@ -522,7 +525,7 @@
     if (/Analizando/.test(synthesis.textContent)) synthesis.textContent = state.failures.length ? 'Análisis parcial completado.' : 'Análisis completado sin entidades relacionadas.';
     safeRender('resumen de consulta', renderQuerySummary);
     const conclusion = document.getElementById('analysis-conclusion');
-    if (/Preparando conclusión/.test(conclusion.textContent)) conclusion.textContent = state.failures.length ? 'El análisis finalizó parcialmente y no fue posible consolidar un dictamen con los datos disponibles.' : 'El análisis finalizó sin entidades territoriales relacionadas para emitir un dictamen de exposición.';
+    if (!conclusion.textContent.trim()) conclusion.textContent = state.failures.length ? 'El análisis finalizó parcialmente y no fue posible consolidar un dictamen con los datos disponibles.' : 'El análisis finalizó sin entidades territoriales relacionadas para emitir un dictamen de exposición.';
   }
 
   async function runFullAnalysis() {

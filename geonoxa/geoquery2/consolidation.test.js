@@ -20,4 +20,21 @@ test('the technical table keeps print-safe zebra rows and compact detail text', 
   assert.match(styles, /tbody tr:nth-child\(even\)\{background:#f8fafc/);
   assert.match(styles, /tbody td:nth-child\(6\)\{font-size:\.9em/);
   assert.match(styles, /print-color-adjust:exact/);
+  assert.match(styles, /\.pdf-export-root \.geoquery-table\{break-inside:auto;page-break-inside:auto\}/);
+  assert.match(styles, /\.pdf-export-root \.geoquery-table th,[^}]*padding:1\.44mm/);
+});
+
+test('the release-candidate charts expose dynamic context with consistent geometry', () => {
+  assert.match(script, /stroke-width="41"/);
+  assert.match(script, /resourceCount === 1 \? 'recurso' : 'recursos'/);
+  assert.match(script, /magnitude\.totalAreaM2 \/ areaRecordCount/);
+  assert.match(script, /Superficie media por relave/);
+  assert.match(styles, /\.resource-surface-bars li>div\{height:14px/);
+});
+
+test('tailings use normal-weight names and legible resource subtitles', () => {
+  assert.match(script, /class="tailings-list__name"/);
+  assert.match(styles, /\.tailings-list__name\{[^}]*font-weight:400/);
+  assert.match(styles, /\.tailings-list__main small\{[^}]*color:#475569;font-size:12px;font-weight:400/);
+  assert.doesNotMatch(template, /Preparando conclusión/);
 });
