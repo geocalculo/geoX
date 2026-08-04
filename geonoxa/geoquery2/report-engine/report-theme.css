@@ -1,92 +1,17 @@
-/*
- * Tema gráfico único de ReportEngine.
- *
- * Secciones reutilizables: Header; Resumen; Mapa + Lista; Indicadores;
- * Microinformes; Síntesis; Información complementaria; Pie de página.
- * Este archivo no contiene reglas de negocio ni referencias a un producto.
- */
 :root{
-  --report-font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  --report-font-title:15pt;--report-font-section:10.5pt;--report-font-subtitle:8.5pt;
-  --report-font-body:8.6pt;--report-font-small:7.2pt;--report-font-label:6.8pt;
-  --report-font-table:7.3pt;--report-font-footer:7.5pt;
-  --report-font-list-body:9px;--report-font-list-small:8px;--report-font-compact:8.5px;
-  --report-line-height:1.35;--report-line-compact:1.1;
-  --report-page-margin:21mm 10mm 22mm;--report-card-padding:3mm;
-  --report-card-radius:2.2mm;--report-map-radius:2.2mm;
-  --report-table-padding-y:1.4mm;--report-table-padding-x:1.6mm;
-  --report-color:#0e7490;--report-ink:#1f2937;--report-muted:#6b7280;
+  --font-title:15pt;--font-subtitle:8.5pt;--font-body:8.6pt;--font-small:7.2pt;--font-table:7.3pt;
+  --page-margin:21mm 10mm 22mm;--card-padding:3mm;--card-radius:2.2mm;--map-radius:2.2mm;
+  --line-height:1.35;--table-row-height:7mm;--report-color:#0e7490;--report-muted:#6b7280;
 }
-
-@page{size:A4 portrait;margin:var(--report-page-margin)}
-.report-export-root,.pdf-export-root{
-  font-family:var(--report-font-family);font-size:var(--report-font-body);
-  line-height:var(--report-line-height);color:var(--report-ink);
-  -webkit-print-color-adjust:exact;print-color-adjust:exact;
-}
-.report-export-root h1{font-size:var(--report-font-title)}
-.report-export-root h2,.pdf-export-root h2,.pdf-export-root .report-card__header h2{font-size:var(--report-font-section);line-height:1.2;margin:1mm 0}
-.pdf-export-root .report-identity strong{font-size:var(--report-font-subtitle)}
-.pdf-export-root .report-identity span,.pdf-export-root .report-card__header p,
-.pdf-export-root .tailings-cluster-summary p,.pdf-export-root .executive-summary-panel p{font-size:var(--report-font-body);line-height:var(--report-line-height)}
-.report-export-root small,.report-export-root .eyebrow,.pdf-export-root .datum b,
-.pdf-export-root .metric b{font-size:var(--report-font-label);line-height:1.2}
-.pdf-export-root .report-card,.pdf-export-root .panel,.pdf-export-root .summary>div,
-.pdf-export-root .group{padding:var(--report-card-padding);border-radius:var(--report-card-radius);box-shadow:none}
-.pdf-export-root .report-card__header{padding-bottom:2mm;gap:3mm}
-
-/* Mapa + Lista: el mapa usa el espacio libre de la primera página (+12 %). */
-.pdf-export-root .tailings-related-layout{grid-template-columns:40% 60%;gap:3mm;margin-top:2.5mm;min-height:370px}
-.pdf-export-root #relaves-map{height:auto;min-height:370px;border-radius:var(--report-map-radius)}
-.pdf-export-root .tailings-list{gap:2px}
-.pdf-export-root .tailings-list__item{grid-template-columns:7mm minmax(0,1fr) auto;min-height:31px;padding:3px 6px;column-gap:6px;border-radius:1.5mm}
-.pdf-export-root .tailings-list__order{font-size:var(--report-font-compact);line-height:var(--report-line-compact)}
-.pdf-export-root .tailings-list__name,.pdf-export-root .tailings-list__main strong,
-.pdf-export-root .tailings-list__distance{font-size:var(--report-font-list-body);line-height:var(--report-line-compact)}
-.pdf-export-root .tailings-list__main strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pdf-export-root .tailings-list__resource,.pdf-export-root .tailings-list__main small,
-.pdf-export-root .tailings-list__badge,.pdf-export-root .tailings-list__distance small{font-size:var(--report-font-list-small);line-height:1;margin-top:0}
-
-/* Indicadores, microinformes y síntesis. */
-.pdf-export-root .tailings-cluster-layout{gap:3mm;margin-top:2.5mm}
-.pdf-export-root .tailings-cluster-kpis{grid-template-columns:27mm minmax(0,1fr);gap:2.2mm}
-.pdf-export-root .tailings-cluster-kpis .metrics{gap:1.6mm}
-.pdf-export-root .tailings-cluster-kpis .metric{padding:1.6mm;min-height:0}
-.pdf-export-root .tailings-cluster-kpis .index{min-height:0;padding:2mm}
-.pdf-export-root .tailings-cluster-kpis .index strong{font-size:var(--report-font-title);line-height:1.15}
-.pdf-export-root .dominant-resource,.pdf-export-root .tailings-cluster-summary{padding:2mm 3mm;margin-top:2mm;gap:1mm}
-
-/* Información complementaria: misma tipografía y filas 12.5 % más densas. */
-.pdf-export-root table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:var(--report-font-table)}
-.pdf-export-root thead{display:table-header-group}
-.pdf-export-root tr{break-inside:avoid;page-break-inside:avoid}
-.pdf-export-root th,.pdf-export-root td{font-size:var(--report-font-table);line-height:1.25;padding:var(--report-table-padding-y) var(--report-table-padding-x);overflow-wrap:anywhere}
-.pdf-export-root .report-card__header,.pdf-export-root h1,.pdf-export-root h2,
-.pdf-export-root h3,.pdf-export-root h4{break-after:avoid;page-break-after:avoid}
-
-/* Componentes compartidos fuera del lienzo PDF (por ejemplo, popups). */
-.report-definition-card dl{display:grid;gap:4px;margin:7px 0 0}
-.report-definition-card dl div{display:grid;grid-template-columns:minmax(82px,.85fr) minmax(0,1.15fr);gap:8px;font-size:inherit;line-height:var(--report-line-height)}
-.report-definition-card dt{color:var(--report-muted);font-weight:700}
-.report-definition-card dd{margin:0;overflow-wrap:anywhere}
-.report-keep-together{break-inside:avoid;page-break-inside:avoid}
-.report-keep-with-next{break-after:avoid;page-break-after:avoid}
-
-@media print{
-  nav{display:none}
-  main{margin-top:10px;margin-bottom:10px}
-  body{background:#fff}
-  .pdf-export-content{font-size:.94em}
-  .pdf-export-root .tailings-related-panel,.pdf-export-root .tailings-cluster-panel,
-  .pdf-export-root .summary,.pdf-export-root .report-identity{break-inside:avoid;page-break-inside:avoid}
-  .group,.panel{break-inside:auto;page-break-inside:auto}
-  .group--empty{padding:8px 12px;break-inside:avoid;page-break-inside:avoid}
-  .group--empty .empty{padding:2px}.group--empty .map{display:none}
-  .executive-summary-panel{margin-bottom:8px}.complementary-information-panel{margin-top:8px}
-  .complementary-information-heading{break-after:avoid;page-break-after:avoid}
-  .complementary-information-heading+.table-wrap{break-before:avoid;page-break-before:avoid}
-  .table-wrap{overflow:visible}thead{display:table-header-group}
-  tbody tr:first-child{break-before:avoid;page-break-before:avoid}
-  .report-keep-together{break-inside:avoid;page-break-inside:avoid}
-  .report-keep-with-next{break-after:avoid;page-break-after:avoid}
-}
+@page{size:A4 portrait;margin:var(--page-margin)}
+.report-export-root{font-size:var(--font-body);line-height:var(--line-height);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.report-export-root h1{font-size:var(--font-title)}.report-export-root h2{font-size:var(--font-subtitle)}
+.report-export-root small,.report-export-root .eyebrow{font-size:var(--font-small)}
+.report-export-root table,.report-export-root th,.report-export-root td{font-size:var(--font-table)}
+.report-export-root tr{min-height:var(--table-row-height)}
+.report-export-root .report-card,.report-export-root .panel,.report-export-root .group{padding:var(--card-padding);border-radius:var(--card-radius)}
+.report-export-root .map{border-radius:var(--map-radius)}
+.report-keep-together{break-inside:avoid;page-break-inside:avoid}.report-keep-with-next{break-after:avoid;page-break-after:avoid}
+.report-definition-card dl{display:grid;gap:4px;margin:7px 0 0}.report-definition-card dl div{display:grid;grid-template-columns:minmax(82px,.85fr) minmax(0,1.15fr);gap:8px;font-size:inherit;line-height:var(--line-height)}
+.report-definition-card dt{color:var(--report-muted);font-weight:700}.report-definition-card dd{margin:0;overflow-wrap:anywhere}
+@media print{nav{display:none}.report-keep-together{break-inside:avoid;page-break-inside:avoid}.report-keep-with-next{break-after:avoid;page-break-after:avoid}}

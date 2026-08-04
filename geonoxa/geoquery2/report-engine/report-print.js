@@ -29,17 +29,14 @@
     const pages = pdf.getNumberOfPages();
     const width = pdf.internal.pageSize.getWidth();
     const height = pdf.internal.pageSize.getHeight();
-    const generatedAt = data.generatedAt || new Date();
-    const date = [generatedAt.getDate(), generatedAt.getMonth() + 1, generatedAt.getFullYear()]
-      .map((part, index) => index < 2 ? String(part).padStart(2, '0') : String(part))
-      .join('-');
+    const date = (data.generatedAt || new Date()).toLocaleDateString(data.locale || 'es-CL');
     for (let page = 1; page <= pages; page += 1) {
       pdf.setPage(page); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(14, 116, 144);
       pdf.text(data.header || data.title || 'GeoFactory Report', 10, 13);
       pdf.setDrawColor(220, 226, 235); pdf.line(10, 16, width - 10, 16);
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(107, 114, 128);
       pdf.text(`Fecha de generación: ${date}`, 10, height - 12);
-      pdf.text(`Página ${page} de ${pages}`, width - 10, height - 12, { align: 'right' });
+      pdf.text(`Página ${page} de ${pages}`, width - 35, height - 12);
     }
   }
   return { exportPDF, addPageFurniture };
