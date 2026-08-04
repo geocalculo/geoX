@@ -16,5 +16,5 @@ test('PDF tailings typography stays legible and centrally configured', () => {
 test('PDF list gains space through geometry and keeps names on one line', () => {
   assert.match(css, /\.pdf-export-root \.tailings-list\{gap:2px\}/);
   assert.match(css, /\.pdf-export-root \.tailings-list__item\{[^}]*min-height:31px;[^}]*padding:3px 6px;[^}]*column-gap:6px/);
-  assert.match(css, /\.pdf-export-root \.tailings-list__main strong\{white-space:nowrap;overflow:hidden;text-overflow:ellipsis\}/);
+  assert.match(css, /\.pdf-export-root \.tailings-list__name\{font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis\}/);
 });
