@@ -214,3 +214,34 @@
 .pdf-export-root .tailings-list__order{width:40px}
 .pdf-export-root .section-heading h2{font-size:var(--pdf-font-section)}
 .pdf-export-root .section-heading p{font-size:var(--pdf-font-body);line-height:var(--pdf-line-height)}
+
+/* Consolidación editorial de GeoNOXA como plantilla ejecutiva GeoQuery 2.0. */
+.query-grid{grid-template-columns:1.1fr 1fr 1.6fr}
+.query-block{padding:13px 14px;background:#f8fafc;border-radius:10px}
+.query-block>b{display:block;margin-bottom:7px;color:#047857;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.query-block dl{display:grid;gap:6px;margin:0}
+.query-block dl div{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.query-block dt{color:var(--muted);font-size:12px}
+.query-block dd{margin:0;font-weight:800;text-align:right}
+.query-block--point dl{grid-template-columns:repeat(2,minmax(0,1fr))}
+.query-block--point dl div,.query-block--indicators dl div{display:grid;gap:1px}
+.query-block--point dd,.query-block--indicators dd{text-align:left}
+.query-block--indicators dl{grid-template-columns:repeat(3,minmax(0,1fr))}
+.query-block--indicators dd{color:var(--green);font-size:18px}
+.tailings-cluster-layout{gap:12px}
+.tailings-cluster-kpis .index strong{font-size:44px;line-height:1.05}
+#groups+.executive-summary-panel{margin-top:14px}
+.executive-summary-panel+.analysis-conclusion-panel{margin-top:16px}
+.analysis-conclusion-panel{border-left:4px solid #10b981}
+.analysis-conclusion-panel>p{margin:0;color:#334155;line-height:1.55}
+th,td{vertical-align:top}
+tbody tr:nth-child(even){background:#f8fafc}
+tbody td:nth-child(6){font-size:.9em;line-height:1.4}
+.report-card,.group,.panel,.summary,.report-identity,.chart,.table-wrap,.analysis-conclusion-panel{break-inside:avoid;page-break-inside:avoid}
+.pdf-export-root .tailings-cluster-kpis .index strong{font-size:17.25pt}
+
+@media(max-width:800px){.query-grid{grid-template-columns:1fr}.query-block--indicators dl{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media print{
+  .analysis-conclusion-panel,.executive-summary-panel,.complementary-information-panel{break-inside:avoid;page-break-inside:avoid}
+  tbody tr:nth-child(even){background:#f8fafc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
