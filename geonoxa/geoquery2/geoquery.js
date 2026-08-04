@@ -2,7 +2,8 @@
   'use strict';
   const A = window.GeoNoxaAnalysis, T = window.GeoNoxaMapTheme;
   const params = new URLSearchParams(location.search);
-  const siteName = /^geonoxa$/i.test(params.get('site') || '') ? 'GeoNOXA' : (params.get('site') || 'GeoNOXA');
+  const requestedSiteName = (params.get('site') || '').trim();
+  const siteName = /^geonoxa$/i.test(requestedSiteName) ? 'GeoNOXA' : (requestedSiteName || 'GeoNOXA');
   const number = key => Number(params.get(key));
   const lat = number('queryLat') || number('lat') || -30.25;
   const lon = number('queryLon') || number('lon') || -71.08;
@@ -34,6 +35,7 @@
   const present = value => value !== null && value !== undefined && String(value).trim() !== '';
   const distanceLabel = value => Number.isFinite(Number(value)) ? `${fmt(value)} km` : 'Sin información';
   const areaM2Label = value => Number.isFinite(Number(value)) && Number(value) > 0 ? `${Number(value).toLocaleString('es-CL', { maximumFractionDigits: 1 })} m²` : 'Sin información';
+  const resourceColors = ['#0f766e', '#f59e0b', '#2563eb', '#7c3aed', '#dc2626', '#0891b2', '#65a30d', '#c2410c'];
   const metadataTable = (title, entries) => `<div style="font-family:Arial,sans-serif;font-size:13px"><h3 style="margin:0 0 8px">${esc(title)}</h3><table>${entries.filter(([, value]) => present(value)).map(([label, value]) => `<tr><td style="padding:2px 10px 2px 0"><strong>${esc(label)}:</strong></td><td>${esc(value)}</td></tr>`).join('')}</table></div>`;
   function tailingsMetadata(item, index, total) { return A.buildTailingsKmlMetadata(item, index, total); }
   function tailingsMetadataEntries(metadata) {
@@ -402,6 +404,10 @@
       <div class="report-card__meta"><strong>${row.relations.length} relaves seleccionados</strong><span>Radio del clúster: ${fmt(row.clusterRadiusKm)} km</span></div></header>
       <div class="tailings-related-layout"><div id="tailings-list-container"></div><div id="relaves-map" aria-label="Mapa del clúster de relaves"></div></div>
     </section>
+    <section class="report-card resource-magnitude-panel" id="resource-magnitude-panel">
+      <header class="report-card__header"><div><span class="eyebrow">ANÁLISIS DE MAGNITUD</span><h2>Distribución territorial por recurso</h2><p>Comparación entre la composición del clúster y la superficie acumulada de los relaves seleccionados.</p></div></header>
+      <div id="resource-magnitude-content"></div>
+    </section>
     <section class="report-card tailings-cluster-panel">
       <header class="report-card__header"><div><span class="eyebrow">ANÁLISIS TERRITORIAL</span><h2>Descripción del clúster de relaves</h2><p>Indicadores calculados sobre los ${row.relations.length} relaves relacionados.</p></div></header>
       <div id="tailings-cluster-content"></div>
@@ -426,6 +432,28 @@
     return `<div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small>IER</small>${index}</div>`;
   }
 
+  function renderResourceMagnitude(result) {
+    const container = document.getElementById('resource-magnitude-content');
+    if (!container || !result.related.length) return;
+    const magnitude = A.resourceMagnitude(result.related);
+    let offset = 0;
+    const radius = 62;
+    const circumference = 2 * Math.PI * radius;
+    const slices = magnitude.categories.map((item, index) => {
+      const length = item.countPercent / 100 * circumference;
+      const slice = `<circle cx="80" cy="80" r="${radius}" fill="none" stroke="${resourceColors[index % resourceColors.length]}" stroke-width="34" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}"/>`;
+      offset += length;
+      return slice;
+    }).join('');
+    const legend = magnitude.categories.map((item, index) => `<li><i style="background:${resourceColors[index % resourceColors.length]}"></i><span>${esc(item.name)}</span><strong>${item.count} · ${Math.round(item.countPercent)} %</strong></li>`).join('');
+    const surfaceGroups = magnitude.categories.filter(item => item.areaM2 > 0).sort((a, b) => b.areaM2 - a.areaM2 || a.name.localeCompare(b.name));
+    const bars = surfaceGroups.length ? surfaceGroups.map(item => {
+      const colorIndex = magnitude.categories.findIndex(category => category.name === item.name);
+      return `<li><span>${esc(item.name)}</span><div><i style="width:${item.areaPercent}%;background:${resourceColors[colorIndex % resourceColors.length]}"></i></div><strong>${(item.areaM2 / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km² · ${Math.round(item.areaPercent)} %</strong></li>`;
+    }).join('') : '<li class="resource-surface-empty">Sin registros con superficie informada.</li>';
+    container.innerHTML = `<div class="resource-magnitude-kpis"><span><b>Relaves analizados:</b> ${magnitude.totalCount}</span><span><b>Superficie total:</b> ${magnitude.totalAreaM2 ? `${(magnitude.totalAreaM2 / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km²` : 'Sin información'}</span></div><div class="resource-charts"><section><h3>Cantidad de relaves por recurso</h3><div class="resource-pie"><svg viewBox="0 0 160 160" role="img" aria-label="Distribución de cantidad de relaves por recurso">${slices}<circle cx="80" cy="80" r="43" fill="#fff"/><text x="80" y="77" text-anchor="middle">${magnitude.totalCount}</text><text x="80" y="94" text-anchor="middle">relaves</text></svg></div><ul class="resource-legend">${legend}</ul></section><section><h3>Superficie acumulada por recurso</h3><ul class="resource-surface-bars">${bars}</ul>${magnitude.missingAreaCount ? '<p class="resource-area-note">La superficie acumulada considera únicamente registros con superficie informada.</p>' : ''}</section></div>`;
+  }
+
   function renderTailingsClusterDescription(result) {
     const container = document.getElementById('tailings-cluster-content');
     if (!container || !result.related.length) return;
@@ -433,14 +461,10 @@
     const areas = row.relations.map(item => Number(item.area)).filter(value => Number.isFinite(value) && value > 0);
     const totalArea = areas.reduce((sum, value) => sum + value, 0);
     const dominantState = A.dominant(row.relations, item => item.p.estado || item.p.tipo_deposito)?.name || 'Sin información';
-    const distribution = A.distribution(row.relations, item => item.p.recurso || 'Sin información', 5);
     const metrics = [['Relaves relacionados', row.relations.length], ['Relave más cercano', row.entity], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Estado predominante', dominantState], ['Superficie total', areaLabel(totalArea)]];
     if (areas.length) metrics.push(['Superficie media', areaLabel(totalArea / areas.length, true)]);
     const summary = `El clúster se caracteriza por la concentración de ${row.relations.length} relaves en un radio de ${fmt(row.clusterRadiusKm)} km. Predominan las instalaciones asociadas a ${String(row.dominant.name).toLowerCase()}, que representan el ${row.dominant.percent} % del conjunto (${row.dominant.count} de ${row.relations.length}). La proximidad territorial se expresa en una distancia mínima de ${fmt(row.distance)} km y una distancia media de ${fmt(row.meanDistance)} km respecto del punto consultado.`;
-    const resourcePanel = distribution.length === 1
-      ? `<div class="dominant-resource"><b>Recurso dominante</b><strong>${esc(distribution[0].name)} — 100 %</strong></div>`
-      : `<div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, chartIndex) => `<div><span>${esc(item.name)}</span><i><em class="color-${chartIndex}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count} · ${Math.round(item.count / row.relations.length * 100)} %</strong></div>`).join('')}</div></div>`;
-    container.innerHTML = `<div class="tailings-cluster-layout"><div class="tailings-cluster-kpis">${renderIerCard(row)}<div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div></div><div class="tailings-cluster-chart">${resourcePanel}</div></div><div class="tailings-cluster-summary"><strong>Síntesis automática del clúster</strong><p>${esc(summary)}</p></div>`;
+    container.innerHTML = `<div class="tailings-cluster-layout"><div class="tailings-cluster-kpis">${renderIerCard(row)}<div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div></div></div><div class="tailings-cluster-summary"><strong>Síntesis automática del clúster</strong><p>${esc(summary)}</p></div>`;
   }
 
   function safeRender(label, render) {
@@ -464,12 +488,10 @@
     const zone = state.rows.find(item => item.kind === 'zonas');
     const conclusions = [];
     if (tailings) {
-      conclusions.push(`Se identificaron ${analysisResults.relaves.related.length} relaves dentro del área analizada.`);
-      conclusions.push(`El recurso dominante corresponde a ${tailings.dominant.name} (${tailings.dominant.percent} %).`);
-      conclusions.push(`La distancia mínima al punto consultado es de ${fmt(tailings.distance)} km.`);
-      conclusions.push(`El radio del clúster alcanza ${fmt(tailings.clusterRadiusKm)} km${tailings.score === null ? '.' : ` y presenta ${tailings.semantics.interpretation.toLowerCase()} territorial.`}`);
+      conclusions.push(`El análisis caracteriza un escenario de ${tailings.score === null ? 'exposición no calculable' : tailings.semantics.interpretation.toLowerCase()} frente a ${analysisResults.relaves.related.length} relaves seleccionados, concentrados en un radio de ${fmt(tailings.clusterRadiusKm)} km.`);
+      conclusions.push(`La instalación más próxima se ubica a ${fmt(tailings.distance)} km y el recurso ${String(tailings.dominant.name).toLowerCase()} predomina en el ${tailings.dominant.percent} % del clúster.`);
     } else conclusions.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el área analizada.');
-    if (zone) conclusions.push(zone.main.inside ? `El punto se encuentra al interior de ${zone.entity}, con ${zone.semantics.interpretation.toLowerCase()} territorial.` : `${zone.entity} se encuentra a ${fmt(zone.distance)} km del punto consultado.`);
+    if (zone) conclusions.push(zone.main.inside ? `La localización dentro de ${zone.entity} refuerza el diagnóstico con ${zone.semantics.interpretation.toLowerCase()} territorial.` : `La zona ${zone.entity} mantiene una separación de ${fmt(zone.distance)} km${zone.main.ratio !== null ? `, equivalente a ${fmt(zone.main.ratio)} diámetros` : ''}, respecto del punto.`);
     if (state.failures.length) conclusions.push('El análisis se completó parcialmente; los resultados disponibles se mantienen vigentes.');
     document.getElementById('synthesis').innerHTML = `<ul>${conclusions.map(sentence => `<li>${esc(sentence)}</li>`).join('')}</ul>`;
   }
@@ -480,8 +502,9 @@
     let diagnosis;
     if (tailings) {
       const indicator = tailings.score === null ? 'sin un IER calculable' : `con un nivel de ${tailings.semantics.interpretation.toLowerCase()} territorial`;
-      const zoneContext = zone ? (zone.main.inside ? ` Además, el punto se sitúa dentro de ${zone.entity}, correspondiente a una zona saturada o latente.` : ` Asimismo, se identificó una zona saturada o latente a ${fmt(zone.distance)} km del punto.`) : ' No se detectaron zonas saturadas o latentes en el área analizada.';
-      diagnosis = `El punto consultado presenta ${indicator} frente a ${tailings.relations.length} relaves analizados. El conjunto está caracterizado principalmente por depósitos asociados a ${String(tailings.dominant.name).toLowerCase()}, con una instalación más próxima a ${fmt(tailings.distance)} km y un radio de clúster de ${fmt(tailings.clusterRadiusKm)} km.${zoneContext}`;
+      const zoneIndex = Number.isFinite(zone?.score) ? (zone.score > 0 && zone.score < 1 ? '< 1' : Math.round(zone.score)) : 'no calculable';
+      const zoneContext = zone ? (zone.main.inside ? ` La zona saturada o latente ${zone.entity} contiene el punto y registra ${zone.semantics.code} ${zoneIndex} (${zone.semantics.interpretation.toLowerCase()}).` : ` La zona saturada o latente ${zone.entity} registra ${zone.semantics.code} ${zoneIndex}, a ${fmt(zone.distance)} km del borde${zone.main.ratio !== null ? ` (${fmt(zone.main.ratio)} diámetros equivalentes)` : ''}.`) : ' No se detectaron zonas saturadas o latentes relacionadas.';
+      diagnosis = `Dictamen: ${indicator} ante ${tailings.relations.length} relaves; la distancia mínima es ${fmt(tailings.distance)} km y el radio del clúster ${fmt(tailings.clusterRadiusKm)} km, con predominio de ${String(tailings.dominant.name).toLowerCase()}.${zoneContext}`;
     } else {
       diagnosis = analysisResults.relaves.error ? 'La información disponible no permite consolidar un diagnóstico de infraestructura de relaves para el punto consultado.' : 'No se identificó infraestructura de relaves dentro del área territorial analizada; el diagnóstico se limita a los demás indicadores ambientales disponibles.';
     }
@@ -498,6 +521,8 @@
     const synthesis = document.getElementById('synthesis');
     if (/Analizando/.test(synthesis.textContent)) synthesis.textContent = state.failures.length ? 'Análisis parcial completado.' : 'Análisis completado sin entidades relacionadas.';
     safeRender('resumen de consulta', renderQuerySummary);
+    const conclusion = document.getElementById('analysis-conclusion');
+    if (/Preparando conclusión/.test(conclusion.textContent)) conclusion.textContent = state.failures.length ? 'El análisis finalizó parcialmente y no fue posible consolidar un dictamen con los datos disponibles.' : 'El análisis finalizó sin entidades territoriales relacionadas para emitir un dictamen de exposición.';
   }
 
   async function runFullAnalysis() {
@@ -509,6 +534,7 @@
     state.rows = [];
     safeRender('paneles de Relaves', () => renderTailingsPanelsShell(tailingsResult));
     safeRender('lista de Relaves', () => renderTailingsList(tailingsResult.related));
+    safeRender('distribución territorial por recurso', () => renderResourceMagnitude(tailingsResult));
     safeRender('descripción del clúster', () => renderTailingsClusterDescription(tailingsResult));
     requestAnimationFrame(() => safeRender('mapa de Relaves', () => initializeTailingsMap(tailingsResult)));
     safeRender('Zonas', () => renderGroup('zonas', zonesResult));
