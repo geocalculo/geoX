@@ -8,6 +8,19 @@
   const escapeHtml = value => String(value ?? 'Sin información').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
   const present = value => value !== null && value !== undefined && String(value).trim() !== '';
 
+  // Contrato visual reutilizable del ReportEngine. Cada sección se compone con
+  // HTML semántico y recibe su presentación exclusivamente desde report-theme.css.
+  const REUSABLE_SECTIONS = Object.freeze([
+    'Header',
+    'Resumen',
+    'Mapa + Lista',
+    'Indicadores',
+    'Microinformes',
+    'Síntesis',
+    'Información complementaria',
+    'Pie de página'
+  ]);
+
   function renderDefinitionCard({ title, fields, className = '' }) {
     return `<div class="report-definition-card ${className}"><strong>${escapeHtml(title)}</strong><dl>${fields.filter(([, value]) => present(value)).map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></div>`;
   }
@@ -24,5 +37,5 @@
   const renderFooter = text => `<footer class="report-footer">${escapeHtml(text)}</footer>`;
   const renderCluster = content => `<section class="report-card report-cluster">${content}</section>`;
 
-  return { escapeHtml, renderHeader, renderSummary, renderMapPanel, renderCluster, renderIndicator, renderChart, renderTable, renderFooter, renderDefinitionCard };
+  return { REUSABLE_SECTIONS, escapeHtml, renderHeader, renderSummary, renderMapPanel, renderCluster, renderIndicator, renderChart, renderTable, renderFooter, renderDefinitionCard };
 });

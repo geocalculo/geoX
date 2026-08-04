@@ -4,6 +4,7 @@ const Engine = require('./report-engine');
 const KML = require('./report-kml');
 const Pagination = require('./report-pagination');
 const Components = require('./report-components');
+const Print = require('./report-print');
 
 test('registers future report formats without changing the engine core', () => {
   Engine.registerExporter('csv', data => `csv:${data.id}`);
@@ -35,4 +36,30 @@ test('definition cards escape popup and panel content from one component', () =>
   assert.match(html, /&lt;Relave&gt;/);
   assert.match(html, /A &amp; B/);
   assert.match(html, /report-definition-card/);
+});
+
+test('documents the reusable, product-neutral report sections', () => {
+  assert.deepEqual(Components.REUSABLE_SECTIONS, [
+    'Header', 'Resumen', 'Mapa + Lista', 'Indicadores', 'Microinformes',
+    'Síntesis', 'Información complementaria', 'Pie de página'
+  ]);
+});
+
+test('uses the definitive footer format and identical margins on every page', () => {
+  const textCalls = [];
+  const pdf = {
+    internal: { pageSize: { getWidth: () => 210, getHeight: () => 297 } },
+    getNumberOfPages: () => 2,
+    setPage() {}, setFont() {}, setFontSize() {}, setTextColor() {}, setDrawColor() {}, line() {},
+    text(...args) { textCalls.push(args); }
+  };
+  Print.addPageFurniture(pdf, { generatedAt: new Date(2026, 7, 3), title: 'Informe' });
+  assert.deepEqual(textCalls.filter(([text]) => text.startsWith('Fecha')), [
+    ['Fecha de generación: 03-08-2026', 10, 285],
+    ['Fecha de generación: 03-08-2026', 10, 285]
+  ]);
+  assert.deepEqual(textCalls.filter(([text]) => text.startsWith('Página')), [
+    ['Página 1 de 2', 200, 285, { align: 'right' }],
+    ['Página 2 de 2', 200, 285, { align: 'right' }]
+  ]);
 });
