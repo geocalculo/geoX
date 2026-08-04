@@ -80,6 +80,24 @@ test('resource distribution keeps five categories and groups the remainder', () 
   assert.equal(result.at(-1).name, 'Otros');
 });
 
+test('resource magnitude uses every selected item but only valid informed surfaces', () => {
+  const selected = [
+    { feature: { properties: { recurso: 'ORO', shape_area_m2: 120000 } } },
+    { feature: { properties: { recurso: 'ORO', shape_area_m2: '' } } },
+    { feature: { properties: { recurso: 'COBRE', shape_area_m2: 80000 } } },
+    { feature: { properties: { recurso: 'HIERRO', shape_area_m2: -10 } } }
+  ];
+  const result = A.resourceMagnitude(selected);
+  assert.equal(result.totalCount, 4);
+  assert.equal(result.totalAreaM2, 200000);
+  assert.equal(result.missingAreaCount, 2);
+  assert.deepEqual(result.categories.map(item => [item.name, item.count, item.areaM2, item.countPercent, item.areaPercent]), [
+    ['ORO', 2, 120000, 50, 60],
+    ['COBRE', 1, 80000, 25, 40],
+    ['HIERRO', 1, 0, 25, 0]
+  ]);
+});
+
 test('validates marker coordinates and obtains a tailings name from real field variants', () => {
   assert.equal(A.isValidCoordinate(-30.2, -71.1), true);
   assert.equal(A.isValidCoordinate(NaN, -71.1), false);
