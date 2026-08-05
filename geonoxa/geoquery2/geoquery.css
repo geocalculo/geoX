@@ -9,11 +9,15 @@
 .report-card__header h2{margin:4px 0}.report-card__header p{margin:0;color:var(--muted)}
 .report-card__header .eyebrow{color:#047857;font-size:12px;letter-spacing:.1em}
 .report-card__meta{display:grid;text-align:right;white-space:nowrap}.report-card__meta span{color:var(--muted);font-weight:400}
-.tailings-related-layout{display:grid;grid-template-columns:minmax(320px,38%) minmax(0,62%);gap:18px;align-items:stretch;margin-top:18px}
-#tailings-list-container{min-width:0}
-#relaves-map{width:100%;min-height:430px;border-radius:12px;overflow:hidden}
+.relaves-layout,.tailings-related-layout{display:grid;grid-template-columns:minmax(0,0.48fr) minmax(0,0.52fr);gap:16px;align-items:stretch;margin-top:18px}
+.relaves-list-column,.relaves-map-column{min-width:0}
+.relaves-list-column{display:flex}
+.relaves-list-column .geoquery-list{width:100%}
+.relaves-map-column{min-height:420px}
+#relaves-map{width:100%;height:100%;min-height:420px;border-radius:12px;overflow:hidden}
 
 .geoquery-list{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.geoquery-list-empty{width:100%;padding:18px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-weight:700;text-align:center}
 .geoquery-list__item{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;min-height:42px;padding:5px 8px;column-gap:8px;border:1px solid var(--border-soft,#dce8e4);border-radius:8px;background:var(--surface,#f7faf9);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}
 .geoquery-list__index{width:36px;color:#64748b;font-size:13px;font-weight:700;line-height:1;text-align:left;font-variant-numeric:tabular-nums}
 .geoquery-list__content{min-width:0;display:flex;flex-direction:column;justify-content:center}
@@ -56,8 +60,8 @@
 .tailings-cluster-chart .chart{margin-top:0}.dominant-resource{display:grid;gap:7px;padding:14px;background:#f0fdf4;border-left:4px solid #10b981;border-radius:8px}.dominant-resource b{font-size:11px;color:var(--muted);text-transform:uppercase}.dominant-resource strong{color:#065f46}.tailings-cluster-summary{margin-top:18px;padding:14px 16px;background:#ecfdf5;border-left:4px solid #10b981;border-radius:8px}.tailings-cluster-summary p{margin:5px 0 0}
 .resource-bars>div{grid-template-columns:minmax(100px,1fr) 3fr minmax(72px,auto)}
 .resource-bars strong{text-align:right;white-space:nowrap}
-@media(max-width:760px){.report-card__header{display:grid}.report-card__meta{text-align:left}.tailings-related-layout,.tailings-cluster-layout,.tailings-cluster-kpis{grid-template-columns:1fr}#relaves-map{min-height:360px}.tailings-cluster-kpis .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media print{.tailings-related-panel{break-inside:avoid;page-break-inside:avoid}.tailings-related-layout{grid-template-columns:40% 60%;gap:10px}#relaves-map{min-height:350px}.tailings-list__item{padding:4px 6px}.tailings-cluster-panel{break-inside:avoid;page-break-inside:avoid}.tailings-cluster-panel .report-card__header{break-after:avoid;page-break-after:avoid}.tailings-cluster-layout{grid-template-columns:minmax(0,4fr) minmax(165px,1fr);gap:10px}.tailings-cluster-kpis{grid-template-columns:100px minmax(0,1fr);gap:9px}.tailings-cluster-kpis .metric{padding:7px}.tailings-cluster-kpis .index{min-height:130px}.tailings-cluster-summary{margin-top:10px;padding:9px 12px}}
+@media(max-width:760px){.report-card__header{display:grid}.report-card__meta{text-align:left}.relaves-layout,.tailings-related-layout,.tailings-cluster-layout,.tailings-cluster-kpis{grid-template-columns:1fr}#relaves-map{min-height:360px}.tailings-cluster-kpis .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media print{.tailings-related-panel{break-inside:avoid;page-break-inside:avoid}.relaves-layout,.tailings-related-layout{grid-template-columns:40% 60%;gap:10px}#relaves-map{min-height:350px}.tailings-list__item{padding:4px 6px}.tailings-cluster-panel{break-inside:avoid;page-break-inside:avoid}.tailings-cluster-panel .report-card__header{break-after:avoid;page-break-after:avoid}.tailings-cluster-layout{grid-template-columns:minmax(0,4fr) minmax(165px,1fr);gap:10px}.tailings-cluster-kpis{grid-template-columns:100px minmax(0,1fr);gap:9px}.tailings-cluster-kpis .metric{padding:7px}.tailings-cluster-kpis .index{min-height:130px}.tailings-cluster-summary{margin-top:10px;padding:9px 12px}}
 
 /* La exportación 2.0 conserva el contenido ejecutivo y aplica la disciplina de paginación productiva. */
 @page{size:letter portrait;margin:8mm 10mm}
@@ -72,7 +76,7 @@
   .map{height:320px}
   .tailings-related-panel{break-before:auto;page-break-before:auto;break-inside:avoid;page-break-inside:avoid}
   .tailings-related-panel .report-card__header{break-after:avoid;page-break-after:avoid}
-  .tailings-related-layout{grid-template-columns:40% 60%;gap:10px;margin-top:10px}
+  .relaves-layout,.tailings-related-layout{grid-template-columns:40% 60%;gap:10px;margin-top:10px}
   #relaves-map{height:330px;min-height:330px;aspect-ratio:16/10}
   .tailings-list{gap:3px}
   .tailings-list__item{min-height:30px;padding:3px 6px}
@@ -146,9 +150,9 @@
 .pdf-export-root .summary>div,
 .pdf-export-root .group{padding:var(--pdf-card-padding);border-radius:2.2mm;box-shadow:none}
 .pdf-export-root .report-card__header{padding-bottom:2mm;gap:3mm}
-.pdf-export-root .tailings-related-layout{grid-template-columns:40% 60%;gap:3mm;margin-top:2.5mm}
+.pdf-export-root .relaves-layout,.pdf-export-root .tailings-related-layout{grid-template-columns:40% 60%;gap:3mm;margin-top:2.5mm}
 .pdf-export-root #relaves-map{height:100%;min-height:0}
-.pdf-export-root .tailings-list{gap:2px}
+.pdf-export-root .tailings-list,.pdf-export-root .geoquery-list{gap:2px}
 .pdf-export-root .tailings-list__item{grid-template-columns:7mm minmax(0,1fr) auto;min-height:31px;padding:3px 6px;column-gap:6px;border-radius:1.5mm}
 .pdf-export-root .tailings-list__order{font-size:var(--pdf-font-compact);line-height:var(--pdf-line-compact)}
 .pdf-export-root .tailings-list__name,

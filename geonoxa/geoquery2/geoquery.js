@@ -405,7 +405,7 @@
     target.innerHTML = `<section class="report-card tailings-related-panel">
       <header class="report-card__header"><div><span class="eyebrow">RELAVES</span><h2>Relaves relacionados</h2><p>Los relaves más cercanos contenidos en el viewport consultado. ${selectionText}</p></div>
       <div class="report-card__meta"><strong>${row.relations.length} relaves seleccionados</strong><span>Radio del clúster: ${fmt(row.clusterRadiusKm)} km</span></div></header>
-      <div class="tailings-related-layout"><div id="tailings-list-container"></div><div id="relaves-map" aria-label="Mapa del clúster de relaves"></div></div>
+      <div class="relaves-layout tailings-related-layout"><div class="relaves-list-column"><ol id="geoquery-tailings-list" class="geoquery-list" aria-label="Relaves relacionados"></ol></div><div class="relaves-map-column"><div id="relaves-map" aria-label="Mapa del clúster de relaves"></div></div></div>
     </section>
     <section class="report-card geoquery-card resource-magnitude-panel" id="resource-magnitude-panel">
       <header class="report-card__header"><div><span class="eyebrow">ANÁLISIS DE MAGNITUD</span><h2>Distribución territorial por recurso</h2><p>Comparación entre la composición del clúster y la superficie acumulada de los relaves seleccionados.</p></div></header>
@@ -418,67 +418,86 @@
     return row;
   }
 
-  function renderGeoQueryList({ container, items, getIndex, getName, getMeta, getDistance, getStatus, getClasses, getTitle, onItemClick }) {
+  function renderGeoQueryList({ container, items = [], getIndex, getName, getMeta, getDistance, getStatus, getClasses, getTitle, onItemClick }) {
     if (!container) return;
-    const list = document.createElement('ol');
-    list.classList.add('geoquery-list');
+    container.replaceChildren();
+
+    if (!items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'geoquery-list-empty';
+      empty.textContent = 'No se identificaron relaves relacionados en el área consultada.';
+      container.append(empty);
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
     items.forEach((item, index) => {
       const row = document.createElement('li');
-      row.classList.add('geoquery-list__item');
+      row.className = 'geoquery-list__item';
       const extraClasses = getClasses?.(item, index, items) || [];
       (Array.isArray(extraClasses) ? extraClasses : String(extraClasses).split(/\s+/)).filter(Boolean).forEach(className => row.classList.add(className));
       row.dataset.tailingsIndex = String(index);
       row.tabIndex = 0;
       const title = getTitle?.(item, index, items);
       if (title) row.title = title;
-      if (onItemClick) row.addEventListener('click', event => onItemClick(item, index, event));
+      if (typeof onItemClick === 'function') row.addEventListener('click', () => onItemClick(item, index, row));
 
       const indexElement = document.createElement('span');
-      indexElement.classList.add('geoquery-list__index');
+      indexElement.className = 'geoquery-list__index';
       indexElement.textContent = getIndex(item, index, items);
 
       const content = document.createElement('div');
-      content.classList.add('geoquery-list__content');
+      content.className = 'geoquery-list__content';
       const name = document.createElement('span');
-      name.classList.add('geoquery-list__name');
-      name.textContent = getName(item, index, items);
+      name.className = 'geoquery-list__name';
+      name.textContent = getName(item, index, items) || 'Sin nombre';
       const meta = document.createElement('span');
-      meta.classList.add('geoquery-list__meta');
-      meta.textContent = getMeta(item, index, items);
+      meta.className = 'geoquery-list__meta';
+      meta.textContent = getMeta(item, index, items) || 'Sin recurso';
       content.append(name, meta);
 
       const distance = document.createElement('div');
-      distance.classList.add('geoquery-list__distance');
+      distance.className = 'geoquery-list__distance';
       const distanceValue = document.createElement('span');
-      distanceValue.classList.add('geoquery-list__distance-value');
-      distanceValue.textContent = getDistance(item, index, items);
+      distanceValue.className = 'geoquery-list__distance-value';
+      distanceValue.textContent = getDistance(item, index, items) || '';
       distance.append(distanceValue);
-      const statusText = getStatus?.(item, index, items);
+      const statusText = getStatus?.(item, index, items) || '';
       if (statusText) {
         const status = document.createElement('span');
-        status.classList.add('geoquery-list__status');
+        status.className = 'geoquery-list__status';
         status.textContent = statusText;
         distance.append(status);
       }
 
       row.append(indexElement, content, distance);
-      list.append(row);
+      fragment.append(row);
     });
-    container.replaceChildren(list);
+    container.append(fragment);
   }
 
   function renderTailingsList(relatedTailings) {
-    const container = document.getElementById('tailings-list-container');
+    const selectedTailings = relatedTailings || [];
+    const container = document.querySelector('#geoquery-tailings-list');
+    if (!container) {
+      console.error('No se encontró #geoquery-tailings-list');
+      return;
+    }
     renderGeoQueryList({
       container,
-      items: relatedTailings,
+      items: selectedTailings,
       getIndex: (_, index) => String(index + 1).padStart(2, '0'),
       getName: (item, index, items) => tailingsSummaryModel(item, index, items.length).metadata.name,
       getMeta: (item, index, items) => tailingsSummaryModel(item, index, items.length).metadata.resource || 'Sin recurso',
       getDistance: (item, index, items) => distanceLabel(tailingsSummaryModel(item, index, items.length).metadata.distanceKm),
       getStatus: (_, index, items) => index === 0 ? 'Más cercano' : index === items.length - 1 ? 'Límite del clúster' : '',
       getClasses: (_, index, items) => [index === 0 ? 'geoquery-list__item--nearest geoquery-list__item--active' : '', index === items.length - 1 ? 'geoquery-list__item--limit' : ''],
-      getTitle: (item, index, items) => tailingsSummaryModel(item, index, items.length).fields.map(entry => entry.join(': ')).join(' · ')
+      getTitle: (item, index, items) => tailingsSummaryModel(item, index, items.length).fields.map(entry => entry.join(': ')).join(' · '),
+      onItemClick: (item, index, row) => {
+        document.querySelectorAll('.geoquery-list__item--active').forEach(element => element.classList.remove('geoquery-list__item--active'));
+        row.classList.add('geoquery-list__item--active');
+        tailingsMarkers.get(index)?.openPopup();
+      }
     });
   }
 
