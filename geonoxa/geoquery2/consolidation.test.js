@@ -33,8 +33,9 @@ test('the release-candidate charts expose dynamic context with consistent geomet
 });
 
 test('tailings use normal-weight names and legible resource subtitles', () => {
-  assert.match(script, /class="tailings-list__name"/);
-  assert.match(styles, /\.tailings-list__name\{[^}]*font-weight:400/);
-  assert.match(styles, /\.tailings-list__main small\{[^}]*color:#475569;font-size:12px;font-weight:400/);
+  assert.match(script, /geoquery-list__name/);
+  assert.match(styles, /\.geoquery-list__name\{[^}]*font-weight:400/);
+  assert.match(styles, /\.geoquery-list__meta\{[^}]*color:#475569;font-size:10px;font-weight:500/);
+  assert.doesNotMatch(script, /<small class="tailings-list__resource"/);
   assert.doesNotMatch(template, /Preparando conclusión/);
 });

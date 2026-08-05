@@ -12,6 +12,19 @@
 .tailings-related-layout{display:grid;grid-template-columns:minmax(320px,38%) minmax(0,62%);gap:18px;align-items:stretch;margin-top:18px}
 #tailings-list-container{min-width:0}
 #relaves-map{width:100%;min-height:430px;border-radius:12px;overflow:hidden}
+
+.geoquery-list{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.geoquery-list__item{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;min-height:42px;padding:5px 8px;column-gap:8px;border:1px solid var(--border-soft,#dce8e4);border-radius:8px;background:var(--surface,#f7faf9);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}
+.geoquery-list__index{width:36px;color:#64748b;font-size:13px;font-weight:700;line-height:1;text-align:left;font-variant-numeric:tabular-nums}
+.geoquery-list__content{min-width:0;display:flex;flex-direction:column;justify-content:center}
+.geoquery-list__name{display:block;min-width:0;overflow:hidden;font-size:13px;font-weight:400;line-height:15px;text-overflow:ellipsis;white-space:nowrap}
+.geoquery-list__meta{display:block;min-width:0;margin-top:1px;overflow:hidden;color:#475569;font-size:10px;font-weight:500;line-height:11px;letter-spacing:.01em;text-overflow:ellipsis;white-space:nowrap}
+.geoquery-list__distance{min-width:82px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;text-align:right;white-space:nowrap}
+.geoquery-list__distance-value{font-size:12px;font-weight:700;line-height:14px}
+.geoquery-list__status{display:block;margin-top:1px;font-size:9px;font-weight:600;line-height:10px;letter-spacing:0}
+.geoquery-list__item--nearest{border-left:4px solid #f97316}
+.geoquery-list__item--limit{border-left:4px solid #0f766e}
+.geoquery-list__item--active{background:#ecfdf5;border-color:#10b981;box-shadow:0 0 0 2px #10b98122}
 .tailings-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
 .tailings-list__item{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:8px;align-items:center;min-height:39px;padding:5px 8px;border:1px solid #dce8e4;border-radius:8px;background:#f7faf9;cursor:pointer}
 .tailings-list__order{color:#64748b;font-weight:800;font-variant-numeric:tabular-nums}
@@ -300,3 +313,13 @@ tbody td:nth-child(6){font-size:.9em;line-height:1.4}
   .complementary-information-panel,.complementary-information-panel .geoquery-table{break-inside:auto;page-break-inside:auto}
   .geoquery-table th,.geoquery-table td{padding:4.5px 5px}
 }
+
+@media(max-width:700px){.geoquery-list__item{grid-template-columns:30px minmax(0,1fr) auto;min-height:40px;padding:5px 6px;column-gap:6px}.geoquery-list__index{width:30px;font-size:12px}.geoquery-list__name{font-size:12px;line-height:14px}.geoquery-list__meta{font-size:9px;line-height:10px}.geoquery-list__distance-value{font-size:11px}.geoquery-list__status{font-size:8px}}
+.pdf-export-root .geoquery-list{gap:2px}
+.pdf-export-root .geoquery-list__item{grid-template-columns:32px minmax(0,1fr) auto;min-height:31px;padding:3px 6px;column-gap:4px;border-radius:5px}
+.pdf-export-root .geoquery-list__index{width:32px;font-size:9.5px;line-height:10px}
+.pdf-export-root .geoquery-list__name{font-size:10px;font-weight:400;line-height:11px}
+.pdf-export-root .geoquery-list__meta{margin-top:0;font-size:8.5px;line-height:9px}
+.pdf-export-root .geoquery-list__distance{min-width:70px}
+.pdf-export-root .geoquery-list__distance-value{font-size:10px;line-height:11px}
+.pdf-export-root .geoquery-list__status{margin-top:0;font-size:8px;line-height:9px}
