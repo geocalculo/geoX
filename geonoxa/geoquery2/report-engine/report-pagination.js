@@ -4,7 +4,7 @@
   root.ReportPagination = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
-  const DEFAULT_AVOID = ['.report-card', '.summary', '.report-identity', '.map', '.chart', '.tailings-list__item', 'tr'];
+  const DEFAULT_AVOID = ['.report-card', '.summary', '.report-identity', '.map', '.chart', '.geoquery-list__item', 'tr'];
 
   function prepare(root, options = {}) {
     if (!root) throw new TypeError('ReportPagination.prepare requiere un elemento raíz');
