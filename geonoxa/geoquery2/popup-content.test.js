@@ -9,17 +9,19 @@ const popupBuilder = source.slice(
   source.indexOf('function clearTailingsSelection')
 );
 
-test('tailings popup contains only useful card concepts', () => {
-  for (const label of ['Recurso', 'Estado', 'Superficie', 'Distancia al POI', 'Empresa', 'Comuna', 'Rol']) {
+test('tailings popup contains only the primary identification concepts', () => {
+  for (const label of ['Código', 'Distancia', 'Recurso']) {
     assert.match(popupBuilder, new RegExp(`['"]${label}['"]`));
   }
 
-  for (const redundant of ['Orden', 'Identificador', 'Región', 'metadata.id']) {
+  for (const redundant of ['Estado', 'Superficie', 'Empresa', 'Comuna', 'Región', 'Rol', '<table']) {
     assert.doesNotMatch(popupBuilder, new RegExp(redundant));
   }
 });
 
-test('tailings role comes from the shared production-compatible metadata', () => {
-  assert.match(popupBuilder, /\['Rol', metadata\.role\]/);
-  assert.match(popupBuilder, /renderDefinitionCard\(\{ title: metadata\.name, fields/);
+test('tailings popup inserts dynamic values safely and omits missing metadata', () => {
+  assert.match(popupBuilder, /title\.textContent = metadata\.name/);
+  assert.match(popupBuilder, /meta\.textContent = `\$\{label\}: \$\{value\}`/);
+  assert.match(popupBuilder, /if \(!present\(value\)/);
+  assert.doesNotMatch(popupBuilder, /innerHTML/);
 });

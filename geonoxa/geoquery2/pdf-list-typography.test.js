@@ -15,6 +15,6 @@ test('PDF tailings typography stays legible and centrally configured', () => {
 
 test('PDF list gains space through geometry and keeps names on one line', () => {
   assert.match(css, /\.pdf-export-root \.geoquery-list\{gap:2px\}/);
-  assert.match(css, /\.pdf-export-root \.geoquery-list__item\{[^}]*min-height:31px;[^}]*padding:3px 6px;[^}]*column-gap:4px/);
+  assert.match(css, /\.pdf-export-root \.geoquery-list__item\{[^}]*min-height:31px;[^}]*padding:3px 6px;[^}]*column-gap:6px/);
   assert.match(css, /\.pdf-export-root \.geoquery-list__name\{font-size:10px;font-weight:400;line-height:11px\}/);
 });

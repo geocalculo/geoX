@@ -28,3 +28,12 @@ test('tailings names are content and never CSS class tokens', () => {
   assert.doesNotMatch(renderer, /classList\.add\([^)]*(?:getName|itemName|\.nombre|metadata\.name)/);
   assert.match(source, /safeRender\('lista de relaves'/);
 });
+
+test('tailings identifiers preserve their source formatting', () => {
+  const renderer = source.slice(
+    source.indexOf('function renderTailingsList'),
+    source.indexOf('\n\n  function renderIerCard')
+  );
+  assert.match(renderer, /return present\(id\) \? String\(id\) : `\$\{index \+ 1\}\.\x60/);
+  assert.doesNotMatch(renderer, /`\$\{present\(id\) \? id/);
+});
