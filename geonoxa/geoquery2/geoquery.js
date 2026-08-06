@@ -418,6 +418,11 @@
     return row;
   }
 
+  function normalizeClassTokens(value) {
+    const values = Array.isArray(value) ? value : [value];
+    return values.flatMap(classNames => String(classNames ?? '').split(/\s+/)).map(token => token.trim()).filter(Boolean);
+  }
+
   function renderGeoQueryList({ container, items = [], getIndex, getName, getMeta, getDistance, getStatus, getClasses, getTitle, onItemClick }) {
     if (!container) return;
     container.replaceChildren();
@@ -432,32 +437,42 @@
 
     const fragment = document.createDocumentFragment();
     items.forEach((item, index) => {
+      const safelyRead = (reader, fallback = '') => {
+        if (typeof reader !== 'function') return fallback;
+        try {
+          const value = reader(item, index, items);
+          return value === null || value === undefined ? fallback : value;
+        } catch (error) {
+          console.error('GeoNOXA: fallo al renderizar lista de relaves', error);
+          return fallback;
+        }
+      };
       const row = document.createElement('li');
       row.className = 'geoquery-list__item';
-      const extraClasses = getClasses?.(item, index, items) || [];
-      (Array.isArray(extraClasses) ? extraClasses : String(extraClasses).split(/\s+/)).filter(Boolean).forEach(className => row.classList.add(className));
+      row.classList.add(...normalizeClassTokens(safelyRead(getClasses, [])));
       row.dataset.tailingsIndex = String(index);
       row.tabIndex = 0;
-      const title = getTitle?.(item, index, items);
-      if (title) row.title = title;
+      const title = safelyRead(getTitle);
+      if (present(title)) row.title = String(title);
       if (typeof onItemClick === 'function') row.addEventListener('click', () => onItemClick(item, index, row));
 
       const indexElement = document.createElement('span');
       indexElement.className = 'geoquery-list__index';
-      indexElement.textContent = getIndex(item, index, items);
+      indexElement.textContent = String(safelyRead(getIndex, `${index + 1}.`));
 
       const content = document.createElement('div');
       content.className = 'geoquery-list__content';
       const name = document.createElement('span');
       name.className = 'geoquery-list__name';
-      name.textContent = getName(item, index, items) || 'Sin nombre';
+      const itemName = safelyRead(getName, 'Sin nombre');
+      name.textContent = present(itemName) ? String(itemName) : 'Sin nombre';
       content.append(name);
 
       const distance = document.createElement('div');
       distance.className = 'geoquery-list__distance';
       const distanceValue = document.createElement('span');
       distanceValue.className = 'geoquery-list__distance-value';
-      distanceValue.textContent = getDistance(item, index, items) || '';
+      distanceValue.textContent = String(safelyRead(getDistance));
       distance.append(distanceValue);
       row.append(indexElement, content, distance);
       fragment.append(row);
@@ -483,8 +498,8 @@
       getMeta: (item, index, items) => tailingsSummaryModel(item, index, items.length).metadata.resource || 'Sin recurso',
       getDistance: (item, index, items) => distanceLabel(tailingsSummaryModel(item, index, items.length).metadata.distanceKm),
       getStatus: (_, index, items) => index === 0 ? 'Más cercano' : index === items.length - 1 ? 'Límite del clúster' : '',
-      getClasses: (_, index, items) => [index === 0 ? 'geoquery-list__item--nearest geoquery-list__item--active' : '', index === items.length - 1 ? 'geoquery-list__item--limit' : ''],
-      getTitle: (item, index, items) => tailingsSummaryModel(item, index, items.length).fields.map(entry => entry.join(': ')).join(' · '),
+      getClasses: (_, index, items) => [index === 0 ? ['geoquery-list__item--nearest', 'geoquery-list__item--active'] : [], index === items.length - 1 ? 'geoquery-list__item--limit' : ''],
+      getTitle: (item, index, items) => tailingsSummaryModel(item, index, items.length).metadata.name || 'Sin nombre',
       onItemClick: (item, index, row) => {
         document.querySelectorAll('.geoquery-list__item--active').forEach(element => element.classList.remove('geoquery-list__item--active'));
         row.classList.add('geoquery-list__item--active');
@@ -610,7 +625,7 @@
     state.sourceCount = tailingsResult.sourceCount + zonesResult.sourceCount;
     state.rows = [];
     safeRender('paneles de Relaves', () => renderTailingsPanelsShell(tailingsResult));
-    safeRender('lista de Relaves', () => renderTailingsList(tailingsResult.related));
+    safeRender('lista de relaves', () => renderTailingsList(tailingsResult.related));
     safeRender('distribución territorial por recurso', () => renderResourceMagnitude(tailingsResult));
     safeRender('descripción del clúster', () => renderTailingsClusterDescription(tailingsResult));
     requestAnimationFrame(() => safeRender('mapa de Relaves', () => initializeTailingsMap(tailingsResult)));
