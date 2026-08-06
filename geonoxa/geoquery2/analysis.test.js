@@ -91,6 +91,7 @@ test('resource magnitude uses every selected item but only valid informed surfac
   assert.equal(result.totalCount, 4);
   assert.equal(result.totalAreaM2, 200000);
   assert.equal(result.missingAreaCount, 2);
+  assert.equal(result.invalidAreaCount, 2);
   assert.deepEqual(result.categories.map(item => [item.name, item.count, item.areaM2, item.countPercent, item.areaPercent]), [
     ['ORO', 2, 120000, 50, 60],
     ['COBRE', 1, 80000, 25, 40],
