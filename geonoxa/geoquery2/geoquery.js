@@ -46,20 +46,39 @@
     return Object.fromEntries(tailingsMetadataEntries(metadata).map(([name, value]) => [name, value]).filter(([, value]) => present(value) && value !== 'Sin información'));
   }
   function tailingsSummaryModel(item, index, total) {
-    const metadata = tailingsMetadata(item, index, total);
-    return { metadata, fields: [
-      ['Recurso', metadata.resource || 'Sin información'],
-      ['Estado', metadata.status || 'Sin información'],
-      ['Superficie', areaM2Label(metadata.area)],
-      ['Distancia al POI', distanceLabel(metadata.distanceKm)],
-      ['Empresa', metadata.owner || 'Sin información'],
-      ['Comuna', metadata.commune || 'Sin información'],
-      ['Rol', metadata.role]
-    ] };
+    return { metadata: tailingsMetadata(item, index, total) };
   }
   function buildCompactTailingsPopup(item, index, total) {
-    const { metadata, fields } = tailingsSummaryModel(item, index, total);
-    return ReportEngine.components.renderDefinitionCard({ title: metadata.name, fields, className: 'tailings-popup-compact' });
+    const { metadata } = tailingsSummaryModel(item, index, total);
+    const popup = document.createElement('div');
+    popup.className = 'tailing-popup';
+    const title = document.createElement('div');
+    title.className = 'tailing-popup__title';
+    title.textContent = metadata.name;
+    popup.append(title);
+    const appendMeta = (label, value) => {
+      if (!present(value) || String(value).trim() === 'Sin información') return;
+      const meta = document.createElement('div');
+      meta.className = 'tailing-popup__meta';
+      meta.textContent = `${label}: ${value}`;
+      popup.append(meta);
+    };
+    appendMeta('Código', metadata.id);
+    appendMeta('Distancia', distanceLabel(metadata.distanceKm));
+    appendMeta('Recurso', metadata.resource);
+    return popup;
+  }
+  function buildPoiPopup() {
+    const popup = document.createElement('div');
+    popup.className = 'tailing-popup tailing-popup--poi';
+    const entries = [['Punto consultado', 'tailing-popup__title'], [`Latitud: ${lat.toFixed(6)}`, 'tailing-popup__meta'], [`Longitud: ${lon.toFixed(6)}`, 'tailing-popup__meta']];
+    entries.forEach(([value, className]) => {
+      const line = document.createElement('div');
+      line.className = className;
+      line.textContent = value;
+      popup.append(line);
+    });
+    return popup;
   }
   function clearTailingsSelection() {
     document.querySelectorAll('.geoquery-list__item').forEach(row => row.classList.remove('geoquery-list__item--active'));
@@ -243,7 +262,7 @@
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap', crossOrigin: true });
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, attribution: 'Tiles &copy; Esri', crossOrigin: true });
     (basemap === 'sat' ? sat : osm).addTo(map);
-    const poiMarker = L.circleMarker(center, { radius: 8, color: '#fff', weight: 3, fillColor: '#ef233c', fillOpacity: 1 }).addTo(map).bindPopup('POI');
+    const poiMarker = L.circleMarker(center, { radius: 8, color: '#fff', weight: 3, fillColor: '#ef233c', fillOpacity: 1 }).addTo(map).bindPopup(buildPoiPopup(), { maxWidth: 260 });
     const setActiveTailing = (index, openPopup = false) => {
       document.querySelectorAll('.geoquery-list__item').forEach((row, rowIndex) => {
         const active = rowIndex === index;
@@ -259,7 +278,7 @@
       const index = nearestTailings.indexOf(item);
       const selected = item === nearestTailings[0];
       const popup = buildCompactTailingsPopup(item, index, nearestTailings.length);
-      const marker = L.circleMarker([coordinates.lat, coordinates.lon], { ...T.entityStyle('relaves', basemap, selected), radius: selected ? 9 : 6, fillOpacity: .85 }).addTo(map).bindPopup(popup);
+      const marker = L.circleMarker([coordinates.lat, coordinates.lon], { ...T.entityStyle('relaves', basemap, selected), radius: selected ? 9 : 6, fillOpacity: .85 }).addTo(map).bindPopup(popup, { maxWidth: 260 });
       mapLayers.relaves.push({ layer: marker, kind: 'relaves', selected });
       tailingsMarkers.set(index, marker);
       marker.on('click', () => setActiveTailing(index));
@@ -492,7 +511,7 @@
       items: selectedTailings,
       getIndex: (item, index, items) => {
         const id = tailingsSummaryModel(item, index, items.length).metadata.id;
-        return `${present(id) ? id : index + 1}.`;
+        return present(id) ? String(id) : `${index + 1}.`;
       },
       getName: (item, index, items) => tailingsSummaryModel(item, index, items.length).metadata.name,
       getMeta: (item, index, items) => tailingsSummaryModel(item, index, items.length).metadata.resource || 'Sin recurso',
