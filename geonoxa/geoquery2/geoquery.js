@@ -404,7 +404,7 @@
       : `Se identificaron ${result.detected.length} relaves dentro del viewport consultado.`;
     target.innerHTML = `<section class="report-card tailings-related-panel">
       <header class="report-card__header"><div><span class="eyebrow">RELAVES</span><h2>Relaves relacionados</h2><p>Los relaves más cercanos contenidos en el viewport consultado. ${selectionText}</p></div>
-      <div class="report-card__meta"><strong>${row.relations.length} relaves seleccionados</strong><span>Radio del clúster: ${fmt(row.clusterRadiusKm)} km</span></div></header>
+      <div class="report-card__meta"><strong>${row.relations.length} relaves analizados</strong><span>Radio: ${fmt(row.clusterRadiusKm)} km</span></div></header>
       <div class="relaves-layout tailings-related-layout"><div class="relaves-list-column"><ol id="geoquery-tailings-list" class="geoquery-list" aria-label="Relaves relacionados"></ol></div><div class="relaves-map-column"><div id="relaves-map" aria-label="Mapa del clúster de relaves"></div></div></div>
     </section>
     <section class="report-card geoquery-card resource-magnitude-panel" id="resource-magnitude-panel">
@@ -451,10 +451,7 @@
       const name = document.createElement('span');
       name.className = 'geoquery-list__name';
       name.textContent = getName(item, index, items) || 'Sin nombre';
-      const meta = document.createElement('span');
-      meta.className = 'geoquery-list__meta';
-      meta.textContent = getMeta(item, index, items) || 'Sin recurso';
-      content.append(name, meta);
+      content.append(name);
 
       const distance = document.createElement('div');
       distance.className = 'geoquery-list__distance';
@@ -462,14 +459,6 @@
       distanceValue.className = 'geoquery-list__distance-value';
       distanceValue.textContent = getDistance(item, index, items) || '';
       distance.append(distanceValue);
-      const statusText = getStatus?.(item, index, items) || '';
-      if (statusText) {
-        const status = document.createElement('span');
-        status.className = 'geoquery-list__status';
-        status.textContent = statusText;
-        distance.append(status);
-      }
-
       row.append(indexElement, content, distance);
       fragment.append(row);
     });
@@ -486,7 +475,10 @@
     renderGeoQueryList({
       container,
       items: selectedTailings,
-      getIndex: (_, index) => String(index + 1).padStart(2, '0'),
+      getIndex: (item, index, items) => {
+        const id = tailingsSummaryModel(item, index, items.length).metadata.id;
+        return `${present(id) ? id : index + 1}.`;
+      },
       getName: (item, index, items) => tailingsSummaryModel(item, index, items.length).metadata.name,
       getMeta: (item, index, items) => tailingsSummaryModel(item, index, items.length).metadata.resource || 'Sin recurso',
       getDistance: (item, index, items) => distanceLabel(tailingsSummaryModel(item, index, items.length).metadata.distanceKm),
@@ -499,6 +491,9 @@
         tailingsMarkers.get(index)?.openPopup();
       }
     });
+    container.querySelectorAll('.geoquery-list__item').forEach(row => row.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); row.click(); }
+    }));
   }
 
   function renderIerCard(row) {
@@ -510,6 +505,11 @@
     const container = document.getElementById('resource-magnitude-content');
     if (!container || !result.related.length) return;
     const magnitude = A.resourceMagnitude(result.related);
+    if (magnitude.invalidAreaCount) console.warn(`GeoNOXA: se descartaron ${magnitude.invalidAreaCount} superficies nulas, negativas o no numéricas del gráfico.`);
+    if (!magnitude.categories.length) {
+      container.innerHTML = '<p class="resource-chart-empty">No hay información de recurso disponible para los relaves analizados.</p>';
+      return;
+    }
     let offset = 0;
     const radius = 62;
     const circumference = 2 * Math.PI * radius;
@@ -523,12 +523,12 @@
     const surfaceGroups = magnitude.categories.filter(item => item.areaM2 > 0).sort((a, b) => b.areaM2 - a.areaM2 || a.name.localeCompare(b.name));
     const bars = surfaceGroups.length ? surfaceGroups.map(item => {
       const colorIndex = magnitude.categories.findIndex(category => category.name === item.name);
-      return `<li><span>${esc(item.name)}</span><div><i style="width:${item.areaPercent}%;background:${resourceColors[colorIndex % resourceColors.length]}"></i></div><strong>${(item.areaM2 / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km² · ${Math.round(item.areaPercent)} %</strong></li>`;
-    }).join('') : '<li class="resource-surface-empty">Sin registros con superficie informada.</li>';
+      return `<li><span>${esc(item.name)}</span><div><i style="width:${item.areaPercent}%;background:${resourceColors[colorIndex % resourceColors.length]}"></i></div><strong>${(item.areaM2 / 10000).toLocaleString('es-CL', { maximumFractionDigits: 2 })} ha</strong></li>`;
+    }).join('') : '<li class="resource-surface-empty">No hay superficies válidas para construir este gráfico.</li>';
     const resourceCount = magnitude.categories.length;
     const areaRecordCount = magnitude.totalCount - magnitude.missingAreaCount;
-    const meanAreaLabel = areaRecordCount ? `${(magnitude.totalAreaM2 / areaRecordCount / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km²` : 'Sin información';
-    container.innerHTML = `<div class="resource-magnitude-kpis geoquery-indicator"><span><b>Relaves analizados:</b> ${magnitude.totalCount}</span><span><b>Superficie total:</b> ${magnitude.totalAreaM2 ? `${(magnitude.totalAreaM2 / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 2 })} km²` : 'Sin información'}</span></div><div class="resource-charts geoquery-chart"><section><h3>Cantidad de relaves por recurso</h3><div class="resource-pie"><svg viewBox="0 0 160 160" role="img" aria-label="Distribución de cantidad de relaves por recurso">${slices}<circle cx="80" cy="80" r="40" fill="#fff"/><text class="resource-pie__total" x="80" y="70" text-anchor="middle">${magnitude.totalCount}</text><text x="80" y="85" text-anchor="middle">Relaves</text><text class="resource-pie__detail" x="80" y="99" text-anchor="middle">${resourceCount} ${resourceCount === 1 ? 'recurso' : 'recursos'}</text></svg></div><ul class="resource-legend">${legend}</ul></section><section><h3>Superficie acumulada por recurso</h3><ul class="resource-surface-bars">${bars}</ul><div class="resource-surface-average"><span>Superficie media por relave</span><strong>${meanAreaLabel}</strong></div>${magnitude.missingAreaCount ? '<p class="resource-area-note">La superficie acumulada y la media consideran únicamente registros con superficie informada.</p>' : ''}</section></div>`;
+    const meanAreaLabel = areaRecordCount ? `${(magnitude.totalAreaM2 / areaRecordCount / 10000).toLocaleString('es-CL', { maximumFractionDigits: 2 })} ha` : 'Sin información';
+    container.innerHTML = `<div class="resource-magnitude-kpis geoquery-indicator"><span><b>Relaves analizados:</b> ${magnitude.totalCount}</span><span><b>Superficie total:</b> ${magnitude.totalAreaM2 ? `${(magnitude.totalAreaM2 / 10000).toLocaleString('es-CL', { maximumFractionDigits: 2 })} ha` : 'Sin información'}</span></div><div class="resource-charts geoquery-chart"><section><h3>Cantidad de relaves por recurso</h3><div class="resource-pie"><svg viewBox="0 0 160 160" role="img" aria-label="Distribución de cantidad de relaves por recurso">${slices}<circle cx="80" cy="80" r="40" fill="#fff"/><text class="resource-pie__total" x="80" y="70" text-anchor="middle">${magnitude.totalCount}</text><text x="80" y="85" text-anchor="middle">Relaves</text><text class="resource-pie__detail" x="80" y="99" text-anchor="middle">${resourceCount} ${resourceCount === 1 ? 'recurso' : 'recursos'}</text></svg></div><ul class="resource-legend">${legend}</ul></section><section><h3>Superficie por recurso (ha)</h3><ul class="resource-surface-bars">${bars}</ul><div class="resource-surface-average"><span>Superficie media por relave</span><strong>${meanAreaLabel}</strong></div>${magnitude.invalidAreaCount ? '<p class="resource-area-note">La superficie acumulada y la media consideran únicamente registros con superficie válida.</p>' : ''}</section></div>`;
   }
 
   function renderTailingsClusterDescription(result) {

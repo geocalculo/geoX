@@ -155,14 +155,14 @@
   }
   function resourceMagnitude(items) {
     const groups = new Map();
-    let missingAreaCount = 0;
+    let invalidAreaCount = 0;
     (items || []).forEach(item => {
       const name = getRelaveResource(item) || 'Sin información';
       if (!groups.has(name)) groups.set(name, { name, count: 0, areaM2: 0 });
       const group = groups.get(name);
       group.count += 1;
       const area = getRelaveArea(item);
-      if (area === null) missingAreaCount += 1;
+      if (area === null) invalidAreaCount += 1;
       else group.areaM2 += area;
     });
     const totalCount = (items || []).length;
@@ -170,7 +170,7 @@
     const categories = [...groups.values()]
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
       .map(group => ({ ...group, countPercent: totalCount ? group.count * 100 / totalCount : 0, areaPercent: totalAreaM2 ? group.areaM2 * 100 / totalAreaM2 : 0 }));
-    return { totalCount, totalAreaM2, missingAreaCount, categories };
+    return { totalCount, totalAreaM2, missingAreaCount: invalidAreaCount, invalidAreaCount, categories };
   }
   return { clamp, normalize, entityKey, groupLogicalEntities, bboxIntersects, pointInsideViewport, exposureCategory, indicatorSemantics, equivalentDiameterKm, relativeExposure, pointTailingsExposure, dominant, selectNearestTailings, selectRelatedZones, isValidCoordinate, getRelaveCoordinates, getTailingsCoordinates: getRelaveCoordinates, getTailingsName, getRelaveName, getRelaveResource, getRelaveStatus, getRelaveArea, getRelaveOwner, getRelaveCommune, getRelaveRegion, getRelaveId, buildTailingsKmlMetadata, escapeXml, createAnalysisResults, totalRelatedEntities, distribution, resourceMagnitude };
 });

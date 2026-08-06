@@ -18,12 +18,12 @@
 
 .geoquery-list{display:grid;gap:4px;margin:0;padding:0;list-style:none}
 .geoquery-list-empty{width:100%;padding:18px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-weight:700;text-align:center}
-.geoquery-list__item{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;min-height:42px;padding:5px 8px;column-gap:8px;border:1px solid var(--border-soft,#dce8e4);border-radius:8px;background:var(--surface,#f7faf9);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}
+.geoquery-list__item{display:grid;grid-template-columns:minmax(36px,auto) minmax(0,1fr) auto;align-items:center;min-height:36px;padding:5px 8px;column-gap:8px;border-bottom:1px solid var(--border-soft,#dce8e4);background:var(--surface,#f7faf9);font:inherit;cursor:pointer}
 .geoquery-list__index{width:36px;color:#64748b;font-size:13px;font-weight:700;line-height:1;text-align:left;font-variant-numeric:tabular-nums}
-.geoquery-list__content{min-width:0;display:flex;flex-direction:column;justify-content:center}
+.geoquery-list__content{min-width:0;display:block}
 .geoquery-list__name{display:block;min-width:0;overflow:hidden;font-size:13px;font-weight:400;line-height:15px;text-overflow:ellipsis;white-space:nowrap}
 .geoquery-list__meta{display:block;min-width:0;margin-top:1px;overflow:hidden;color:#475569;font-size:10px;font-weight:500;line-height:11px;letter-spacing:.01em;text-overflow:ellipsis;white-space:nowrap}
-.geoquery-list__distance{min-width:82px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;text-align:right;white-space:nowrap}
+.geoquery-list__distance{min-width:68px;display:flex;align-items:center;justify-content:flex-end;text-align:right;white-space:nowrap}
 .geoquery-list__distance-value{font-size:12px;font-weight:700;line-height:14px}
 .geoquery-list__status{display:block;margin-top:1px;font-size:9px;font-weight:600;line-height:10px;letter-spacing:0}
 .geoquery-list__item--nearest{border-left:4px solid #f97316}
@@ -283,6 +283,7 @@ tbody td:nth-child(6){font-size:.9em;line-height:1.4}
 .resource-surface-bars li i{display:block;height:100%;border-radius:8px}
 .resource-surface-bars .resource-surface-empty{display:block;color:var(--muted);text-align:center}
 .resource-area-note{margin:auto 0 0;padding-top:14px;color:var(--muted);font-size:10px;line-height:1.35}
+.resource-chart-empty{margin:16px 0 0;padding:28px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-weight:700;text-align:center}
 .resource-surface-average{display:grid;justify-items:center;gap:2px;margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}.resource-surface-average strong{color:var(--ink);font-size:17px}
 @media(max-width:640px){.resource-charts{grid-template-columns:1fr}.resource-charts>section{min-height:340px}.resource-surface-bars li{grid-template-columns:minmax(95px,1fr) minmax(65px,1fr) auto}}
 @media print{
