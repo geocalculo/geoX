@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Galería de estudios territoriales de GeoCálculo">
+  <title>Estudios Territoriales — GeoCálculo</title>
+  <link rel="stylesheet" href="./galeria.css">
+</head>
+<body>
+  <header class="cabecera">
+    <a class="marca" href="../" aria-label="Volver a GeoCálculo">GeoCálculo</a>
+    <p>Estudios Territoriales</p>
+  </header>
+
+  <main>
+    <label class="buscador">
+      <span class="sr-only">Buscar estudios</span>
+      <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>
+      <input id="buscar" type="search" placeholder="Buscar..." autocomplete="off">
+    </label>
+
+    <p id="estado" class="estado" role="status">Cargando estudios…</p>
+    <section id="galeria" class="galeria" aria-label="Estudios publicados"></section>
+  </main>
+
+  <dialog id="detalle" aria-labelledby="detalle-titulo">
+    <button class="cerrar" type="button" aria-label="Cerrar detalle">×</button>
+    <article class="detalle-contenido">
+      <p class="detalle-tema" id="detalle-tema"></p>
+      <h1 id="detalle-titulo"></h1>
+      <img id="detalle-lamina" alt="">
+      <p class="descripcion" id="detalle-descripcion"></p>
+      <dl>
+        <div><dt>Fuente</dt><dd id="detalle-fuente"></dd></div>
+        <div><dt>Territorio</dt><dd id="detalle-territorio"></dd></div>
+        <div><dt>Fecha</dt><dd id="detalle-fecha"></dd></div>
+      </dl>
+      <a id="detalle-linkedin" class="linkedin" target="_blank" rel="noopener noreferrer">Ver en LinkedIn <span aria-hidden="true">↗</span></a>
+    </article>
+  </dialog>
+
+  <script src="./galeria.js" defer></script>
+</body>
+</html>
