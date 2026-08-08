@@ -6,13 +6,14 @@ let estudios = [];
 let estudioAbierto = null;
 
 const CLAVE_SESSION = 'geocalculo_estudios_session_id';
+const CLAVE_VISITA_REGISTRADA = 'geocalculo_estudios_visita_registrada';
 
 function obtenerSessionId() {
-  const guardado = localStorage.getItem(CLAVE_SESSION);
+  const guardado = sessionStorage.getItem(CLAVE_SESSION);
   if (guardado) return guardado;
 
   const nuevo = crypto.randomUUID();
-  localStorage.setItem(CLAVE_SESSION, nuevo);
+  sessionStorage.setItem(CLAVE_SESSION, nuevo);
   return nuevo;
 }
 
@@ -22,12 +23,27 @@ function registrarEvento(evento, recurso) {
   const datos = { evento, session_id: sessionId };
   if (recurso) datos.recurso = recurso;
 
-  fetch('/api/estudios/visita', {
+  return fetch('/api/estudios/visita', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(datos),
     keepalive: true
   }).catch(() => {});
+}
+
+async function registrarVisita() {
+  if (sessionStorage.getItem(CLAVE_VISITA_REGISTRADA) === sessionId) return;
+
+  // Se marca antes del POST para impedir envíos duplicados si la inicialización
+  // se ejecuta más de una vez durante la misma sesión de la pestaña.
+  sessionStorage.setItem(CLAVE_VISITA_REGISTRADA, sessionId);
+  const respuesta = await registrarEvento('visita');
+  if (!respuesta?.ok) sessionStorage.removeItem(CLAVE_VISITA_REGISTRADA);
+}
+
+async function iniciarMetricas() {
+  await registrarVisita();
+  await cargarContador();
 }
 
 async function cargarContador() {
@@ -142,6 +158,5 @@ document.querySelector('#detalle-linkedin').addEventListener('click', () => {
 dialogo.addEventListener('click', (evento) => {
   if (evento.target === dialogo) dialogo.close();
 });
-registrarEvento('visita');
-cargarContador();
+iniciarMetricas();
 cargar();
