@@ -1,8 +1,12 @@
 [
   "uso-potencial-metro-rm-2026",
   "brecha_escolaridad_RM_2024",
-  "gradiente-ingreso-biobio-2024",
-  "geometria-inercial-urbana-RM-2024",
   "deciles-geometricos-ingreso-africa-2024",
+  "geometria-inercial-urbana-RM-2024",
+<<<<<<< HEAD
+  "deciles-geometricos-ingreso-africa-2024",
+=======
+  "gradiente-ingreso-biobio-2024",
+>>>>>>> a198cec27efd5ae7a72c24908ec88a4ecaef4f82
   "distribucion-territorial-poblacion-RM-2024"
 ]
