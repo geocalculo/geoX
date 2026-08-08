@@ -23,7 +23,7 @@ function registrarEvento(evento, recurso) {
   const datos = { evento, session_id: sessionId };
   if (recurso) datos.recurso = recurso;
 
-  return fetch('/api/estudios/visita', {
+  return fetch('https://hidden-mud-ce7a.geocalculo.workers.dev/api/estudios/visita', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(datos),
@@ -48,7 +48,7 @@ async function iniciarMetricas() {
 
 async function cargarContador() {
   try {
-    const respuesta = await fetch('/api/estudios/contador');
+    const respuesta = await fetch('https://hidden-mud-ce7a.geocalculo.workers.dev/api/estudios/contador');
     if (!respuesta.ok) return;
     const datos = await respuesta.json();
     document.querySelector('#contador-visitas').textContent = datos.visitas ?? 0;

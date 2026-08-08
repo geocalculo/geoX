@@ -34,7 +34,7 @@ async function cargarGaleria(sessionStorage, solicitudes) {
   const fetch = async (url, opciones = {}) => {
     solicitudes.push({ url, method: opciones.method || 'GET', body: opciones.body });
     if (url === './catalogo.json') return { ok: true, json: async () => [] };
-    if (url === '/api/estudios/contador') {
+    if (url === 'https://hidden-mud-ce7a.geocalculo.workers.dev/api/estudios/contador') {
       return { ok: true, json: async () => ({ visitas: 3, laminas: 0, linkedin: 0 }) };
     }
     return { ok: true };
@@ -57,10 +57,10 @@ test('registra una sola visita por sesión y luego consulta el contador', async 
   const primeraCarga = [];
   await cargarGaleria(storage, primeraCarga);
 
-  const metricasPrimeraCarga = primeraCarga.filter(({ url }) => url.startsWith('/api/estudios/'));
+  const metricasPrimeraCarga = primeraCarga.filter(({ url }) => url.startsWith('https://hidden-mud-ce7a.geocalculo.workers.dev/api/estudios/'));
   assert.deepEqual(metricasPrimeraCarga.map(({ method, url }) => `${method} ${url}`), [
-    'POST /api/estudios/visita',
-    'GET /api/estudios/contador'
+    'POST https://hidden-mud-ce7a.geocalculo.workers.dev/api/estudios/visita',
+    'GET https://hidden-mud-ce7a.geocalculo.workers.dev/api/estudios/contador'
   ]);
   assert.deepEqual(JSON.parse(metricasPrimeraCarga[0].body), {
     evento: 'visita',
@@ -69,5 +69,5 @@ test('registra una sola visita por sesión y luego consulta el contador', async 
 
   const recarga = [];
   await cargarGaleria(storage, recarga);
-  assert.equal(recarga.filter(({ method, url }) => method === 'POST' && url === '/api/estudios/visita').length, 0);
+  assert.equal(recarga.filter(({ method, url }) => method === 'POST' && url === 'https://hidden-mud-ce7a.geocalculo.workers.dev/api/estudios/visita').length, 0);
 });
