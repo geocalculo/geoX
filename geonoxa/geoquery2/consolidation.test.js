@@ -12,6 +12,24 @@ test('the final narrative places the analysis conclusion before technical detail
   assert.ok(conclusion > -1 && conclusion < details);
 });
 
+test('the reusable executive template places the IER hero before the query summary', () => {
+  const identity = template.indexOf('data-template-block="header"');
+  const hero = template.indexOf('data-template-block="hero"');
+  const summary = template.indexOf('data-template-block="query-summary"');
+  assert.ok(identity > -1 && identity < hero && hero < summary);
+  assert.match(template, /id="hero-ier"/);
+  assert.match(template, /id="hero-classification"/);
+  assert.match(template, /id="hero-verdict"/);
+  assert.match(template, /Powered by GeoQuery 2\.0/);
+});
+
+test('the executive narrative keeps one synthesis and one conclusion without the former repeated cluster paragraph', () => {
+  assert.equal((template.match(/data-template-block="synthesis"/g) || []).length, 1);
+  assert.equal((template.match(/data-template-block="conclusion"/g) || []).length, 1);
+  assert.doesNotMatch(script, /Síntesis automática del clúster/);
+  assert.doesNotMatch(script, /Dictamen: \$\{indicator\} ante/);
+});
+
 test('an empty environmental-zones result leaves no report panel', () => {
   assert.match(script, /if \(!isTailings\) \{\s*target\.replaceChildren\(\);\s*return null;/);
 });
