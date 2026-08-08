@@ -530,9 +530,22 @@
     }));
   }
 
-  function renderIerCard(row) {
-    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${indicatorValue(row.score)}</strong><span>Exposición ${row.category}</span>`;
-    return `<div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small>IER</small>${index}</div>`;
+  function renderExecutiveHero() {
+    const tailings = state.rows.find(item => item.kind === 'relaves');
+    const ier = document.getElementById('hero-ier');
+    const classification = document.getElementById('hero-classification');
+    const verdict = document.getElementById('hero-verdict');
+    if (!tailings) {
+      ier.textContent = 'N/C';
+      classification.textContent = 'NO CALCULABLE';
+      verdict.textContent = analysisResults.relaves.error ? 'No fue posible calcular la exposición territorial con la información disponible.' : 'No se identificaron relaves en el área territorial analizada.';
+      return;
+    }
+    ier.textContent = tailings.score === null ? 'N/C' : indicatorValue(tailings.score);
+    classification.textContent = tailings.score === null ? 'NO CALCULABLE' : tailings.semantics.interpretation.toUpperCase();
+    verdict.textContent = tailings.score === null
+      ? `El escenario territorial no dispone de un IER calculable. Se analizaron ${tailings.relations.length} relaves en un radio de ${fmt(tailings.clusterRadiusKm)} km.`
+      : `Se identificó un escenario de ${tailings.semantics.interpretation.toUpperCase()} territorial. Se analizaron ${tailings.relations.length} relaves en un radio de ${fmt(tailings.clusterRadiusKm)} km.`;
   }
 
   function renderResourceMagnitude(result) {
@@ -574,8 +587,7 @@
     const dominantState = A.dominant(row.relations, item => item.p.estado || item.p.tipo_deposito)?.name || 'Sin información';
     const metrics = [['Relaves relacionados', row.relations.length], ['Relave más cercano', row.entity], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Estado predominante', dominantState], ['Superficie total', areaLabel(totalArea)]];
     if (areas.length) metrics.push(['Superficie media', areaLabel(totalArea / areas.length, true)]);
-    const summary = `El clúster se caracteriza por la concentración de ${row.relations.length} relaves en un radio de ${fmt(row.clusterRadiusKm)} km. Predominan las instalaciones asociadas a ${String(row.dominant.name).toLowerCase()}, que representan el ${row.dominant.percent} % del conjunto (${row.dominant.count} de ${row.relations.length}). La proximidad territorial se expresa en una distancia mínima de ${fmt(row.distance)} km y una distancia media de ${fmt(row.meanDistance)} km respecto del punto consultado.`;
-    container.innerHTML = `<div class="tailings-cluster-layout"><div class="tailings-cluster-kpis">${renderIerCard(row)}<div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div></div></div><div class="tailings-cluster-summary"><strong>Síntesis automática del clúster</strong><p>${esc(summary)}</p></div>`;
+    container.innerHTML = `<div class="tailings-cluster-layout"><div class="tailings-cluster-kpis"><div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div></div></div>`;
   }
 
   function safeRender(label, render) {
@@ -598,10 +610,8 @@
     const tailings = state.rows.find(item => item.kind === 'relaves');
     const zone = state.rows.find(item => item.kind === 'zonas');
     const conclusions = [];
-    if (tailings) {
-      conclusions.push(`El análisis caracteriza un escenario de ${tailings.score === null ? 'exposición no calculable' : tailings.semantics.interpretation.toLowerCase()} frente a ${analysisResults.relaves.related.length} relaves seleccionados, concentrados en un radio de ${fmt(tailings.clusterRadiusKm)} km.`);
-      conclusions.push(`La instalación más próxima se ubica a ${fmt(tailings.distance)} km y el recurso ${String(tailings.dominant.name).toLowerCase()} predomina en el ${tailings.dominant.percent} % del clúster.`);
-    } else conclusions.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el área analizada.');
+    if (tailings) conclusions.push(`El recurso ${String(tailings.dominant.name).toLowerCase()} predomina en el ${tailings.dominant.percent} % del clúster; la instalación más próxima se ubica a ${fmt(tailings.distance)} km y la distancia media al punto es ${fmt(tailings.meanDistance)} km.`);
+    else conclusions.push(analysisResults.relaves.error ? 'No fue posible analizar los relaves.' : 'No se detectaron relaves en el área analizada.');
     if (zone) conclusions.push(zone.main.inside ? `La localización dentro de ${zone.entity} refuerza el diagnóstico con ${zone.semantics.interpretation.toLowerCase()} territorial.` : `La zona ${zone.entity} mantiene una separación de ${fmt(zone.distance)} km${zone.main.ratio !== null ? `, equivalente a ${fmt(zone.main.ratio)} diámetros` : ''}, respecto del punto.`);
     if (state.failures.length) conclusions.push('El análisis se completó parcialmente; los resultados disponibles se mantienen vigentes.');
     document.getElementById('synthesis').innerHTML = `<ul>${conclusions.map(sentence => `<li>${esc(sentence)}</li>`).join('')}</ul>`;
@@ -612,10 +622,9 @@
     const zone = state.rows.find(item => item.kind === 'zonas');
     let diagnosis;
     if (tailings) {
-      const indicator = tailings.score === null ? 'sin un IER calculable' : `con un nivel de ${tailings.semantics.interpretation.toLowerCase()} territorial`;
       const zoneIndex = Number.isFinite(zone?.score) ? (zone.score > 0 && zone.score < 1 ? '< 1' : Math.round(zone.score)) : 'no calculable';
       const zoneContext = zone ? (zone.main.inside ? ` La zona saturada o latente ${zone.entity} contiene el punto y registra ${zone.semantics.code} ${zoneIndex} (${zone.semantics.interpretation.toLowerCase()}).` : ` La zona saturada o latente ${zone.entity} registra ${zone.semantics.code} ${zoneIndex}, a ${fmt(zone.distance)} km del borde${zone.main.ratio !== null ? ` (${fmt(zone.main.ratio)} diámetros equivalentes)` : ''}.`) : ' No se detectaron zonas saturadas o latentes relacionadas.';
-      diagnosis = `Dictamen: ${indicator} ante ${tailings.relations.length} relaves; la distancia mínima es ${fmt(tailings.distance)} km y el radio del clúster ${fmt(tailings.clusterRadiusKm)} km, con predominio de ${String(tailings.dominant.name).toLowerCase()}.${zoneContext}`;
+      diagnosis = `Los resultados permiten caracterizar la exposición ambiental del punto y priorizar la revisión de los antecedentes territoriales identificados.${zoneContext}`;
     } else {
       diagnosis = analysisResults.relaves.error ? 'La información disponible no permite consolidar un diagnóstico de infraestructura de relaves para el punto consultado.' : 'No se identificó infraestructura de relaves dentro del área territorial analizada; el diagnóstico se limita a los demás indicadores ambientales disponibles.';
     }
@@ -649,6 +658,7 @@
     safeRender('descripción del clúster', () => renderTailingsClusterDescription(tailingsResult));
     requestAnimationFrame(() => safeRender('mapa de Relaves', () => initializeTailingsMap(tailingsResult)));
     safeRender('Zonas', () => renderGroup('zonas', zonesResult));
+    safeRender('tarjeta principal', renderExecutiveHero);
     safeRender('síntesis ejecutiva', renderExecutiveSummary);
     safeRender('tabla complementaria', renderComplementaryTable);
     safeRender('conclusión del análisis', renderAnalysisConclusion);
