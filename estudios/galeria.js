@@ -3,6 +3,46 @@ const estado = document.querySelector('#estado');
 const buscar = document.querySelector('#buscar');
 const dialogo = document.querySelector('#detalle');
 let estudios = [];
+let estudioAbierto = null;
+
+const CLAVE_SESSION = 'geocalculo_estudios_session_id';
+
+function obtenerSessionId() {
+  const guardado = localStorage.getItem(CLAVE_SESSION);
+  if (guardado) return guardado;
+
+  const nuevo = crypto.randomUUID();
+  localStorage.setItem(CLAVE_SESSION, nuevo);
+  return nuevo;
+}
+
+const sessionId = obtenerSessionId();
+
+function registrarEvento(evento, recurso) {
+  const datos = { evento, session_id: sessionId };
+  if (recurso) datos.recurso = recurso;
+
+  fetch('/api/estudios/visita', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos),
+    keepalive: true
+  }).catch(() => {});
+}
+
+async function cargarContador() {
+  try {
+    const respuesta = await fetch('/api/estudios/contador');
+    if (!respuesta.ok) return;
+    const datos = await respuesta.json();
+    document.querySelector('#contador-visitas').textContent = datos.visitas ?? 0;
+    document.querySelector('#contador-laminas').textContent = datos.laminas ?? 0;
+    document.querySelector('#contador-linkedin').textContent = datos.linkedin ?? 0;
+    document.querySelector('#contador').hidden = false;
+  } catch (_) {
+    // Las métricas son complementarias y no deben afectar a la galería.
+  }
+}
 
 const fechaLarga = (fecha) => {
   if (!fecha) return 'Sin fecha';
@@ -57,6 +97,7 @@ function pintar(filtro = '') {
 }
 
 function abrirDetalle(estudio) {
+  estudioAbierto = estudio;
   document.querySelector('#detalle-tema').textContent = estudio.tema || 'Estudio territorial';
   document.querySelector('#detalle-titulo').textContent = estudio.titulo;
   const lamina = document.querySelector('#detalle-lamina');
@@ -70,6 +111,7 @@ function abrirDetalle(estudio) {
   linkedin.hidden = !estudio.linkedin;
   linkedin.href = estudio.linkedin || '#';
   dialogo.showModal();
+  registrarEvento('lamina', estudio.id);
 }
 
 async function cargar() {
@@ -81,7 +123,7 @@ async function cargar() {
     const resultados = await Promise.allSettled(rutas.map(async (ruta) => {
       const respuesta = await fetch(`./${ruta}/metadata.json`);
       if (!respuesta.ok) throw new Error(`No fue posible leer ${ruta}`);
-      return { ...await respuesta.json(), ruta: `./${ruta}` };
+      return { ...await respuesta.json(), id: ruta, ruta: `./${ruta}` };
     }));
     estudios = resultados.filter(({ status }) => status === 'fulfilled').map(({ value }) => value)
       .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
@@ -94,7 +136,12 @@ async function cargar() {
 
 buscar.addEventListener('input', (evento) => pintar(evento.target.value));
 document.querySelector('.cerrar').addEventListener('click', () => dialogo.close());
+document.querySelector('#detalle-linkedin').addEventListener('click', () => {
+  if (estudioAbierto) registrarEvento('linkedin', estudioAbierto.id);
+});
 dialogo.addEventListener('click', (evento) => {
   if (evento.target === dialogo) dialogo.close();
 });
+registrarEvento('visita');
+cargarContador();
 cargar();
