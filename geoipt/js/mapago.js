@@ -1329,10 +1329,6 @@ function renderActionsPanel() {
         <span class="btn-icon" aria-hidden="true">⇩</span>
         <span class="btn-text">EXPORTAR KML</span>
       </button>
-      <button id="btn-export-pdf" class="btn-export btn-pdf" type="button" title="Exportar reporte PDF">
-        <span class="btn-icon" aria-hidden="true">▣</span>
-        <span class="btn-text">PDF PRO</span>
-      </button>
       <a href="index.html" class="btn-export btn-back">Volver al INDEX</a>
     </div>
   </div>`;

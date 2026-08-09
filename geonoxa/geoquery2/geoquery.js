@@ -721,7 +721,6 @@
   }
 
   document.getElementById('back').onclick = () => { const query = new URLSearchParams(params); query.set('lat', params.get('viewLat') || lat); query.set('lon', params.get('viewLon') || lon); location.href = `../index.html?${query}`; };
-  document.getElementById('pdf').onclick = () => ReportEngine.exportPDF(reportData('pdf'));
   document.getElementById('kml').onclick = () => ReportEngine.exportKML(reportData('kml'));
   init().then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))).then(() => {
     GeoQueryPDF.register({

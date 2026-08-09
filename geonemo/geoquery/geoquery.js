@@ -320,7 +320,7 @@ function exportKml() {
 }
 
 function exportPdf() { window.print(); }
-[$("pdf-button"), $("pdf-button-bottom")].forEach((button) => button.addEventListener("click", exportPdf));
+[$("pdf-button"), $("pdf-button-bottom")].filter(Boolean).forEach((button) => button.addEventListener("click", exportPdf));
 [$("kml-button"), $("kml-button-bottom")].forEach((button) => button.addEventListener("click", exportKml));
 
 async function run() {
@@ -352,7 +352,7 @@ async function run() {
     $("query-status").textContent = "Generando diagnóstico ejecutivo…";
     await new Promise((resolve) => setTimeout(resolve, 0));
     $("query-status").textContent = `${groupOutcomes.length} grupos analizados; ${results.length} con entidades relevantes en el área.${sourceWarningCount ? ` ${sourceWarningCount} fuente(s) no disponible(s).` : ""}`;
-    [$(`pdf-button`), $(`pdf-button-bottom`), $(`kml-button`), $(`kml-button-bottom`)].forEach((button) => { button.disabled = false; });
+    [$(`pdf-button`), $(`pdf-button-bottom`), $(`kml-button`), $(`kml-button-bottom`)].filter(Boolean).forEach((button) => { button.disabled = false; });
   } catch (error) {
     console.error(error);
     $("status").textContent = "No disponible";
