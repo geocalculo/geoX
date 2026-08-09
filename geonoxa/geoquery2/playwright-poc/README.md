@@ -37,3 +37,30 @@ Se puede fijar otro reporte reproducible mediante `--query 'queryLat=...&queryLo
 ## Evaluación
 
 Compare el HTML, ambas capturas inmediatamente anteriores al PDF y ambos PDF. `leaflet-ab-states.json` conserva la evidencia numérica y enumera qué operación fue reproducida en B. La variante no intenta corregir visualmente el mapa: no añade offsets ni fija sus dimensiones.
+
+## Prueba controlada de paginación
+
+La unidad exacta es `.tailings-related-layout`, dentro de
+`.tailings-related-panel`: contiene como hijos directos
+`.relaves-list-column` y `.relaves-map-column`. La auditoría del árbol mostró
+un grid de dos columnas con altura determinada por el mapa (`min-height:
+420px`), sin `position` ni `transform`; el panel ya solicitaba
+`break-inside: avoid`. Chromium conservó el panel visual antes de imprimir,
+pero durante la fragmentación paginada separó los hijos del grid. Por tanto,
+`break-inside` por sí solo no fue suficiente para este grid.
+
+`pagination-test.css` es una segunda variante deliberadamente experimental y
+reversible. Solo en `@media print` representa el grid como una tabla de una
+fila y dos celdas (40/60), además de reiterar `break-inside: avoid`. Esto
+mantiene lista y mapa en la misma unidad de fragmentación sin cambiar el DOM,
+Leaflet, GeoQuery ni la presentación en pantalla.
+
+```bash
+npm run test:pagination
+```
+
+La prueba genera exclusivamente `pagination_test_before_pdf.png` y
+`pagination_test.pdf` en `artifacts/`. El hallazgo a trasladar al futuro motor
+PDF es específico: el contexto de fragmentación de impresión de Chromium no
+respeta de forma fiable la indivisibilidad de este grid; una fila de tabla es
+la estructura estable del experimento, no una solución de producción todavía.

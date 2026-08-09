@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const fs = require('node:fs');
 const { argumentsFrom, VIEWPORT, PDF_OPTIONS } = require('./run-poc');
 
 test('usa una configuración reproducible por defecto', () => {
@@ -21,4 +22,12 @@ test('acepta salida, consulta y modo visible', () => {
 
 test('rechaza argumentos desconocidos', () => {
   assert.throws(() => argumentsFrom(['--no-existe']), /Argumento desconocido/);
+});
+
+test('la variante de paginación queda aislada a impresión y usa una fila estable', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'pagination-test.css'), 'utf8');
+  assert.match(css, /@media print/);
+  assert.match(css, /\.tailings-related-layout[\s\S]*display: table !important/);
+  assert.match(css, /\.relaves-list-column,[\s\S]*display: table-cell !important/);
+  assert.match(css, /break-inside: avoid !important/);
 });

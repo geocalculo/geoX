@@ -6,6 +6,7 @@
   "scripts": {
     "install:chromium": "playwright install chromium",
     "run": "node run-poc.js",
+    "test:pagination": "node run-pagination-test.js",
     "test": "node --test run-poc.test.js"
   },
   "dependencies": {
