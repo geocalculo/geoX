@@ -1,0 +1,38 @@
+@page {
+  size: A4 portrait;
+  margin: 12mm 10mm 14mm;
+}
+
+html.playwright-pdf-mode,
+.playwright-pdf-mode body {
+  background: #fff;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.playwright-pdf-mode nav,
+.playwright-pdf-mode body > header,
+.playwright-pdf-mode body > footer,
+.playwright-pdf-mode .leaflet-control-zoom,
+.playwright-pdf-mode .leaflet-control-layers {
+  display: none !important;
+}
+
+.playwright-pdf-mode main {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.playwright-pdf-mode .report-card,
+.playwright-pdf-mode .geoquery-card,
+.playwright-pdf-mode .geoquery-panel,
+.playwright-pdf-mode table,
+.playwright-pdf-mode .map {
+  break-inside: avoid;
+}
+
+.playwright-pdf-mode .leaflet-container {
+  page-break-inside: avoid;
+}
