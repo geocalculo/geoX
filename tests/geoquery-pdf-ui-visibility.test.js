@@ -11,13 +11,20 @@ const publicGeoQueries = [
   "geonoxa/geoquery2/geoquery.html",
 ];
 
-for (const file of publicGeoQueries) {
+const additionalPdfViews = [
+  "geoipt/report_html2pdf.html",
+  "geonemo/geoquery_backup_pre_2_0/geoquery.html",
+];
+
+for (const file of [...publicGeoQueries, ...additionalPdfViews]) {
   const html = fs.readFileSync(file, "utf8");
   const buttons = html.match(/<button\b[^>]*>[^<]*(?:Exportar|Descargar) PDF<\/button>/gi) || [];
   assert.ok(buttons.length > 0, `${file} conserva el markup y los puntos de integración PDF`);
   for (const button of buttons) {
     assert.match(button, /\bhidden(?:\s|=|>)/i, `${file} oculta cada botón PDF`);
   }
+
+  if (!publicGeoQueries.includes(file)) continue;
 
   const kmlButtons = html.match(/<(?:button|a)\b[^>]*>[^<]*(?:Exportar|Descargar) KML<\/(?:button|a)>/gi) || [];
   assert.ok(kmlButtons.length > 0, `${file} conserva al menos una exportación KML`);
