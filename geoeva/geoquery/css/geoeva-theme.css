@@ -1,0 +1,37 @@
+:root {
+  --site-primary: #2457d6;
+  --site-primary-strong: #173f9f;
+  --site-secondary: #e8efff;
+  --site-accent: #173f9f;
+  --site-background: #f3f6fa;
+  --site-surface: #fff;
+  --site-text: #10284c;
+  --site-muted: #5f7088;
+  --site-border: #d8e2ef;
+  --site-focus: #93b4ff;
+  --site-success: #159447;
+  --site-chart-primary: #82c8ed;
+  --site-chart-secondary: #bfd3e8;
+  --site-chart-label: #17324f;
+}
+.masthead { border-bottom: 3px solid #60a5fa; }
+.masthead .eyebrow { color: #dbeafe; }
+.section-kicker { color: var(--site-primary-strong); }
+.resolved { color: var(--site-success); }
+.summary .kpi-card, .stats-grid div { background: color-mix(in srgb, var(--site-primary) 5%, white); }
+.rank, .relation-type { background: var(--site-secondary); color: var(--site-primary-strong); }
+.project-name:is(a), .project-facts a { color: var(--site-primary); }
+.project > .sector, .tags .sector { border-color: color-mix(in srgb, var(--sector-color, #d4d9df) 70%, #fff); background: var(--sector-color, #d4d9df); color: var(--site-text); }
+.map-legend .query { background: var(--site-primary); }
+.map-legend .legend-project { border-color: var(--site-primary); background: var(--site-secondary); box-shadow: none; }
+.map-legend .centroid { border-color: var(--site-primary-strong); }
+.leaflet-control-layers, .leaflet-control-scale-line, .map-legend { border-color: var(--site-border); color: var(--site-text); }
+.leaflet-bar a { color: var(--site-primary-strong); }
+.touch-hint { background: rgb(16 40 76 / 90%); }
+.cluster-swatch, .timing-bar-line.cluster .timing-bar { background: var(--site-chart-primary); }
+.national-swatch, .timing-bar-line.national .timing-bar { background: var(--site-chart-secondary); }
+.timing-value { color: var(--site-chart-label); }
+.project-number-label span { border-color: #fff; background: var(--sector-color, var(--site-secondary)); color: var(--site-text); text-shadow: none; box-shadow: 0 1px 5px rgb(16 40 76 / 25%); }
+.project-number-label.is-sat span { background: #ffd400; color: #111; box-shadow: 0 1px 6px #000b; }
+.map-legend.is-sat .query, .map-legend.is-sat .legend-project { border-color: #fff; background: #ffd400; box-shadow: 0 0 0 1px #0008; }
+.map-legend.is-sat .centroid { border-color: #ffd400; background: #fff3a6; }

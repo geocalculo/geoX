@@ -1,0 +1,10 @@
+[hidden] { display: none !important; }
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; max-width: 100%; overflow-x: hidden; }
+body { background: var(--site-background); color: var(--site-text); font-family: var(--gq-font-family); line-height: 1.5; }
+h1, h2, h3 { color: var(--site-text); }
+h2 { margin: 4px 0 12px; font-size: clamp(1.25rem, 2vw, 1.65rem); }
+.gq-container { width: min(var(--gq-content-max-width), calc(100% - 40px)); margin-inline: auto; }
+.gq-kicker { color: var(--site-primary-strong); font-size: .75rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.gq-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+:where(a, button, [tabindex]):focus-visible { outline: 3px solid var(--site-focus); outline-offset: 2px; }
