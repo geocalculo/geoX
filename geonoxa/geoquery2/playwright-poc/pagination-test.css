@@ -1,0 +1,37 @@
+/*
+ * Diagnóstico aislado de paginación. Chromium fragmenta el grid de dos
+ * columnas aunque el panel solicite break-inside: avoid. Para esta prueba el
+ * mismo DOM se presenta como tabla únicamente al imprimir: las celdas de una
+ * fila no pueden enviarse a páginas distintas.
+ */
+@media print {
+  .playwright-pagination-test .tailings-related-panel,
+  .playwright-pagination-test .tailings-related-layout {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .playwright-pagination-test .tailings-related-layout {
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+
+  .playwright-pagination-test .relaves-list-column,
+  .playwright-pagination-test .relaves-map-column {
+    display: table-cell !important;
+    min-width: 0 !important;
+    vertical-align: top !important;
+  }
+
+  .playwright-pagination-test .relaves-list-column {
+    width: 40% !important;
+    padding-right: 3mm !important;
+  }
+
+  .playwright-pagination-test .relaves-map-column {
+    width: 60% !important;
+  }
+}
