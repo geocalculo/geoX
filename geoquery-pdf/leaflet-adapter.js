@@ -32,8 +32,9 @@
     if (!dimensions.width || !dimensions.height) return () => {};
     map.closePopup?.();
     map.invalidateSize({ animate: false, pan: false });
-    if (bounds?.isValid?.()) map.fitBounds(bounds, { animate: false, padding: [0, 0] });
-    map.setView(center, zoom, { animate: false });
+    // PDF policy: preserve the territorial composition (bounds), not center + zoom.
+    if (bounds?.isValid?.()) map.fitBounds(bounds, { animate: false, padding: options.padding || [0, 0] });
+    else map.setView(center, zoom, { animate: false });
     await waitForTiles(map, options.tileTimeout);
     return () => {
       map.invalidateSize({ animate: false, pan: false });

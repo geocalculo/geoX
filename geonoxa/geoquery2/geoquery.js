@@ -222,7 +222,7 @@
 
   function indicatorValue(score) {
     if (!Number.isFinite(score)) return 'No calculable';
-    if (score > 0 && score < 1) return '&lt; 1';
+    if (score > 0 && score < 1) return '< 1';
     return String(Math.round(score));
   }
 
@@ -388,7 +388,7 @@
     const metrics = isTailings
       ? [['Relave más cercano', row.entity], ['Relaves relacionados', row.relations.length], ['Recurso dominante', `${row.dominant.name} · ${row.dominant.percent} %`], ['Distancia mínima', `${fmt(row.distance)} km`], ['Distancia media', `${fmt(row.meanDistance)} km`], ['Radio del clúster', `${fmt(row.clusterRadiusKm)} km`], ['Estado predominante', A.dominant(row.relations, item => item.p.estado || item.p.tipo_deposito)?.name || 'Sin información'], ['Superficie total', areas.length ? `${fmt(totalArea / 1e6)} km²` : 'Sin información'], ['Superficie media', areas.length ? `${fmt(totalArea / areas.length / 1e6)} km²` : 'Sin información']]
       : [['Zona principal', row.entity], ['Clasificación', p.zona_dec || p.tipo || p.clasificacion || 'Zona ambiental'], ['Contaminante', row.dominant.name], ['Posición', row.main.inside ? 'Interior' : 'Exterior'], ['Distancia al borde', `${fmt(row.distance)} km`], ...(row.main.inside ? [['Profundidad relativa', row.main.depth !== null ? fmt(row.main.depth) : 'No aplica']] : [['Diámetro equivalente', row.main.diameter ? `${fmt(row.main.diameter)} km` : 'Sin información'], ['Relación territorial', row.main.ratio !== null ? `${fmt(row.main.ratio)} diámetros` : 'No aplica']])];
-    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${indicatorValue(row.score)}</strong> · ${row.semantics.interpretation}`;
+    const index = row.score === null ? '<strong>No calculable</strong>' : `<strong>${esc(indicatorValue(row.score))}</strong> · ${row.semantics.interpretation}`;
     const scale = !isTailings ? `<div class="territorial-scale" aria-label="Escala de ${row.semantics.concept.toLowerCase()} territorial"><div class="territorial-scale__bar"></div><div>${['Muy alta', 'Alta', 'Media', 'Baja', 'Muy baja'].map(level => `<span>${row.semantics.concept} ${level.toLowerCase()}</span>`).join('')}</div><small>${row.main.inside ? 'Mayor profundidad relativa implica mayor inmersión territorial dentro de la zona.' : 'Menor cantidad de diámetros implica mayor proximidad territorial.'}</small></div>` : '';
     const mapId = isTailings ? 'relaves-map' : 'map-zonas';
     group.innerHTML += `<div class="micro"><div><div class="index" style="background:${row.categoryData?.color || '#64748b'}"><small style="color:white">${row.semantics.code}</small><br>${index}</div><div class="metrics">${metrics.map(metric => `<div class="metric"><b>${metric[0]}</b>${esc(metric[1])}</div>`).join('')}</div>${scale}${isTailings ? `<div class="chart"><b>Distribución por recurso</b><div class="resource-bars">${distribution.map((item, index) => `<div><span>${esc(item.name)}</span><i><em class="color-${index}" style="width:${item.count / row.relations.length * 100}%"></em></i><strong>${item.count}</strong></div>`).join('')}</div><div class="legend">${distribution.map((item, index) => `<span class="legend-${index}">● ${esc(item.name)} · ${item.count}</span>`).join('')}</div></div>` : ''}</div><div id="${mapId}" class="map" aria-label="Mapa independiente de ${title}"></div></div>`;
@@ -633,7 +633,7 @@
 
   function renderComplementaryTable() {
     document.getElementById('details').innerHTML = state.rows.flatMap(row => row.kind === 'relaves'
-      ? row.relations.map((item, index) => { const metadata = tailingsMetadata(item, index, row.relations.length); return `<tr><td>${row.group}</td><td>${esc(metadata.name)}</td><td>${distanceLabel(metadata.distanceKm)}</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : indicatorValue(row.score)}</td><td>${esc(metadata.role)}</td><td>${esc([metadata.resource, metadata.status, areaM2Label(metadata.area), metadata.owner, metadata.commune, metadata.region, metadata.id].filter(present).join(' · '))}</td></tr>`; })
+      ? row.relations.map((item, index) => { const metadata = tailingsMetadata(item, index, row.relations.length); return `<tr><td>${row.group}</td><td>${esc(metadata.name)}</td><td>${distanceLabel(metadata.distanceKm)}</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : esc(indicatorValue(row.score))}</td><td>${esc(metadata.role)}</td><td>${esc([metadata.resource, metadata.status, areaM2Label(metadata.area), metadata.owner, metadata.commune, metadata.region, metadata.id].filter(present).join(' · '))}</td></tr>`; })
       : [`<tr><td>${row.group}</td><td>${esc(row.entity)}</td><td>${distanceLabel(row.distance)}</td><td>${row.semantics.code} ${row.score === null ? 'No calculable' : row.score}</td><td>${row.semantics.interpretation}</td><td>${esc(row.detail)}</td></tr>`]).join('') || '<tr><td colspan="6">Sin entidades relevantes.</td></tr>';
   }
 
@@ -716,7 +716,6 @@
       title: 'Informe Ejecutivo de Exposición Ambiental',
       header: 'GeoNOXA | Informe Ejecutivo de Exposición Ambiental',
       beforeExport: () => clearTailingsSelection(),
-      afterExport: () => Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize({ animate: false, pan: false })),
       buildKML: buildKmlConfig
     };
   }

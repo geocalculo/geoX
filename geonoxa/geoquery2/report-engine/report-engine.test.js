@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('./report-engine');
 const KML = require('./report-kml');
-const Pagination = require('./report-pagination');
+const Pagination = require('../../../geoquery-pdf/pagination');
 const Components = require('./report-components');
 
 test('registers future report formats without changing the engine core', () => {
@@ -25,7 +25,7 @@ test('KML validates and serializes generated visible features', () => {
 test('pagination defaults to A4 and centralizes keep-together selectors', () => {
   const options = Pagination.html2pdfOptions();
   assert.equal(options.jsPDF.format, 'a4');
-  assert.ok(options.pagebreak.avoid.includes('.report-keep-together'));
+  assert.ok(options.pagebreak.avoid.includes('.pdf-avoid-break'));
   assert.ok(Pagination.DEFAULT_AVOID.includes('.map'));
   assert.ok(Pagination.DEFAULT_AVOID.includes('.chart'));
 });

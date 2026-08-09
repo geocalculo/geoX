@@ -44,6 +44,16 @@ test('register and ready remain separate lifecycle states', async () => {
 });
 
 test('shared core contains no product-specific branch', () => {
-  const source = require('node:fs').readFileSync(require.resolve('./geoquery-pdf'), 'utf8');
-  assert.doesNotMatch(source, /geonoxa|geoeva|geonemo|geoipt/i);
+  const fs = require('node:fs');
+  for (const file of ['geoquery-pdf.js', 'pagination.js', 'leaflet-adapter.js', 'chart-adapter.js', 'render-stabilizer.js']) {
+    assert.doesNotMatch(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), /geonoxa|relaves|\bIER\b/i);
+  }
+});
+
+test('shared pagination owns A4 settings and never fixes map geometry', () => {
+  const fs = require('node:fs');
+  const css = fs.readFileSync(require.resolve('./geoquery-print.css'), 'utf8');
+  assert.match(css, /@page\{size:A4 portrait/);
+  assert.doesNotMatch(css, /letter|\.map\s*\{|height:/i);
+  assert.equal(GeoQueryPDF.html2pdfOptions().jsPDF.format, 'a4');
 });
