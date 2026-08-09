@@ -38,8 +38,8 @@ test('the technical table keeps print-safe zebra rows and compact detail text', 
   assert.match(styles, /tbody tr:nth-child\(even\)\{background:#f8fafc/);
   assert.match(styles, /tbody td:nth-child\(6\)\{font-size:\.9em/);
   assert.match(styles, /print-color-adjust:exact/);
-  assert.match(styles, /\.pdf-export-root \.geoquery-table\{break-inside:auto;page-break-inside:auto\}/);
-  assert.match(styles, /\.pdf-export-root \.geoquery-table th,[^}]*padding:1\.44mm/);
+  assert.match(styles, /\.geoquery-pdf-export \.geoquery-table\{break-inside:auto;page-break-inside:auto\}/);
+  assert.match(styles, /\.geoquery-pdf-export \.geoquery-table th,[^}]*padding:1\.44mm/);
 });
 
 test('the release-candidate charts expose dynamic context with consistent geometry', () => {
@@ -48,6 +48,19 @@ test('the release-candidate charts expose dynamic context with consistent geomet
   assert.match(script, /magnitude\.totalAreaM2 \/ areaRecordCount/);
   assert.match(script, /Superficie media por relave/);
   assert.match(styles, /\.resource-surface-bars li>div\{height:14px/);
+});
+
+test('PDF CSS has one A4 authority and the KPI grid matches its single metrics child', () => {
+  const shared = fs.readFileSync(`${__dirname}/../../geoquery-pdf/geoquery-print.css`, 'utf8');
+  assert.doesNotMatch(styles, /@page|size\s*:\s*letter|\.is-pdf-export/iu);
+  assert.match(shared, /@page\{size:A4 portrait/);
+  assert.match(styles, /\.geoquery-pdf-export \.tailings-cluster-kpis\{grid-template-columns:minmax\(0,1fr\)/);
+});
+
+test('indicator values use literal less-than text and escape it at HTML sinks', () => {
+  assert.match(script, /if \(score > 0 && score < 1\) return '< 1';/);
+  assert.match(script, /<strong>\$\{esc\(indicatorValue\(row\.score\)\)\}<\/strong>/);
+  assert.match(script, /ier\.textContent = tailings\.score === null \? 'N\/C' : indicatorValue\(tailings\.score\)/);
 });
 
 test('tailings use normal-weight names and legible resource subtitles', () => {

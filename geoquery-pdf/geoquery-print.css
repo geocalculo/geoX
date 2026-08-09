@@ -1,6 +1,9 @@
+:root{--geoquery-pdf-margin:21mm 10mm 22mm}
+@page{size:A4 portrait;margin:var(--geoquery-pdf-margin)}
 .pdf-no-print{display:none!important}
 .pdf-avoid-break{break-inside:avoid;page-break-inside:avoid}
+.pdf-keep-with-next{break-after:avoid;page-break-after:avoid}
 .pdf-break-before{break-before:page;page-break-before:always}
 .pdf-page{position:relative;break-after:page;page-break-after:always}
-.geoquery-pdf-preparing{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-@media print{.pdf-no-print{display:none!important}}
+.geoquery-pdf-preparing,.geoquery-pdf-export{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@media print{.pdf-no-print{display:none!important}.pdf-avoid-break{break-inside:avoid;page-break-inside:avoid}.pdf-keep-with-next{break-after:avoid;page-break-after:avoid}}
