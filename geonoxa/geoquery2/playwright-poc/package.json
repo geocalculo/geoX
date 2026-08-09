@@ -1,0 +1,14 @@
+{
+  "name": "geonoxa-geoquery2-playwright-poc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "POC aislado de Chromium print-to-PDF para GeoNOXA GeoQuery2",
+  "scripts": {
+    "install:chromium": "playwright install chromium",
+    "run": "node run-poc.js",
+    "test": "node --test run-poc.test.js"
+  },
+  "dependencies": {
+    "playwright": "1.54.2"
+  }
+}
