@@ -672,20 +672,6 @@
     finally { finalizeLoadingStates(); }
   }
 
-  function waitForExportMaps(timeout = 2500) {
-    if (relavesMapInstance) relavesMapInstance.closePopup();
-    Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize(false));
-    if (!document.querySelector('#report .leaflet-tile-loading')) return Promise.resolve();
-    return new Promise(resolve => {
-      const startedAt = Date.now();
-      const check = () => {
-        if (!document.querySelector('#report .leaflet-tile-loading') || Date.now() - startedAt >= timeout) resolve();
-        else setTimeout(check, 80);
-      };
-      check();
-    });
-  }
-
   function buildKmlConfig(exporter) {
     const styles = exporter.geoNoxaStyles();
     const registry = exporter.createKmlExportRegistry();
@@ -729,8 +715,8 @@
       locale: 'es-CL',
       title: 'Informe Ejecutivo de Exposición Ambiental',
       header: 'GeoNOXA | Informe Ejecutivo de Exposición Ambiental',
-      beforeExport: async () => { clearTailingsSelection(); await waitForExportMaps(); },
-      afterExport: () => Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize(false)),
+      beforeExport: () => clearTailingsSelection(),
+      afterExport: () => Object.values(maps).filter(Boolean).forEach(map => map.invalidateSize({ animate: false, pan: false })),
       buildKML: buildKmlConfig
     };
   }
@@ -738,5 +724,13 @@
   document.getElementById('back').onclick = () => { const query = new URLSearchParams(params); query.set('lat', params.get('viewLat') || lat); query.set('lon', params.get('viewLon') || lon); location.href = `../index.html?${query}`; };
   document.getElementById('pdf').onclick = () => ReportEngine.exportPDF(reportData('pdf'));
   document.getElementById('kml').onclick = () => ReportEngine.exportKML(reportData('kml'));
-  init();
+  init().then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))).then(() => {
+    GeoQueryPDF.register({
+      root: '#report',
+      maps: Object.values(maps).filter(Boolean),
+      charts: [],
+      filename: reportData('pdf').filename
+    });
+    GeoQueryPDF.ready();
+  });
 })();

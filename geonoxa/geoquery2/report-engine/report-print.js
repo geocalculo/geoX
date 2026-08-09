@@ -11,13 +11,13 @@
     const cleanup = Pagination.prepare(reportData.element, options.pagination);
     reportData.element.classList.add('pdf-export-root');
     try {
-      if (reportData.beforeExport) await reportData.beforeExport('pdf');
       const settings = { ...Pagination.html2pdfOptions(options), filename: reportData.filename };
-      const worker = pdfFactory().set(settings).from(reportData.element).toPdf();
-      const pdf = await worker.get('pdf');
-      addPageFurniture(pdf, reportData);
-      await worker.save();
-      return pdf;
+      return await globalThis.GeoQueryPDF.exportPDF({
+        html2pdf: pdfFactory,
+        settings,
+        beforeCapture: () => reportData.beforeExport?.('pdf'),
+        decorate: pdf => addPageFurniture(pdf, reportData)
+      });
     } finally {
       reportData.element.classList.remove('pdf-export-root');
       cleanup();
