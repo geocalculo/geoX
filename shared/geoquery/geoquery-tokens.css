@@ -1,0 +1,26 @@
+:root {
+  --gq-content-max-width: 1240px;
+  --gq-space-1: 8px;
+  --gq-space-2: 12px;
+  --gq-space-3: 16px;
+  --gq-space-4: 24px;
+  --gq-space-5: 32px;
+  --gq-space-6: 48px;
+  --gq-font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --gq-radius-card: 16px;
+  --gq-radius-panel: 12px;
+  --gq-radius-button: 9px;
+  --gq-radius-pill: 999px;
+  --gq-shadow-card: 0 10px 30px rgb(15 35 65 / 8%);
+  --gq-shadow-floating: 0 2px 10px rgb(15 35 65 / 14%);
+  --site-primary: #315ea8;
+  --site-primary-strong: #23477f;
+  --site-secondary: #e9eff8;
+  --site-accent: #315ea8;
+  --site-background: #f4f6f9;
+  --site-surface: #fff;
+  --site-text: #172b49;
+  --site-muted: #617086;
+  --site-border: #d9e1eb;
+  --site-focus: #426fc2;
+}

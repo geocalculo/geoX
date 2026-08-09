@@ -46,7 +46,7 @@
     });
 
   }
-  function kpi(container, label, value, note) { const card = document.createElement("article"); card.className = "kpi-card"; text(card, "span", label); text(card, "strong", value); if (note) text(card, "small", note); container.appendChild(card); }
+  function kpi(container, label, value, note) { const card = document.createElement("article"); card.className = "kpi-card gq-kpi"; text(card, "span", label); text(card, "strong", value); if (note) text(card, "small", note); container.appendChild(card); }
   const timingValue = row => Number.isFinite(row?.averageMonths) ? `${row.averageMonths.toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} meses (${row.projectCount.toLocaleString("es-CL")})` : "Sin datos";
   function renderTiming(rows, nationalRows, max) {
     const chart = document.getElementById("timing-comparison-chart"); chart.replaceChildren();
