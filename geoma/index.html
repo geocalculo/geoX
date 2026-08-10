@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GeoMA | Masas de aguas continentales</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+  <div id="app">
+    <header id="main-header">
+      <div class="brand-block">
+        <a class="geox-link" href="../index.html">GeoX</a>
+        <div><h1>GeoMA</h1><p>Masas de aguas continentales</p></div>
+      </div>
+      <section id="summary-bar" aria-label="Resumen del área visible" aria-live="polite">
+        <article class="summary-item"><span id="kpi-visible" class="summary-value">—</span><span class="summary-label">Masas visibles</span></article>
+        <article class="summary-item"><span id="kpi-area" class="summary-value">—</span><span class="summary-label">Superficie visible</span></article>
+        <article class="summary-item"><span id="kpi-dominant" class="summary-value summary-value-text">—</span><span class="summary-label">Tipo dominante</span><span id="kpi-dominant-detail" class="summary-detail"></span></article>
+        <article class="summary-item"><span id="kpi-types" class="summary-value">—</span><span class="summary-label">Tipos presentes</span></article>
+      </section>
+    </header>
+    <nav id="control-bar" aria-label="Controles territoriales">
+      <label for="region-selector">Región</label>
+      <select id="region-selector"><option value="">Chile completo</option></select>
+      <span id="summary-status" role="status">Cargando masas de agua…</span>
+    </nav>
+    <main id="map-wrap">
+      <div id="map" aria-label="Mapa navegable de Chile"></div>
+      <div class="map-toggle" aria-label="Mapa base">
+        <button id="btn-osm" class="active" type="button" aria-pressed="true">OSM</button>
+        <button id="btn-sat" type="button" aria-pressed="false">SAT</button>
+      </div>
+    </main>
+  </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/geoma-summary.js"></script>
+  <script src="js/geoma-map.js"></script>
+</body>
+</html>
