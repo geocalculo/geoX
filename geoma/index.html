@@ -1,9 +1,9 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GeoMA | Masas de aguas continentales</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoMA | Masas de Aguas Continentales</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="css/index.css">
 </head>
@@ -11,8 +11,9 @@
   <div id="app">
     <header id="main-header">
       <div class="brand-block">
-        <a class="geox-link" href="../index.html">GeoX</a>
-        <div><h1>GeoMA</h1><p>Masas de aguas continentales</p></div>
+        <div id="site-title">GeoMA</div>
+        <div id="site-subtitle">Masas de Aguas Continentales</div>
+        <p id="site-description">Explorador territorial de lagos, lagunas, embalses, salares y otras masas de agua continentales.</p>
       </div>
       <section id="summary-bar" aria-label="Resumen del área visible" aria-live="polite">
         <article class="summary-item"><span id="kpi-visible" class="summary-value">—</span><span class="summary-label">Masas visibles</span></article>
@@ -22,19 +23,42 @@
       </section>
     </header>
     <nav id="control-bar" aria-label="Controles territoriales">
-      <label for="region-selector">Región</label>
-      <select id="region-selector"><option value="">Chile completo</option></select>
+      <select id="country-selector" aria-label="País"><option value="CL">Chile</option></select>
+      <select id="region-selector" aria-label="Región"><option value="">Todas las regiones</option></select>
+      <button id="btn-search" type="button" disabled title="Búsqueda enriquecida próximamente">Buscar</button>
+      <button id="btn-clear" type="button">Limpiar</button>
+      <a class="home-link" href="../index.html">GeoX</a>
       <span id="summary-status" role="status">Cargando masas de agua…</span>
     </nav>
-    <main id="map-wrap">
-      <div id="map" aria-label="Mapa navegable de Chile"></div>
-      <div class="map-toggle" aria-label="Mapa base">
-        <button id="btn-osm" class="active" type="button" aria-pressed="true">OSM</button>
-        <button id="btn-sat" type="button" aria-pressed="false">SAT</button>
-      </div>
+    <main id="main-layout">
+      <aside id="territorial-panel">
+        <h3>Etiquetas</h3>
+        <div class="panel-section" aria-label="Control de etiquetas GeoMA">
+          <label class="panel-layer-toggle is-disabled"><input type="checkbox" disabled> <span>Nombres de masas de agua</span></label>
+          <p class="panel-note">Disponible al incorporar capas_panel.</p>
+        </div>
+      </aside>
+      <section id="map-container">
+        <div id="search-box-wrapper"><input id="search-box" type="search" placeholder="Buscar masa de agua, comuna o territorio..." autocomplete="off" disabled aria-label="Búsqueda próximamente"></div>
+        <div id="map" aria-label="Mapa navegable de Chile"></div>
+        <div class="map-toggle" aria-label="Mapa base">
+          <button id="btn-osm" class="map-toggle-btn active" type="button" aria-pressed="true">OSM</button>
+          <button id="btn-sat" class="map-toggle-btn" type="button" aria-pressed="false">SAT</button>
+        </div>
+        <button id="btn-my-location" type="button" title="Centrar en mi ubicación" aria-label="Mi ubicación">📍</button>
+        <button id="mobile-layer-toggle" class="mobile-layer-toggle" type="button" disabled title="Etiquetas próximamente">Etiquetas</button>
+      </section>
     </main>
+    <footer id="main-footer" aria-label="Acceso cruzado GeoX">
+      <a href="../geoipt/index.html" data-geox-target="../geoipt/index.html">GeoIPT</a><span>·</span>
+      <a href="../geoeva/index.html" data-geox-target="../geoeva/index.html">GeoEVA</a><span>·</span>
+      <a href="../geonemo/index.html" data-geox-target="../geonemo/index.html">GeoNEMO</a><span>·</span>
+      <a href="../geonoxa/index.html" data-geox-target="../geonoxa/index.html">GeoNOXA</a><span>·</span>
+      <a href="index.html" aria-current="page">GeoMA</a>
+    </footer>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="../shared/geox-viewport-resolver.js"></script>
   <script src="js/geoma-summary.js"></script>
   <script src="js/geoma-map.js"></script>
 </body>

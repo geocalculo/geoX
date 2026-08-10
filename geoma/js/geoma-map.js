@@ -7,11 +7,15 @@
     sat: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom: 19, attribution: "Tiles &copy; Esri"})
   };
   let activeLayer = layers.osm.addTo(map);
+  let activeBasemap = "osm";
 
   function selectBasemap(name) {
-    if (layers[name] === activeLayer) return;
-    map.removeLayer(activeLayer);
-    activeLayer = layers[name].addTo(map);
+    if (!layers[name]) name = "osm";
+    if (layers[name] !== activeLayer) {
+      map.removeLayer(activeLayer);
+      activeLayer = layers[name].addTo(map);
+    }
+    activeBasemap = name;
     ["osm", "sat"].forEach((id) => {
       const button = document.getElementById(`btn-${id}`);
       const selected = id === name;
@@ -21,6 +25,41 @@
   }
   document.getElementById("btn-osm").addEventListener("click", () => selectBasemap("osm"));
   document.getElementById("btn-sat").addEventListener("click", () => selectBasemap("sat"));
+  L.control.scale({position: "bottomleft", imperial: false}).addTo(map);
+
+  document.getElementById("btn-my-location").addEventListener("click", () => {
+    map.locate({setView: true, maxZoom: 15, enableHighAccuracy: true});
+  });
+  map.on("locationerror", () => console.warn("GeoMA: no fue posible obtener la ubicación."));
+
+  document.getElementById("btn-clear").addEventListener("click", () => {
+    document.getElementById("region-selector").value = "";
+    map.fitBounds(CHILE_BOUNDS);
+  });
+
+  function applyCrossAccess() {
+    const viewport = window.GeoXViewport?.readCrossAccessViewport(new URLSearchParams(window.location.search));
+    if (!viewport?.isValid) return false;
+    selectBasemap(viewport.basemap);
+    map.setView([viewport.centerLat, viewport.centerLon], viewport.zoom, {animate: false});
+    console.info("GeoMA: viewport Cross Access aplicado.");
+    return true;
+  }
+
+  function updateCrossAccessLinks() {
+    document.querySelectorAll("[data-geox-target]").forEach((link) => {
+      link.addEventListener("click", () => {
+        const center = map.getCenter();
+        const url = new URL(link.getAttribute("data-geox-target"), window.location.href);
+        url.searchParams.set("from", "crossaccess");
+        url.searchParams.set("lat", center.lat.toFixed(6));
+        url.searchParams.set("lon", center.lng.toFixed(6));
+        url.searchParams.set("zoom", String(map.getZoom()));
+        url.searchParams.set("basemap", activeBasemap);
+        link.href = url.href;
+      });
+    });
+  }
 
   async function initRegionSelector() {
     const selector = document.getElementById("region-selector");
@@ -38,6 +77,8 @@
       console.warn("GeoMA: selector regional no disponible", error);
     }
   }
+  applyCrossAccess();
+  updateCrossAccessLinks();
   initRegionSelector();
   GeoMASummary.init(map);
   window.geomaMap = map;
