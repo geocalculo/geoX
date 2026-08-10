@@ -18,16 +18,25 @@
 
   function summarize(viewPoints) {
     const counts = new Map();
+    const areas = new Map();
     let areaSquareMetres = 0;
-    let unclassified = 0;
     viewPoints.forEach((point) => {
       areaSquareMetres += point.areaSquareMetres;
-      if (point.type) counts.set(point.type, (counts.get(point.type) || 0) + 1);
-      else unclassified += 1;
+      if (point.type) {
+        counts.set(point.type, (counts.get(point.type) || 0) + 1);
+        areas.set(point.type, (areas.get(point.type) || 0) + point.areaSquareMetres);
+      }
     });
-    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"));
-    const dominant = ranked[0] || (unclassified ? ["Sin clasificación", unclassified] : [null, 0]);
-    return {visible: viewPoints.length, areaHectares: areaSquareMetres / 10000, dominantType: dominant[0], dominantCount: dominant[1], typesPresent: counts.size};
+    const byCount = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))[0] || [null, 0];
+    const byArea = [...areas.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))[0] || [null, 0];
+    return {
+      visible: viewPoints.length,
+      areaHectares: areaSquareMetres / 10000,
+      dominantCountType: byCount[0],
+      dominantCount: byCount[1],
+      dominantAreaType: byArea[0],
+      dominantAreaHectares: byArea[1] / 10000
+    };
   }
 
   function visibleWithin(bounds) {
@@ -41,10 +50,12 @@
   function render(summary) {
     document.getElementById("kpi-visible").textContent = formatNumber(summary.visible);
     document.getElementById("kpi-area").textContent = `${formatNumber(summary.areaHectares, summary.areaHectares < 100 ? 1 : 0)} ha`;
-    document.getElementById("kpi-dominant").textContent = summary.dominantType || "Sin datos";
-    document.getElementById("kpi-types").textContent = formatNumber(summary.typesPresent);
-    const percentage = summary.visible ? Math.round(summary.dominantCount * 100 / summary.visible) : 0;
-    document.getElementById("kpi-dominant-detail").textContent = summary.dominantType ? `${formatNumber(summary.dominantCount)} · ${percentage} %` : "";
+    document.getElementById("kpi-dominant-count").textContent = summary.dominantCountType || "Sin datos";
+    document.getElementById("kpi-dominant-area").textContent = summary.dominantAreaType || "Sin datos";
+    const countPercentage = summary.visible ? Math.round(summary.dominantCount * 100 / summary.visible) : 0;
+    const areaPercentage = summary.areaHectares ? Math.round(summary.dominantAreaHectares * 100 / summary.areaHectares) : 0;
+    document.getElementById("kpi-dominant-count-detail").textContent = summary.dominantCountType ? `${formatNumber(summary.dominantCount)} · ${countPercentage} %` : "";
+    document.getElementById("kpi-dominant-area-detail").textContent = summary.dominantAreaType ? `${formatNumber(summary.dominantAreaHectares, summary.dominantAreaHectares < 100 ? 1 : 0)} ha · ${areaPercentage} %` : "";
   }
 
   function update(map) {
