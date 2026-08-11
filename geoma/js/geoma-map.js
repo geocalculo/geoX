@@ -81,5 +81,6 @@
   updateCrossAccessLinks();
   initRegionSelector();
   GeoMASummary.init(map);
+  GeoMAPanel.init(map);
   window.geomaMap = map;
 })();

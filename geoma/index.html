@@ -34,8 +34,8 @@
       <aside id="territorial-panel">
         <h3>Etiquetas</h3>
         <div class="panel-section" aria-label="Control de etiquetas GeoMA">
-          <label class="panel-layer-toggle is-disabled"><input type="checkbox" disabled> <span>Nombres de masas de agua</span></label>
-          <p class="panel-note">Disponible al incorporar capas_panel.</p>
+          <label class="panel-layer-toggle is-disabled"><input id="panel-labels-toggle" type="checkbox" disabled> <span>Nombres de masas de agua</span></label>
+          <p class="panel-note">Los polígonos permanecen visibles; este control muestra u oculta solo sus nombres.</p>
         </div>
       </aside>
       <section id="map-container">
@@ -46,7 +46,7 @@
           <button id="btn-sat" class="map-toggle-btn" type="button" aria-pressed="false">SAT</button>
         </div>
         <button id="btn-my-location" type="button" title="Centrar en mi ubicación" aria-label="Mi ubicación">📍</button>
-        <button id="mobile-layer-toggle" class="mobile-layer-toggle" type="button" disabled title="Etiquetas próximamente">Etiquetas</button>
+        <button id="mobile-layer-toggle" class="mobile-layer-toggle" type="button" disabled aria-pressed="false" title="Mostrar u ocultar nombres">Etiquetas</button>
       </section>
     </main>
     <footer id="main-footer" aria-label="Acceso cruzado GeoX">
@@ -60,6 +60,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="../shared/geox-viewport-resolver.js"></script>
   <script src="js/geoma-summary.js"></script>
+  <script src="js/geoma-panel.js"></script>
   <script src="js/geoma-map.js"></script>
 </body>
 </html>
