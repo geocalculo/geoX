@@ -12,6 +12,10 @@ assert.equal(GeoMAPanel.intersects({west: -71, south: -22, east: -68, north: -18
 assert.equal(GeoMAPanel.intersects({west: -71, south: -22, east: -68, north: -18}, [-75, -50, -72, -44]), false);
 assert.equal(GeoMAPanel.validName('  Lago Azul '), 'Lago Azul');
 for (const empty of [null, undefined, '', '  ', 'NULL', 'undefined']) assert.equal(GeoMAPanel.validName(empty), null);
+assert.equal(GeoMAPanel.featureLabel({properties: {Nombre: ' Lago Llanquihue ', Tipo: 'Lago', Comuna: 'Puerto Varas'}}), 'Lago Llanquihue');
+assert.equal(GeoMAPanel.featureLabel({properties: {Nombre: 'NULL', Tipo: ' Laguna ', Comuna: ' Osorno '}}), 'Laguna - Osorno');
+assert.equal(GeoMAPanel.featureLabel({properties: {Nombre: '', Tipo: 'Embalse', Comuna: '  '}}), 'Embalse');
+assert.equal(GeoMAPanel.featureLabel({properties: {Nombre: undefined, Tipo: 'NULL', Comuna: 'Castro'}}), null);
 
 const catalog = JSON.parse(fs.readFileSync('capas_panel/catalogo_geoma.json', 'utf8'));
 let viewport = {west: -70.4, south: -21.7, east: -68.3, north: -18.7};

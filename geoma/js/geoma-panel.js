@@ -20,6 +20,16 @@
     return name && name.toLowerCase() !== "null" && name.toLowerCase() !== "undefined" ? name : null;
   }
 
+  function featureLabel(feature) {
+    const properties = feature?.properties || {};
+    const name = validName(properties.Nombre);
+    if (name) return name;
+    const type = validName(properties.Tipo);
+    const commune = validName(properties.Comuna);
+    if (type && commune) return `${type} - ${commune}`;
+    return type;
+  }
+
   function createLoader(map, options = {}) {
     const fetchJson = options.fetchJson || (async (path) => {
       const url = new URL(path, document.baseURI).href;
@@ -37,9 +47,9 @@
     let labelsVisible = false;
 
     function setFeatureLabel(layer, feature, enabled) {
-      const name = validName(feature?.properties?.Nombre);
-      if (!name) return;
-      if (enabled) layer.bindTooltip(name, {sticky: true, direction: "top", opacity: 0.92});
+      const label = featureLabel(feature);
+      if (!label) return;
+      if (enabled) layer.bindTooltip(label, {sticky: true, direction: "top", opacity: 0.92});
       else layer.unbindTooltip();
     }
 
@@ -138,5 +148,5 @@
     return loader;
   }
 
-  global.GeoMAPanel = {createLoader, init, intersects, validName, PANEL_STYLE, MIN_DETAIL_ZOOM};
+  global.GeoMAPanel = {createLoader, init, intersects, validName, featureLabel, PANEL_STYLE, MIN_DETAIL_ZOOM};
 })(window);
