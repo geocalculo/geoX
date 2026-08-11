@@ -79,7 +79,8 @@
   function normalizeConfiguredViewport(rawConfig) {
     if (rawConfig?.initialViewport) {
       const initial = rawConfig.initialViewport;
-      return { center: initial.center, scaleDenominator: Number(String(initial.referenceScale || "").replace(/[^0-9]/g, "")) || initial.scaleDenominator, fallbackZoom: initial.zoom ?? initial.fallbackZoom, zoom: initial.zoom, basemap: initial.basemap };
+      const referenceDenominator = String(initial.referenceScale || "").split(":").pop().replace(/[^0-9]/g, "");
+      return { center: initial.center, scaleDenominator: Number(referenceDenominator) || initial.scaleDenominator, fallbackZoom: initial.zoom ?? initial.fallbackZoom, zoom: initial.zoom, basemap: initial.basemap };
     }
     return rawConfig?.defaultViewport;
   }

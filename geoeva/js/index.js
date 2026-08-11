@@ -1408,7 +1408,12 @@ async function initializeAntofagastaRegion() {
     selectedValue: regionSelector.value
   });
 
-  await moverViewportPorRegion(option.value, { source: "initialization" });
+  const initialViewport = GeoXViewport.buildDefaultViewport(SITE_ID, window.geoxSiteConfig);
+  map.setView(
+    [initialViewport.center.lat, initialViewport.center.lon],
+    initialViewport.zoom,
+    { animate: false }
+  );
   return true;
 }
 
@@ -1432,7 +1437,12 @@ async function initializeGeoEVARegionalViewport() {
   applyBasemap("osm");
   const selected = await initializeAntofagastaRegion();
   map.__geoxInitialViewportApplied = selected;
-  map.__geoxInitialViewport = { source: "initial-region", region: "Región de Antofagasta", basemap: "osm" };
+  map.__geoxInitialViewport = {
+    source: "initial-region",
+    region: "Región de Antofagasta",
+    scaleDenominator: window.geoxSiteConfig.defaultViewport.scaleDenominator,
+    basemap: "osm"
+  };
   return selected;
 }
 

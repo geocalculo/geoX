@@ -6,13 +6,13 @@
       "lat": -23.6509,
       "lon": -70.3975
     },
-    "scaleDenominator": 50000,
-    "fallbackZoom": 13.5,
+    "scaleDenominator": 100000,
+    "fallbackZoom": 12.5,
     "basemap": "osm"
   },
   "locationViewport": {
-    "scaleDenominator": 50000,
-    "fallbackZoom": 13.5,
+    "scaleDenominator": 100000,
+    "fallbackZoom": 12.5,
     "basemap": "osm"
   },
   "zoomLimits": {
@@ -25,8 +25,8 @@
       "lat": -23.6509,
       "lon": -70.3975
     },
-    "zoom": 13.5,
-    "referenceScale": "1:50.000",
+    "zoom": 12.5,
+    "referenceScale": "1:100.000",
     "basemap": "osm"
   }
 }
