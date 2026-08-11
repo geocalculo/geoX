@@ -26,6 +26,7 @@ const map = {
 };
 const requests = [];
 const featureLayers = [];
+const geoJsonSettings = [];
 const loader = GeoMAPanel.createLoader(map, {
   fetchJson: async (path) => {
     requests.push(path);
@@ -33,6 +34,7 @@ const loader = GeoMAPanel.createLoader(map, {
     return JSON.parse(fs.readFileSync(decodeURIComponent(path), 'utf8'));
   },
   createGeoJson(data, options) {
+    geoJsonSettings.push(options);
     const child = {
       feature: data.features.find((feature) => GeoMAPanel.validName(feature.properties?.Nombre)) || data.features[0], bound: false,
       bindTooltip() { this.bound = true; },
@@ -59,6 +61,8 @@ const loader = GeoMAPanel.createLoader(map, {
   await Promise.all(loader.loading.values());
   assert.equal(loader.loaded.has('atacama'), true);
   assert.equal(loader.loaded.has('coquimbo'), true, 'el límite regional debe requerir ambas capas');
+  assert(geoJsonSettings.every((settings) => typeof settings.coordsToLatLng === 'function'), 'las capas EPSG:3857 deben reproyectarse');
+  assert(geoJsonSettings.every((settings) => settings.pane === 'overlayPane'), 'las capas deben dibujarse sobre el mapa base');
   const afterBoundary = requests.length;
   viewport = {west: -75.7, south: -49.4, east: -71.2, north: -43.7};
   loader.evaluate();
