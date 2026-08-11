@@ -27,7 +27,7 @@
     const type = validName(properties.Tipo);
     const commune = validName(properties.Comuna);
     if (type && commune) return `${type} - ${commune}`;
-    return type;
+    return type || null;
   }
 
   function createLoader(map, options = {}) {
@@ -47,9 +47,19 @@
     let labelsVisible = false;
 
     function setFeatureLabel(layer, feature, enabled) {
-      const label = featureLabel(feature);
+      const rawLabel = featureLabel(feature);
+      const label = global.GeoXLabelFormatter
+        ? global.GeoXLabelFormatter.formatLabelText("geoma", "water_bodies", rawLabel)
+        : rawLabel;
       if (!label) return;
-      if (enabled) layer.bindTooltip(label, {sticky: true, direction: "top", opacity: 0.92});
+      if (enabled) {
+        layer.bindTooltip(label, {
+          permanent: true,
+          direction: "center",
+          className: "geoma-panel-label",
+          opacity: 1
+        });
+      }
       else layer.unbindTooltip();
     }
 

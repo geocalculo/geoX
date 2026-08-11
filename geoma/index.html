@@ -6,6 +6,7 @@
   <title>GeoMA | Masas de Aguas Continentales</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="../shared/geox-label-controls.css">
 </head>
 <body>
   <div id="app">
@@ -32,10 +33,9 @@
     </nav>
     <main id="main-layout">
       <aside id="territorial-panel">
-        <h3>Etiquetas</h3>
-        <div class="panel-section" aria-label="Control de etiquetas GeoMA">
+        <h3 id="panel-title">Etiquetas</h3>
+        <div class="panel-section panel-layer-controls" aria-label="Control de etiquetas GeoMA">
           <label class="panel-layer-toggle is-disabled"><input id="panel-labels-toggle" type="checkbox" disabled> <span>Nombres de masas de agua</span></label>
-          <p class="panel-note">Los polígonos permanecen visibles; este control muestra u oculta solo sus nombres.</p>
         </div>
       </aside>
       <section id="map-container">
@@ -59,6 +59,7 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="../shared/geox-viewport-resolver.js"></script>
+  <script src="../shared/geox-label-format.js"></script>
   <script src="js/geoma-summary.js"></script>
   <script src="js/geoma-panel.js"></script>
   <script src="js/geoma-map.js"></script>

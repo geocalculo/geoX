@@ -1,4 +1,4 @@
-/* GeoX shared label-control standard for GeoIPT, GeoNOXA, GeoEVA and GeoNEMO. */
+/* GeoX shared label-control standard for GeoIPT, GeoNOXA, GeoEVA, GeoNEMO and GeoMA. */
 :root {
   --geox-label-font-size: 15.118px;
 }
@@ -94,7 +94,8 @@ body,
 
 .noxa-panel-label,
 .eva-project-label,
-.geonemo-panel-label {
+.geonemo-panel-label,
+.geoma-panel-label {
   width: auto !important;
   height: auto !important;
   background: transparent !important;
@@ -110,7 +111,8 @@ body,
 
 .noxa-panel-label::before,
 .eva-project-label::before,
-.geonemo-panel-label::before {
+.geonemo-panel-label::before,
+.geoma-panel-label::before {
   display: none !important;
 }
 

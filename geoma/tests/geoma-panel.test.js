@@ -3,7 +3,14 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const code = fs.readFileSync('js/geoma-panel.js', 'utf8');
-const context = {console, window: null, Map, Number, String};
+const context = {
+  console,
+  window: null,
+  Map,
+  Number,
+  String,
+  GeoXLabelFormatter: {formatLabelText: (_siteId, _layerId, text) => text == null ? '' : String(text).trim().replace(/\s+/g, ' ')}
+};
 context.window = context;
 vm.runInNewContext(code, context);
 const {GeoMAPanel} = context;
@@ -31,6 +38,7 @@ const map = {
 const requests = [];
 const featureLayers = [];
 const geoJsonSettings = [];
+const tooltipSettings = [];
 const loader = GeoMAPanel.createLoader(map, {
   fetchJson: async (path) => {
     requests.push(path);
@@ -41,7 +49,7 @@ const loader = GeoMAPanel.createLoader(map, {
     geoJsonSettings.push(options);
     const child = {
       feature: data.features.find((feature) => GeoMAPanel.validName(feature.properties?.Nombre)) || data.features[0], bound: false,
-      bindTooltip() { this.bound = true; },
+      bindTooltip(_label, settings) { this.bound = true; tooltipSettings.push(settings); },
       unbindTooltip() { this.bound = false; }
     };
     options.onEachFeature(child.feature, child);
@@ -81,6 +89,8 @@ const loader = GeoMAPanel.createLoader(map, {
 
   loader.setLabels(true);
   assert(featureLayers.every((layer) => layer.bound));
+  assert(tooltipSettings.every((settings) => settings.permanent === true));
+  assert(tooltipSettings.every((settings) => settings.className === 'geoma-panel-label'));
   loader.setLabels(false);
   assert(featureLayers.every((layer) => !layer.bound));
   assert.equal(loader.loaded.size > 0, true, 'ocultar etiquetas no elimina polígonos');
