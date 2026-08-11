@@ -22,8 +22,10 @@
 
   function createLoader(map, options = {}) {
     const fetchJson = options.fetchJson || (async (path) => {
+      const url = new URL(path, document.baseURI).href;
       const response = await fetch(path);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      console.info(`[GeoMA panel] fetch: ${url} HTTP ${response.status}`);
+      if (!response.ok) throw new Error(`${url} respondió HTTP ${response.status}`);
       return response.json();
     });
     const createGeoJson = options.createGeoJson || ((data, settings) => L.geoJSON(data, settings));
@@ -31,6 +33,7 @@
     const loaded = new Map();
     const loading = new Map();
     let catalog = [];
+    let catalogCrs = "EPSG:4326";
     let labelsVisible = false;
 
     function setFeatureLabel(layer, feature, enabled) {
@@ -51,11 +54,25 @@
       console.info(`[GeoMA panel] cargando: ${entry.file}`);
       const request = fetchJson(PANEL_PATH + encodeURIComponent(entry.file))
         .then((geojson) => {
-          const leafletLayer = createGeoJson(geojson, {
+          const geometryTypes = [...new Set((geojson.features || []).map((feature) => feature.geometry?.type).filter(Boolean))];
+          console.info(`[GeoMA panel] GeoJSON ${entry.id}: type=${geojson.type}; features=${geojson.features?.length || 0}; geometrías=${geometryTypes.join(" / ") || "ninguna"}`);
+          const settings = {
             renderer,
+            pane: "overlayPane",
             style: PANEL_STYLE,
             onEachFeature(feature, layer) { setFeatureLabel(layer, feature, labelsVisible); }
-          }).addTo(map);
+          };
+          // The panel files are Web Mercator, while GeoJSON normally uses lon/lat.
+          // Leaflet otherwise interprets metre coordinates as degrees and creates
+          // paths far outside the visible world.
+          if (catalogCrs === "EPSG:3857") {
+            settings.coordsToLatLng = (coordinates) => global.L.CRS.EPSG3857.unproject(global.L.point(coordinates));
+          }
+          const leafletLayer = createGeoJson(geojson, settings);
+          const layerCount = typeof leafletLayer.getLayers === "function" ? leafletLayer.getLayers().length : geojson.features?.length || 0;
+          console.info(`[GeoMA panel] L.geoJSON ${entry.id}: ${layerCount} layers; pane=overlayPane`);
+          leafletLayer.addTo(map);
+          console.info(`[GeoMA panel] addTo(map): ${entry.id} confirmado`);
           const result = {entry, leafletLayer, featureCount: geojson.features?.length || 0};
           loaded.set(entry.id, result);
           console.info(`[GeoMA panel] cargada: ${entry.region} (${result.featureCount} features)`);
@@ -76,18 +93,20 @@
       if (map.getZoom() < MIN_DETAIL_ZOOM) return [];
       const bounds = map.getBounds().pad(VIEWPORT_PADDING);
       const viewport = {west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth()};
+      console.info(`[GeoMA panel] viewport: west=${viewport.west}; south=${viewport.south}; east=${viewport.east}; north=${viewport.north}`);
       return catalog.filter((entry) => intersects(viewport, entry.bbox));
     }
 
     function evaluate() {
       const required = requiredForViewport();
-      console.info(`[GeoMA panel] viewport requiere: ${required.map((entry) => entry.region).join(", ") || "ninguna (vista nacional)"}`);
+      console.info(`[GeoMA panel] required: ${required.map((entry) => entry.id).join(", ") || "ninguna (vista nacional)"}`);
       required.forEach(loadLayer);
       return required;
     }
 
     async function init() {
       const data = await fetchJson(CATALOG_PATH);
+      catalogCrs = data.geojson_crs || data.crs || "EPSG:4326";
       catalog = Array.isArray(data.layers) ? data.layers.filter((entry) => entry.enabled === true) : [];
       console.info(`[GeoMA panel] catálogo cargado: ${catalog.length} capas`);
       map.on("moveend", evaluate);

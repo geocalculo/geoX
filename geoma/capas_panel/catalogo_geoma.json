@@ -2,6 +2,7 @@
   "version": 1,
   "dataset": "GeoMA - Masas de aguas continentales",
   "crs": "EPSG:4326",
+  "geojson_crs": "EPSG:3857",
   "bbox_order": [
     "west",
     "south",
