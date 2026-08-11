@@ -1,6 +1,8 @@
 (function () {
   "use strict";
   const CHILE_BOUNDS = [[-56.1, -76.5], [-17.4, -66.2]];
+  const DEFAULT_REGION_ID = "LA";
+  const DEFAULT_REGION_ZOOM = 7; // Escala de referencia cercana a 1:500.000.
   const map = L.map("map", {zoomControl: true, minZoom: 3}).fitBounds(CHILE_BOUNDS);
   const layers = {
     osm: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"}),
@@ -72,12 +74,19 @@
         if (selector.value === "") map.fitBounds(CHILE_BOUNDS);
         else map.fitBounds(regions[Number(selector.value)].bbox);
       });
+      if (!hasCrossAccessViewport) {
+        const defaultRegionIndex = regions.findIndex((region) => region.id === DEFAULT_REGION_ID);
+        if (defaultRegionIndex >= 0) {
+          selector.value = String(defaultRegionIndex);
+          map.setView(regions[defaultRegionIndex].centro, DEFAULT_REGION_ZOOM, {animate: false});
+        }
+      }
     } catch (error) {
       selector.disabled = true;
       console.warn("GeoMA: selector regional no disponible", error);
     }
   }
-  applyCrossAccess();
+  const hasCrossAccessViewport = applyCrossAccess();
   updateCrossAccessLinks();
   initRegionSelector();
   GeoMASummary.init(map);
