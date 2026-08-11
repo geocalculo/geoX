@@ -28,12 +28,21 @@ const catalog = JSON.parse(fs.readFileSync('capas_panel/catalogo_geoma.json', 'u
 let viewport = {west: -70.4, south: -21.7, east: -68.3, north: -18.7};
 let zoom = 7;
 const listeners = {};
+const viewportBounds = {
+  getWest: () => viewport.west,
+  getSouth: () => viewport.south,
+  getEast: () => viewport.east,
+  getNorth: () => viewport.north,
+  intersects: (featureBounds) => featureBounds.visible,
+  contains: () => false
+};
 const map = {
   getZoom: () => zoom,
   getBounds: () => ({
-    pad: () => ({getWest: () => viewport.west, getSouth: () => viewport.south, getEast: () => viewport.east, getNorth: () => viewport.north})
+    ...viewportBounds,
+    pad: () => viewportBounds
   }),
-  on: (event, callback) => { listeners[event] = callback; }
+  on: (events, callback) => { events.split(' ').forEach((event) => { listeners[event] = callback; }); }
 };
 const requests = [];
 const featureLayers = [];
@@ -48,8 +57,9 @@ const loader = GeoMAPanel.createLoader(map, {
   createGeoJson(data, options) {
     geoJsonSettings.push(options);
     const child = {
-      feature: data.features.find((feature) => GeoMAPanel.validName(feature.properties?.Nombre)) || data.features[0], bound: false,
-      bindTooltip(_label, settings) { this.bound = true; tooltipSettings.push(settings); },
+      feature: data.features.find((feature) => GeoMAPanel.validName(feature.properties?.Nombre)) || data.features[0], bound: false, visible: false, binds: 0,
+      getBounds() { return {visible: this.visible, isValid: () => true}; },
+      bindTooltip(_label, settings) { this.bound = true; this.binds += 1; tooltipSettings.push(settings); },
       unbindTooltip() { this.bound = false; }
     };
     options.onEachFeature(child.feature, child);
@@ -87,16 +97,33 @@ const loader = GeoMAPanel.createLoader(map, {
   assert.equal(requests.filter((path) => decodeURIComponent(path).includes('Atacama.geojson')).length, 1, 'Atacama no debe descargarse otra vez');
   assert.equal(initialFiles.length >= tarapacaRequests, true);
 
+  assert(featureLayers.every((layer) => !layer.bound), 'cargar polígonos no debe crear etiquetas');
+  featureLayers[0].visible = true;
+  zoom = GeoMAPanel.MIN_LABEL_ZOOM - 1;
   loader.setLabels(true);
-  assert(featureLayers.every((layer) => layer.bound));
+  assert(featureLayers.every((layer) => !layer.bound), 'el checkbox queda activo sin etiquetas bajo el zoom mínimo');
+
+  zoom = GeoMAPanel.MIN_LABEL_ZOOM;
+  loader.refreshLabels();
+  assert.equal(featureLayers[0].bound, true, 'la feature visible debe rotularse al alcanzar el zoom mínimo');
+  assert(featureLayers.slice(1).every((layer) => !layer.bound), 'las features fuera del viewport no deben rotularse');
+  loader.refreshLabels();
+  assert.equal(featureLayers[0].binds, 1, 'una etiqueta activa no debe volver a crearse');
   assert(tooltipSettings.every((settings) => settings.permanent === true));
   assert(tooltipSettings.every((settings) => settings.className === 'geoma-panel-label'));
+
+  featureLayers[0].visible = false;
+  featureLayers[1].visible = true;
+  listeners.moveend();
+  assert.equal(featureLayers[0].bound, false, 'la etiqueta que sale del viewport debe retirarse');
+  assert.equal(featureLayers[1].bound, true, 'moveend debe rotular la nueva feature visible');
+
   loader.setLabels(false);
   assert(featureLayers.every((layer) => !layer.bound));
   assert.equal(loader.loaded.size > 0, true, 'ocultar etiquetas no elimina polígonos');
 
   zoom = 4;
   assert.equal(loader.requiredForViewport().length, 0, 'la vista nacional no debe descargar las 16 capas');
-  assert.deepEqual(Object.keys(listeners), ['moveend']);
+  assert.deepEqual(Object.keys(listeners), ['moveend', 'zoomend']);
   console.log('GeoMA panel tests passed: viewport, límite, Aysén, caché y etiquetas');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
