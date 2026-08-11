@@ -5,6 +5,7 @@
   const PANEL_PATH = "capas_panel/";
   const VIEWPORT_PADDING = 0.10;
   const MIN_DETAIL_ZOOM = 5;
+  const MIN_LABEL_ZOOM = 8;
   const PANEL_STYLE = {color: "#078ca0", weight: 1.4, opacity: 0.9, fillColor: "#55cbd5", fillOpacity: 0.38};
 
   function intersects(viewport, bbox) {
@@ -45,27 +46,64 @@
     let catalog = [];
     let catalogCrs = "EPSG:4326";
     let labelsVisible = false;
+    const activeLabels = new Set();
 
-    function setFeatureLabel(layer, feature, enabled) {
+    function labelText(feature) {
       const rawLabel = featureLabel(feature);
-      const label = global.GeoXLabelFormatter
+      return global.GeoXLabelFormatter
         ? global.GeoXLabelFormatter.formatLabelText("geoma", "water_bodies", rawLabel)
         : rawLabel;
-      if (!label) return;
-      if (enabled) {
+    }
+
+    function removeLabel(layer) {
+      if (!activeLabels.has(layer)) return;
+      layer.unbindTooltip();
+      activeLabels.delete(layer);
+    }
+
+    function featureIntersectsViewport(layer, bounds) {
+      if (typeof layer.getBounds === "function") {
+        const featureBounds = layer.getBounds();
+        return Boolean(featureBounds?.isValid?.() !== false && bounds.intersects(featureBounds));
+      }
+      return typeof layer.getLatLng === "function" && bounds.contains(layer.getLatLng());
+    }
+
+    function refreshLabels() {
+      if (!labelsVisible || map.getZoom() < MIN_LABEL_ZOOM) {
+        [...activeLabels].forEach(removeLabel);
+        console.info("[GeoMA labels] visibles: 0");
+        console.info("[GeoMA labels] renderizadas: 0");
+        return 0;
+      }
+
+      const bounds = map.getBounds();
+      const visibleLayers = new Set();
+      loaded.forEach(({leafletLayer}) => leafletLayer.eachLayer((layer) => {
+        if (!featureIntersectsViewport(layer, bounds)) return;
+        const label = labelText(layer.feature);
+        if (!label) return;
+        visibleLayers.add(layer);
+        if (activeLabels.has(layer)) return;
         layer.bindTooltip(label, {
           permanent: true,
           direction: "center",
           className: "geoma-panel-label",
           opacity: 1
         });
-      }
-      else layer.unbindTooltip();
+        activeLabels.add(layer);
+      }));
+      [...activeLabels].forEach((layer) => {
+        if (!visibleLayers.has(layer)) removeLabel(layer);
+      });
+      console.info(`[GeoMA labels] visibles: ${visibleLayers.size}`);
+      console.info(`[GeoMA labels] renderizadas: ${activeLabels.size}`);
+      return activeLabels.size;
     }
 
     function setLabels(visible) {
       labelsVisible = Boolean(visible);
-      loaded.forEach(({leafletLayer}) => leafletLayer.eachLayer((layer) => setFeatureLabel(layer, layer.feature, labelsVisible)));
+      return refreshLabels();
     }
 
     async function loadLayer(entry) {
@@ -80,7 +118,9 @@
             renderer,
             pane: "overlayPane",
             style: PANEL_STYLE,
-            onEachFeature(feature, layer) { setFeatureLabel(layer, feature, labelsVisible); }
+            // Labels are created lazily by refreshLabels only for features in
+            // the current viewport; loading polygons never creates tooltips.
+            onEachFeature() {}
           };
           // The panel files are Web Mercator, while GeoJSON normally uses lon/lat.
           // Leaflet otherwise interprets metre coordinates as degrees and creates
@@ -96,6 +136,7 @@
           const result = {entry, leafletLayer, featureCount: geojson.features?.length || 0};
           loaded.set(entry.id, result);
           console.info(`[GeoMA panel] cargada: ${entry.region} (${result.featureCount} features)`);
+          if (labelsVisible) refreshLabels();
           return result;
         })
         .catch((error) => {
@@ -121,6 +162,7 @@
       const required = requiredForViewport();
       console.info(`[GeoMA panel] required: ${required.map((entry) => entry.id).join(", ") || "ninguna (vista nacional)"}`);
       required.forEach(loadLayer);
+      refreshLabels();
       return required;
     }
 
@@ -129,12 +171,12 @@
       catalogCrs = data.geojson_crs || data.crs || "EPSG:4326";
       catalog = Array.isArray(data.layers) ? data.layers.filter((entry) => entry.enabled === true) : [];
       console.info(`[GeoMA panel] catálogo cargado: ${catalog.length} capas`);
-      map.on("moveend", evaluate);
+      map.on("moveend zoomend", evaluate);
       evaluate();
       return catalog;
     }
 
-    return {init, evaluate, setLabels, loadLayer, requiredForViewport, loaded, loading};
+    return {init, evaluate, setLabels, refreshLabels, loadLayer, requiredForViewport, loaded, loading, activeLabels};
   }
 
   function init(map) {
@@ -158,5 +200,5 @@
     return loader;
   }
 
-  global.GeoMAPanel = {createLoader, init, intersects, validName, featureLabel, PANEL_STYLE, MIN_DETAIL_ZOOM};
+  global.GeoMAPanel = {createLoader, init, intersects, validName, featureLabel, PANEL_STYLE, MIN_DETAIL_ZOOM, MIN_LABEL_ZOOM};
 })(window);
