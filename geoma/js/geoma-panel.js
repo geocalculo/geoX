@@ -209,14 +209,32 @@
     return {init, evaluate, setLabels, refreshLabels, loadLayer, requiredForViewport, loaded, loading, activeLabels};
   }
 
+  // Keep the mobile control aligned with GeoEVA's shared eye/eye-off pattern.
+  function getMobileLabelEyeIcon(isVisible) {
+    if (isVisible) {
+      return `<svg class="mobile-layer-toggle-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.9"/></svg>`;
+    }
+    return `<svg class="mobile-layer-toggle-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M2.5 12s3.5-6 9.5-6c2.1 0 3.9.72 5.36 1.7M21.5 12s-3.5 6-9.5 6c-2.1 0-3.9-.72-5.36-1.7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.8 9.8A3 3 0 0 1 14.2 14.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>`;
+  }
+
+  function syncMobileLabelToggle(mobileButton, labelsVisible) {
+    mobileButton.classList.toggle("is-active", labelsVisible);
+    mobileButton.classList.toggle("is-inactive", !labelsVisible);
+    mobileButton.setAttribute("aria-pressed", String(labelsVisible));
+    const label = `${labelsVisible ? "Ocultar" : "Mostrar"} etiquetas GeoMA`;
+    mobileButton.setAttribute("aria-label", label);
+    mobileButton.setAttribute("title", label);
+    const icon = mobileButton.querySelector(".mobile-layer-toggle-icon");
+    if (icon) icon.innerHTML = getMobileLabelEyeIcon(labelsVisible);
+  }
+
   function init(map) {
     const checkbox = document.getElementById("panel-labels-toggle");
     const mobileButton = document.getElementById("mobile-layer-toggle");
     const loader = createLoader(map);
     checkbox.addEventListener("change", () => {
       loader.setLabels(checkbox.checked);
-      mobileButton.classList.toggle("active", checkbox.checked);
-      mobileButton.setAttribute("aria-pressed", String(checkbox.checked));
+      syncMobileLabelToggle(mobileButton, checkbox.checked);
     });
     mobileButton.addEventListener("click", () => {
       checkbox.checked = !checkbox.checked;
@@ -226,9 +244,10 @@
       checkbox.disabled = false;
       checkbox.closest("label").classList.remove("is-disabled");
       mobileButton.disabled = false;
+      syncMobileLabelToggle(mobileButton, checkbox.checked);
     }).catch((error) => console.warn("[GeoMA panel] catálogo no disponible; los polígonos no se cargarán.", error));
     return loader;
   }
 
-  global.GeoMAPanel = {createLoader, init, intersects, validName, featureLabel, PANEL_STYLE, MIN_DETAIL_ZOOM, MIN_LABEL_ZOOM};
+  global.GeoMAPanel = {createLoader, init, intersects, validName, featureLabel, getMobileLabelEyeIcon, PANEL_STYLE, MIN_DETAIL_ZOOM, MIN_LABEL_ZOOM};
 })(window);

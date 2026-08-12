@@ -23,6 +23,13 @@ assert.equal(GeoMAPanel.featureLabel({properties: {Nombre: ' Lago Llanquihue ', 
 assert.equal(GeoMAPanel.featureLabel({properties: {Nombre: 'NULL', Tipo: ' Laguna ', Comuna: ' Osorno '}}), 'Laguna - Osorno');
 assert.equal(GeoMAPanel.featureLabel({properties: {Nombre: '', Tipo: 'Embalse', Comuna: '  '}}), 'Embalse');
 assert.equal(GeoMAPanel.featureLabel({properties: {Nombre: undefined, Tipo: 'NULL', Comuna: 'Castro'}}), null);
+assert.match(GeoMAPanel.getMobileLabelEyeIcon(true), /<circle cx="12" cy="12" r="3"/);
+assert.match(GeoMAPanel.getMobileLabelEyeIcon(false), /M3 3l18 18/);
+
+const page = fs.readFileSync('index.html', 'utf8');
+assert.match(page, /id="mobile-layer-toggle" class="mobile-layer-toggle is-inactive"/);
+assert.match(page, /class="mobile-layer-toggle-icon"/);
+assert.match(page, /class="mobile-layer-toggle-text">Etiquetas<\/span>/);
 
 const catalog = JSON.parse(fs.readFileSync('capas_panel/catalogo_geoma.json', 'utf8'));
 let viewport = {west: -70.4, south: -21.7, east: -68.3, north: -18.7};
