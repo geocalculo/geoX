@@ -28,17 +28,17 @@
       return response.json();
     });
     const schedule = options.schedule || ((callback) => global.requestIdleCallback ? global.requestIdleCallback(callback, {timeout: 800}) : setTimeout(callback, 0));
-    let fields = {name: "Nombre", type: "Tipo", commune: "Comuna", region: "Region", area: "st_area_sh", diameter: null};
+    let fields = {name: "Nombre", type: "Tipo", commune: "Comuna", region: "Region", province: "Provincia", area: "st_area_sh", diameter: null};
     let catalog = [], items = [], loadingPromise = null, activeIndex = -1, visibleResults = [], highlight = null, highlightTimer = null;
     const property = (props, key) => key ? clean(props[key]) : "";
 
     function makeItem(feature, entry) {
       const props = feature?.properties || {};
       const name = property(props, fields.name), type = property(props, fields.type), commune = property(props, fields.commune);
-      const region = property(props, fields.region) || clean(entry.region), area = property(props, fields.area), diameter = property(props, fields.diameter);
+      const region = property(props, fields.region) || clean(entry.region), province = property(props, fields.province), area = property(props, fields.area), diameter = property(props, fields.diameter);
       const title = name || [type, commune].filter(Boolean).join(" - ") || "Masa de agua sin nombre";
       const primary = [name, type, commune].map(normalize);
-      return {feature, entry, props, title, type, commune, region, area, diameter, primary, searchText: normalize([...primary, region].join(" "))};
+      return {feature, entry, props, title, type, commune, region, province, area, diameter, primary, searchText: normalize([...primary, province, region].join(" "))};
     }
     function find(query) {
       const normalizedQuery = normalize(query);
@@ -127,5 +127,10 @@
     }
     return {init, loadAll, find, render, select, clearResults, clearSearch, geometryBounds, makeItem, get items() { return items; }};
   }
-  global.GeoMASearch = {createSearch, normalize, clean, formatArea, CATALOG_PATH, MAX_RESULTS};
+  function init(map, options) {
+    const search = createSearch(map, options);
+    search.init();
+    return search;
+  }
+  global.GeoMASearch = {createSearch, init, normalize, clean, formatArea, CATALOG_PATH, MAX_RESULTS};
 })(window);

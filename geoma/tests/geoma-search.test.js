@@ -8,6 +8,7 @@ context.window = context;
 vm.runInNewContext(code, context);
 const {GeoMASearch} = context;
 
+assert.equal(typeof GeoMASearch.init, 'function', 'la API usada por geoma-map debe inicializar el autocomplete');
 assert.equal(GeoMASearch.normalize('  Región de ÑUBLE  '), 'region de nuble');
 assert.equal(GeoMASearch.clean('NULL'), '');
 assert.match(GeoMASearch.formatArea(2500000), /2,5 km²/);
@@ -22,7 +23,7 @@ assert(catalog.layers.every((layer) => fs.existsSync(`capas_tosearch/${layer.fil
 
 const fixtures = {type: 'FeatureCollection', features: [
   {type: 'Feature', properties: {Nombre: 'Lago Ranco', Tipo: 'Lago', Comuna: 'Lago Ranco', Region: 'Región de Los Ríos', st_area_sh: 442000000}, geometry: null},
-  {type: 'Feature', properties: {Nombre: 'Laguna Verde', Tipo: 'Laguna', Comuna: 'Osorno', Region: 'Región de Los Lagos', st_area_sh: 50000}, geometry: null},
+  {type: 'Feature', properties: {Nombre: 'Laguna Verde', Tipo: 'Laguna', Comuna: 'San Pablo', Provincia: 'Osorno', Region: 'Región de Los Lagos', st_area_sh: 50000}, geometry: null},
   {type: 'Feature', properties: {Nombre: 'Embalse Colbún', Tipo: 'Embalse', Comuna: 'Colbún', Region: 'Región del Maule'}, geometry: null}
 ]};
 const search = GeoMASearch.createSearch({}, {
