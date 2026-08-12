@@ -1,0 +1,276 @@
+{
+  "version": 1,
+  "dataset": "GeoMA - Catálogo independiente de búsqueda de masas de aguas continentales",
+  "crs": "EPSG:4326",
+  "geojson_crs": "EPSG:3857",
+  "bbox_order": [
+    "west",
+    "south",
+    "east",
+    "north"
+  ],
+  "layer_count": 16,
+  "layers": [
+    {
+      "id": "antofagasta",
+      "region": "Región de Antofagasta",
+      "file": "Region de Antofagasta.geojson",
+      "bbox": [
+        -70.1538539,
+        -25.2081874,
+        -67.1218912,
+        -21.1608064
+      ],
+      "features": 134,
+      "size_kb": 2128.3,
+      "size_mb": 2.08,
+      "enabled": true
+    },
+    {
+      "id": "arica_y_parinacota",
+      "region": "Región de Arica y Parinacota",
+      "file": "Region de Arica y Parinacota.geojson",
+      "bbox": [
+        -69.6944745,
+        -19.0520745,
+        -68.990443,
+        -17.6272961
+      ],
+      "features": 137,
+      "size_kb": 382.6,
+      "size_mb": 0.37,
+      "enabled": true
+    },
+    {
+      "id": "atacama",
+      "region": "Región de Atacama",
+      "file": "Region de Atacama.geojson",
+      "bbox": [
+        -71.204512,
+        -29.1465417,
+        -68.4313485,
+        -25.3415256
+      ],
+      "features": 156,
+      "size_kb": 1477.4,
+      "size_mb": 1.44,
+      "enabled": true
+    },
+    {
+      "id": "aysen_del_gralibanez_del_campo",
+      "region": "Región de Aysén del Gral.Ibañez del Campo",
+      "file": "Region de Aysén del Gral.Ibañez del Campo.geojson",
+      "bbox": [
+        -75.6158008,
+        -49.342332,
+        -71.2329881,
+        -43.7228971
+      ],
+      "features": 6927,
+      "size_kb": 38154.1,
+      "size_mb": 37.26,
+      "enabled": true
+    },
+    {
+      "id": "coquimbo",
+      "region": "Región de Coquimbo",
+      "file": "Region de Coquimbo.geojson",
+      "bbox": [
+        -71.576859,
+        -32.2489612,
+        -69.9083058,
+        -29.4586343
+      ],
+      "features": 171,
+      "size_kb": 645.5,
+      "size_mb": 0.63,
+      "enabled": true
+    },
+    {
+      "id": "la_araucania",
+      "region": "Región de La Araucanía",
+      "file": "Region de La Araucanía.geojson",
+      "bbox": [
+        -73.3969,
+        -39.6036336,
+        -70.9363215,
+        -37.6669644
+      ],
+      "features": 396,
+      "size_kb": 2890.5,
+      "size_mb": 2.82,
+      "enabled": true
+    },
+    {
+      "id": "los_lagos",
+      "region": "Región de Los Lagos",
+      "file": "Region de Los Lagos.geojson",
+      "bbox": [
+        -74.2704021,
+        -43.976796,
+        -71.6453768,
+        -40.3264899
+      ],
+      "features": 818,
+      "size_kb": 6579.3,
+      "size_mb": 6.43,
+      "enabled": true
+    },
+    {
+      "id": "los_rios",
+      "region": "Región de Los Ríos",
+      "file": "Region de Los Ríos.geojson",
+      "bbox": [
+        -73.692084,
+        -40.726004,
+        -71.615356,
+        -39.483699
+      ],
+      "features": 197,
+      "size_kb": 2020.2,
+      "size_mb": 1.97,
+      "enabled": true
+    },
+    {
+      "id": "magallanes_y_antartica_chilena",
+      "region": "Región de Magallanes y Antártica Chilena",
+      "file": "Region de Magallanes y Antártica Chilena.geojson",
+      "bbox": [
+        -75.6398184,
+        -55.9055735,
+        -66.5443431,
+        -48.2601869
+      ],
+      "features": 5968,
+      "size_kb": 29463.8,
+      "size_mb": 28.77,
+      "enabled": true
+    },
+    {
+      "id": "tarapaca",
+      "region": "Región de Tarapacá",
+      "file": "Region de Tarapacá.geojson",
+      "bbox": [
+        -70.1757382,
+        -21.4027639,
+        -68.5046462,
+        -18.9691572
+      ],
+      "features": 66,
+      "size_kb": 1382.7,
+      "size_mb": 1.35,
+      "enabled": true
+    },
+    {
+      "id": "valparaiso",
+      "region": "Región de Valparaíso",
+      "file": "Region de Valparaíso.geojson",
+      "bbox": [
+        -71.75,
+        -33.95,
+        -70.1273503,
+        -31.8
+      ],
+      "features": 478,
+      "size_kb": 1991.4,
+      "size_mb": 1.94,
+      "enabled": true
+    },
+    {
+      "id": "nuble",
+      "region": "Región de Ñuble",
+      "file": "Region de Ñuble.geojson",
+      "bbox": [
+        -72.8527703,
+        -37.1041601,
+        -71.0875849,
+        -36.1621156
+      ],
+      "features": 85,
+      "size_kb": 267.7,
+      "size_mb": 0.26,
+      "enabled": true
+    },
+    {
+      "id": "bio-bio",
+      "region": "Región del Bío-Bío",
+      "file": "Region del Bío-Bío.geojson",
+      "bbox": [
+        -73.6567517,
+        -38.3261398,
+        -71.0762449,
+        -36.7208219
+      ],
+      "features": 187,
+      "size_kb": 2798.6,
+      "size_mb": 2.73,
+      "enabled": true
+    },
+    {
+      "id": "libertador_bernardo_ohiggins",
+      "region": "Región del Libertador Bernardo O'Higgins",
+      "file": "Region del Libertador Bernardo O'Higgins.geojson",
+      "bbox": [
+        -72.0555165,
+        -34.8792113,
+        -70.0659807,
+        -33.8724021
+      ],
+      "features": 217,
+      "size_kb": 2116.7,
+      "size_mb": 2.07,
+      "enabled": true
+    },
+    {
+      "id": "maule",
+      "region": "Región del Maule",
+      "file": "Region del Maule.geojson",
+      "bbox": [
+        -72.617766,
+        -36.4602861,
+        -70.3864208,
+        -34.6841992
+      ],
+      "features": 351,
+      "size_kb": 1809.7,
+      "size_mb": 1.77,
+      "enabled": true
+    },
+    {
+      "id": "metropolitana_de_santiago",
+      "region": "Región Metropolitana de Santiago",
+      "file": "Region Metropolitana de Santiago.geojson",
+      "bbox": [
+        -71.6720242,
+        -34.2294025,
+        -69.8280578,
+        -33.0099331
+      ],
+      "features": 224,
+      "size_kb": 747.1,
+      "size_mb": 0.73,
+      "enabled": true
+    }
+  ],
+  "search_fields": {
+    "name": "Nombre",
+    "type": "Tipo",
+    "commune": "Comuna",
+    "region": "Region",
+    "province": "Provincia",
+    "area": "st_area_sh",
+    "diameter": null
+  },
+  "search_priority": [
+    "Nombre",
+    "Tipo",
+    "Comuna"
+  ],
+  "result_fields": [
+    "Nombre",
+    "Tipo",
+    "Comuna",
+    "Region",
+    "st_area_sh"
+  ]
+}

@@ -26,7 +26,7 @@
     <nav id="control-bar" aria-label="Controles territoriales">
       <select id="country-selector" aria-label="País"><option value="CL">Chile</option></select>
       <select id="region-selector" aria-label="Región"><option value="">Todas las regiones</option></select>
-      <button id="btn-search" type="button" disabled title="Búsqueda enriquecida próximamente">Buscar</button>
+      <button id="btn-search" type="button">Buscar</button>
       <button id="btn-clear" type="button">Limpiar</button>
       <a class="home-link" href="../index.html">GeoX</a>
       <span id="summary-status" role="status">Cargando masas de agua…</span>
@@ -39,7 +39,7 @@
         </div>
       </aside>
       <section id="map-container">
-        <div id="search-box-wrapper"><input id="search-box" type="search" placeholder="Buscar masa de agua, comuna o territorio..." autocomplete="off" disabled aria-label="Búsqueda próximamente"></div>
+        <div id="search-box-wrapper"><input id="search-box" type="search" placeholder="Buscar masa de agua, tipo o comuna..." autocomplete="off" aria-label="Buscar masa de agua, tipo o comuna" aria-controls="search-results" aria-expanded="false"><div id="search-results" role="listbox" hidden></div></div>
         <div id="map" aria-label="Mapa navegable de Chile"></div>
         <div class="map-toggle" aria-label="Mapa base">
           <button id="btn-osm" class="map-toggle-btn active" type="button" aria-pressed="true">OSM</button>
@@ -63,6 +63,7 @@
   <script src="../shared/geox-label-grid.js"></script>
   <script src="js/geoma-summary.js"></script>
   <script src="js/geoma-panel.js"></script>
+  <script src="js/geoma-search.js"></script>
   <script src="js/geoma-map.js"></script>
 </body>
 </html>
