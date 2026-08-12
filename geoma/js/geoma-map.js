@@ -91,5 +91,6 @@
   initRegionSelector();
   GeoMASummary.init(map);
   GeoMAPanel.init(map);
+  GeoMASearch.init(map);
   window.geomaMap = map;
 })();
