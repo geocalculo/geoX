@@ -79,7 +79,7 @@
     return mmToCssPx(labelFontHeightMm);
   }
 
-  function selectFromCell(candidates, maxLabels, center) {
+  function selectFromCell(candidates, maxLabels, center, priorityComparator) {
     if (candidates.length > 0 && maxLabels < 1) maxLabels = 1;
     const byTextCounts = new Map();
     const ordered = candidates
@@ -90,6 +90,10 @@
         distanceToCenter: Math.hypot(candidate.point.x - center.x, candidate.point.y - center.y)
       }))
       .sort((a, b) => {
+        if (priorityComparator) {
+          const priorityOrder = priorityComparator(a, b);
+          if (priorityOrder) return priorityOrder;
+        }
         if (a.distanceToCenter !== b.distanceToCenter) return a.distanceToCenter - b.distanceToCenter;
         return a.stableId.localeCompare(b.stableId, "es");
       });
@@ -172,16 +176,23 @@
       cells[row * GRID_COLUMNS + col].candidates.push({ ...candidate, text, point, originalIndex: candidate.originalIndex ?? index });
     });
 
+    const priorityComparator = typeof options.priorityComparator === "function"
+      ? options.priorityComparator
+      : null;
     const selected = [];
     cells.forEach((cell) => {
       const labelsToShow = cell.candidates.length > 0
         ? Math.max(1, Math.min(cell.candidates.length, cell.maxLabels))
         : 0;
-      cell.selected = selectFromCell(cell.candidates, labelsToShow, cell.center);
+      cell.selected = selectFromCell(cell.candidates, labelsToShow, cell.center, priorityComparator);
       selected.push(...cell.selected.map((candidate) => ({ ...candidate, cellIndex: cell.index })));
     });
 
     selected.sort((a, b) => {
+      if (priorityComparator) {
+        const priorityOrder = priorityComparator(a, b);
+        if (priorityOrder) return priorityOrder;
+      }
       if (a.cellIndex !== b.cellIndex) return a.cellIndex - b.cellIndex;
       if (a.distanceToCenter !== b.distanceToCenter) return a.distanceToCenter - b.distanceToCenter;
       return a.stableId.localeCompare(b.stableId, "es");

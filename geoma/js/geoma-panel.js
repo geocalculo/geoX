@@ -69,6 +69,19 @@
       return typeof layer.getLatLng === "function" && bounds.contains(layer.getLatLng());
     }
 
+    function labelAnchor(layer, bounds) {
+      if (typeof layer.getCenter === "function") return layer.getCenter();
+      const featureBounds = typeof layer.getBounds === "function" ? layer.getBounds() : null;
+      if (typeof featureBounds?.getCenter === "function") return featureBounds.getCenter();
+      if (typeof layer.getLatLng === "function") return layer.getLatLng();
+      return typeof bounds.getCenter === "function" ? bounds.getCenter() : {lat: 0, lng: 0};
+    }
+
+    function featureArea(layer) {
+      const area = Number(layer.feature?.properties?.st_area_sh);
+      return Number.isFinite(area) ? area : 0;
+    }
+
     function refreshLabels() {
       if (!labelsVisible || map.getZoom() < MIN_LABEL_ZOOM) {
         [...activeLabels].forEach(removeLabel);
@@ -78,25 +91,42 @@
       }
 
       const bounds = map.getBounds();
-      const visibleLayers = new Set();
+      const candidates = [];
       loaded.forEach(({leafletLayer}) => leafletLayer.eachLayer((layer) => {
         if (!featureIntersectsViewport(layer, bounds)) return;
         const label = labelText(layer.feature);
         if (!label) return;
-        visibleLayers.add(layer);
+        candidates.push({
+          layer,
+          latlng: labelAnchor(layer, bounds),
+          text: label,
+          area: featureArea(layer),
+          id: layer.feature?.properties?.objectid ?? label
+        });
+      }));
+      candidates.sort((a, b) => b.area - a.area || String(a.id).localeCompare(String(b.id), "es"));
+
+      const acceptedCandidates = global.GeoXLabelGrid?.selectLabels
+        ? global.GeoXLabelGrid.selectLabels(map, candidates, {
+          priorityComparator: (a, b) => b.area - a.area || a.originalIndex - b.originalIndex
+        })
+        : candidates;
+      const acceptedLayers = new Set(acceptedCandidates.map((candidate) => candidate.layer));
+
+      [...activeLabels].forEach((layer) => {
+        if (!acceptedLayers.has(layer)) removeLabel(layer);
+      });
+      acceptedCandidates.forEach(({layer, text}) => {
         if (activeLabels.has(layer)) return;
-        layer.bindTooltip(label, {
+        layer.bindTooltip(text, {
           permanent: true,
           direction: "center",
           className: "geoma-panel-label",
           opacity: 1
         });
         activeLabels.add(layer);
-      }));
-      [...activeLabels].forEach((layer) => {
-        if (!visibleLayers.has(layer)) removeLabel(layer);
       });
-      console.info(`[GeoMA labels] visibles: ${visibleLayers.size}`);
+      console.info(`[GeoMA labels] visibles: ${candidates.length}`);
       console.info(`[GeoMA labels] renderizadas: ${activeLabels.size}`);
       return activeLabels.size;
     }
