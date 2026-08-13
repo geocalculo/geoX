@@ -20,6 +20,13 @@
 
     <nav class="top-actions" aria-label="Acciones GeoQuery">
       <a id="back-link" class="back-button" href="../index.html">← Volver a GeoMA</a>
+      <fieldset class="nearest-selector" aria-label="Cantidad de masas de agua a analizar">
+        <legend>Masas más cercanas</legend>
+        <label><input type="radio" name="nearest-limit" value="5" checked><span>5</span></label>
+        <label><input type="radio" name="nearest-limit" value="10"><span>10</span></label>
+        <label><input type="radio" name="nearest-limit" value="20"><span>20</span></label>
+      </fieldset>
+      <button id="fit-set-button" class="fit-set-button" type="button">◎ Ver conjunto</button>
     </nav>
 
     <main class="content geoquery-analysis">
@@ -34,7 +41,7 @@
         <article class="panel visual-panel" aria-labelledby="map-title">
           <div class="panel-header">
             <h2 id="map-title">Masas de agua más cercanas</h2>
-            <p>El mapa encuadra el punto consultado y las cinco masas de agua con menor distancia al borde.</p>
+            <p id="map-description">El mapa encuadra el punto consultado y las 5 masas de agua con menor distancia al borde.</p>
           </div>
           <div class="map-wrap">
             <div id="geoquery-map" aria-label="Mapa de masas de agua cercanas"></div>
@@ -51,29 +58,22 @@
             <h2 id="list-title">5 más cercanas</h2>
             <p>Listado ordenado de menor a mayor distancia.</p>
           </div>
-          <div id="nearest-list" class="nearest-list" aria-live="polite">
-            <p class="placeholder-text">Cargando masas de agua…</p>
-          </div>
+          <div id="nearest-list" class="nearest-list" aria-live="polite"><p class="placeholder-text">Cargando masas de agua…</p></div>
         </article>
       </section>
 
       <section class="panel point-panel geoquery-section" aria-labelledby="point-title">
-        <div class="panel-header">
-          <h2 id="point-title">Punto consultado</h2>
-          <p>Información de referencia del punto utilizado para esta consulta.</p>
-        </div>
+        <div class="panel-header"><h2 id="point-title">Punto consultado</h2><p>Información de referencia del punto utilizado para esta consulta.</p></div>
         <dl class="details">
           <div class="detail-row"><dt>Coordenadas</dt><dd id="decimal-coordinates">—</dd></div>
           <div class="detail-row"><dt>CRS</dt><dd>WGS 84 · EPSG:4326</dd></div>
           <div class="detail-row"><dt>Sitio de origen</dt><dd>GeoMA</dd></div>
-          <div class="detail-row"><dt>Criterio actual</dt><dd>5 masas de agua más cercanas</dd></div>
+          <div class="detail-row"><dt>Criterio actual</dt><dd id="current-criterion">5 masas de agua más cercanas</dd></div>
         </dl>
       </section>
     </main>
-
     <footer>GeoQuery · GeoMA · Resultados territoriales referenciales</footer>
   </div>
-
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="geoquery.js"></script>
 </body>
