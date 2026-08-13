@@ -1,57 +1,78 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GeoQuery | GeoMA</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="geoquery.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="geoquery.css" />
 </head>
 <body>
-  <header class="hero">
-    <div>
-      <span class="eyebrow">GeoMA</span>
-      <h1>GeoQuery</h1>
-      <p>Consulta territorial de masas de aguas continentales</p>
-    </div>
-  </header>
-
-  <nav class="actions" aria-label="Acciones GeoQuery">
-    <a id="back-link" href="../index.html">← Volver a GeoMA</a>
-    <span class="query-state">Consulta inicial</span>
-  </nav>
-
-  <main class="layout">
-    <section class="panel summary" aria-labelledby="summary-title">
-      <div class="heading">
-        <span>01</span>
-        <div>
-          <h2 id="summary-title">Punto consultado</h2>
-          <p>Primera versión de GeoQuery GeoMA. Los cálculos territoriales se incorporarán en etapas posteriores.</p>
-        </div>
+  <div class="app">
+    <header class="main-header">
+      <div class="brand-block">
+        <h1 class="site-title">GeoMA</h1>
+        <p class="site-subtitle">GeoQuery · Masas de Aguas Continentales</p>
+        <p class="site-description">Consulta territorial de las masas de agua más próximas al punto seleccionado.</p>
       </div>
+      <div class="header-note" id="query-status">Preparando consulta territorial…</div>
+    </header>
 
-      <dl class="summary-grid">
-        <div><dt>Latitud</dt><dd id="latitude">—</dd></div>
-        <div><dt>Longitud</dt><dd id="longitude">—</dd></div>
-        <div><dt>CRS</dt><dd>WGS 84 · EPSG:4326</dd></div>
-        <div><dt>Sitio de origen</dt><dd>GeoMA</dd></div>
-      </dl>
-    </section>
+    <nav class="top-actions" aria-label="Acciones GeoQuery">
+      <a id="back-link" class="back-button" href="../index.html">← Volver a GeoMA</a>
+    </nav>
 
-    <section class="panel map-panel" aria-labelledby="map-title">
-      <div class="heading">
-        <span>02</span>
-        <div>
-          <h2 id="map-title">Localización de la consulta</h2>
-          <p>El marcador representa exactamente el punto seleccionado en el mapa principal.</p>
+    <main class="content geoquery-analysis">
+      <section class="cards" aria-label="Resumen de consulta">
+        <article class="card"><span class="card-label">Masas analizadas</span><strong id="water-count" class="card-value">—</strong></article>
+        <article class="card"><span class="card-label">Más cercana</span><strong id="nearest-distance" class="card-value">—</strong></article>
+        <article class="card"><span class="card-label">Latitud</span><strong id="latitude" class="card-value">—</strong></article>
+        <article class="card"><span class="card-label">Longitud</span><strong id="longitude" class="card-value">—</strong></article>
+      </section>
+
+      <section class="geoquery-primary-grid geoquery-section">
+        <article class="panel visual-panel" aria-labelledby="map-title">
+          <div class="panel-header">
+            <h2 id="map-title">Masas de agua más cercanas</h2>
+            <p>El mapa encuadra el punto consultado y las cinco masas de agua con menor distancia al borde.</p>
+          </div>
+          <div class="map-wrap">
+            <div id="geoquery-map" aria-label="Mapa de masas de agua cercanas"></div>
+            <div class="map-toggle" aria-label="Mapa base">
+              <button id="btn-osm" class="map-toggle-btn active" type="button" aria-pressed="true">OSM</button>
+              <button id="btn-sat" class="map-toggle-btn" type="button" aria-pressed="false">SAT</button>
+            </div>
+          </div>
+          <p class="visual-caption">Distancia mínima medida desde el punto consultado hasta el borde de cada masa de agua.</p>
+        </article>
+
+        <article class="panel list-panel" aria-labelledby="list-title">
+          <div class="panel-header">
+            <h2 id="list-title">5 más cercanas</h2>
+            <p>Listado ordenado de menor a mayor distancia.</p>
+          </div>
+          <div id="nearest-list" class="nearest-list" aria-live="polite">
+            <p class="placeholder-text">Cargando masas de agua…</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel point-panel geoquery-section" aria-labelledby="point-title">
+        <div class="panel-header">
+          <h2 id="point-title">Punto consultado</h2>
+          <p>Información de referencia del punto utilizado para esta consulta.</p>
         </div>
-      </div>
-      <div id="query-map" aria-label="Mapa del punto consultado"></div>
-    </section>
-  </main>
+        <dl class="details">
+          <div class="detail-row"><dt>Coordenadas</dt><dd id="decimal-coordinates">—</dd></div>
+          <div class="detail-row"><dt>CRS</dt><dd>WGS 84 · EPSG:4326</dd></div>
+          <div class="detail-row"><dt>Sitio de origen</dt><dd>GeoMA</dd></div>
+          <div class="detail-row"><dt>Criterio actual</dt><dd>5 masas de agua más cercanas</dd></div>
+        </dl>
+      </section>
+    </main>
 
-  <footer>GeoQuery · GeoMA · Masas de Aguas Continentales</footer>
+    <footer>GeoQuery · GeoMA · Resultados territoriales referenciales</footer>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="geoquery.js"></script>
