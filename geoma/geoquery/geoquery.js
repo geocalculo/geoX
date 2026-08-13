@@ -201,6 +201,25 @@
     return nearest;
   }
 
+  function addContainingCircle(results, group) {
+    if (!validPoint || !results.length) return null;
+    const radius = Math.max(...results.map((item) => item.distance));
+    if (!Number.isFinite(radius) || radius <= 0) return null;
+    const circle = L.circle([queryLat, queryLon], {
+      radius,
+      color: "#0f172a",
+      weight: 2,
+      opacity: 0.75,
+      dashArray: "8 6",
+      fillColor: "#38bdf8",
+      fillOpacity: 0.035,
+      interactive: false
+    }).addTo(map);
+    circle.bringToBack();
+    group.addLayer(circle);
+    return circle;
+  }
+
   const waterLayers = [];
   function renderResults(results) {
     els.count.textContent = String(results.length);
@@ -244,7 +263,8 @@
       els.list.appendChild(row);
     });
 
-    if (results.length && group.getBounds().isValid()) map.fitBounds(group.getBounds().pad(.12), { maxZoom: 12 });
+    addContainingCircle(results, group);
+    if (results.length && group.getBounds().isValid()) map.fitBounds(group.getBounds().pad(.08), { maxZoom: 12 });
     els.status.textContent = results.length ? `Consulta lista · ${results.length} masas de agua más cercanas` : "No se encontraron masas de agua para esta consulta.";
   }
 
