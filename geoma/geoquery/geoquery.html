@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GeoQuery | GeoMA</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="geoquery.css">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <span class="eyebrow">GeoMA</span>
+      <h1>GeoQuery</h1>
+      <p>Consulta territorial de masas de aguas continentales</p>
+    </div>
+  </header>
+
+  <nav class="actions" aria-label="Acciones GeoQuery">
+    <a id="back-link" href="../index.html">← Volver a GeoMA</a>
+    <span class="query-state">Consulta inicial</span>
+  </nav>
+
+  <main class="layout">
+    <section class="panel summary" aria-labelledby="summary-title">
+      <div class="heading">
+        <span>01</span>
+        <div>
+          <h2 id="summary-title">Punto consultado</h2>
+          <p>Primera versión de GeoQuery GeoMA. Los cálculos territoriales se incorporarán en etapas posteriores.</p>
+        </div>
+      </div>
+
+      <dl class="summary-grid">
+        <div><dt>Latitud</dt><dd id="latitude">—</dd></div>
+        <div><dt>Longitud</dt><dd id="longitude">—</dd></div>
+        <div><dt>CRS</dt><dd>WGS 84 · EPSG:4326</dd></div>
+        <div><dt>Sitio de origen</dt><dd>GeoMA</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel map-panel" aria-labelledby="map-title">
+      <div class="heading">
+        <span>02</span>
+        <div>
+          <h2 id="map-title">Localización de la consulta</h2>
+          <p>El marcador representa exactamente el punto seleccionado en el mapa principal.</p>
+        </div>
+      </div>
+      <div id="query-map" aria-label="Mapa del punto consultado"></div>
+    </section>
+  </main>
+
+  <footer>GeoQuery · GeoMA · Masas de Aguas Continentales</footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="geoquery.js"></script>
+</body>
+</html>
