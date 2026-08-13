@@ -39,6 +39,32 @@
     map.fitBounds(CHILE_BOUNDS);
   });
 
+  function openGeoQuery(lat, lon) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const center = map.getCenter();
+    const bounds = map.getBounds();
+    const url = new URL("./geoquery/geoquery.html", window.location.href);
+    url.searchParams.set("site", "geoma");
+    url.searchParams.set("lat", lat.toFixed(7));
+    url.searchParams.set("lon", lon.toFixed(7));
+    url.searchParams.set("queryLat", lat.toFixed(7));
+    url.searchParams.set("queryLon", lon.toFixed(7));
+    url.searchParams.set("viewLat", center.lat.toFixed(7));
+    url.searchParams.set("viewLon", center.lng.toFixed(7));
+    url.searchParams.set("viewWest", bounds.getWest().toFixed(7));
+    url.searchParams.set("viewSouth", bounds.getSouth().toFixed(7));
+    url.searchParams.set("viewEast", bounds.getEast().toFixed(7));
+    url.searchParams.set("viewNorth", bounds.getNorth().toFixed(7));
+    url.searchParams.set("zoom", String(map.getZoom()));
+    url.searchParams.set("basemap", activeBasemap);
+    url.searchParams.set("from", "index");
+    window.location.href = url.href;
+  }
+
+  map.on("click", (event) => {
+    openGeoQuery(event.latlng.lat, event.latlng.lng);
+  });
+
   function applyCrossAccess() {
     const viewport = window.GeoXViewport?.readCrossAccessViewport(new URLSearchParams(window.location.search));
     if (!viewport?.isValid) return false;
