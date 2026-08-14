@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GeoQuery | GeoMA</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="geoquery.css?v=20260814-2" />
+  <link rel="stylesheet" href="geoquery.css?v=20260814-3" />
 </head>
 <body>
   <div class="app">
@@ -75,6 +75,23 @@
         </div>
       </section>
 
+      <section class="panel composition-panel geoquery-section" aria-labelledby="composition-title">
+        <div class="panel-header">
+          <h2 id="composition-title">Composición del conjunto</h2>
+          <p>Distribución de superficie y distancia media al punto consultado según tipo de masa de agua.</p>
+        </div>
+        <div class="composition-grid">
+          <article class="chart-card" aria-labelledby="surface-chart-title">
+            <h3 id="surface-chart-title">Superficie por tipo</h3>
+            <div class="chart-wrap chart-wrap-pie"><canvas id="surface-type-chart" aria-label="Gráfico de superficie por tipo de masa de agua"></canvas></div>
+          </article>
+          <article class="chart-card" aria-labelledby="distance-chart-title">
+            <h3 id="distance-chart-title">Distancia media al POI por tipo</h3>
+            <div class="chart-wrap"><canvas id="distance-type-chart" aria-label="Gráfico de distancia media al POI por tipo de masa de agua"></canvas></div>
+          </article>
+        </div>
+      </section>
+
       <section class="panel point-panel geoquery-section" aria-labelledby="point-title">
         <div class="panel-header"><h2 id="point-title">Punto consultado</h2><p>Información de referencia del punto utilizado para esta consulta.</p></div>
         <dl class="details">
@@ -88,6 +105,8 @@
     <footer>GeoQuery · GeoMA · Resultados territoriales referenciales</footer>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="geoquery.js?v=20260814-2"></script>
+  <script src="geoquery-charts.js?v=20260814-1"></script>
 </body>
 </html>
