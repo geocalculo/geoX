@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GeoQuery | GeoMA</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="geoquery.css?v=20260814-3" />
+  <link rel="stylesheet" href="geoquery.css?v=20260814-4" />
 </head>
 <body>
   <div class="app">
@@ -27,6 +27,7 @@
         <label><input type="radio" name="nearest-limit" value="20"><span>20</span></label>
       </fieldset>
       <button id="fit-set-button" class="fit-set-button" type="button">◎ Ver conjunto</button>
+      <button id="download-kml-button" class="download-button" type="button" data-kml-button="true" disabled>Descargar KML</button>
     </nav>
 
     <main class="content geoquery-analysis">
@@ -106,7 +107,9 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="../../shared/geoquery-kml-exporter.js"></script>
   <script src="geoquery.js?v=20260814-2"></script>
   <script src="geoquery-charts.js?v=20260814-1"></script>
+  <script src="geoquery-kml.js?v=20260814-1"></script>
 </body>
 </html>
