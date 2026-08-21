@@ -1,0 +1,246 @@
+/* GeoX UI v1 · authoritative responsive layer
+   Load LAST in every GeoX index. It intentionally overrides legacy mobile rules. */
+
+@media (min-width: 769px) {
+  .mobile-layer-toggle,
+  #mobile-layer-toggle {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --gx-mobile-edge: max(10px, env(safe-area-inset-right));
+  }
+
+  html,
+  body,
+  #app {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  #app {
+    min-height: 100dvh;
+    height: 100dvh;
+  }
+
+  #main-header {
+    grid-template-columns: minmax(0, 1fr) !important;
+    min-width: 0;
+    min-height: auto;
+    padding: 7px 9px !important;
+    gap: 6px !important;
+  }
+
+  #site-title {
+    font-size: 20px !important;
+    line-height: 1.1;
+  }
+
+  #site-subtitle,
+  #site-description {
+    font-size: 10px !important;
+    line-height: 1.15;
+  }
+
+  #summary-bar {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+    width: 100%;
+    min-width: 0;
+    gap: 4px !important;
+    justify-content: stretch !important;
+    overflow: visible !important;
+  }
+
+  .summary-item,
+  .site-kpi,
+  .kpi-card,
+  .summary-card {
+    min-width: 0 !important;
+    padding: 4px 3px !important;
+    border-radius: 7px !important;
+  }
+
+  .summary-value,
+  .kpi-value {
+    font-size: 12px !important;
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+  }
+
+  .summary-label,
+  .kpi-label {
+    font-size: 8px !important;
+    line-height: 1.05;
+  }
+
+  #control-bar {
+    flex: 0 0 auto;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 6px 9px !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  #control-bar > * {
+    flex: 0 0 auto;
+  }
+
+  #control-bar select {
+    max-width: 48vw;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  #control-bar button,
+  #control-bar .home-link {
+    min-width: 0 !important;
+    min-height: 32px;
+    padding: 6px 9px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  #main-layout {
+    display: block !important;
+    position: relative;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: hidden !important;
+  }
+
+  #territorial-panel,
+  .territorial-panel,
+  .floating-panel,
+  #territorial-panel .panel-layer-controls,
+  #territorial-panel .panel-toggle-list {
+    display: none !important;
+  }
+
+  #map-container {
+    width: 100%;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden;
+  }
+
+  #search-box-wrapper {
+    top: 10px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    min-width: 0;
+    transform: none !important;
+  }
+
+  #search-box-wrapper #search-box,
+  #search-box {
+    height: 40px !important;
+    border-radius: 14px !important;
+    padding: 0 12px !important;
+    font-size: 13px !important;
+    text-overflow: ellipsis;
+  }
+
+  .leaflet-control-zoom {
+    display: none !important;
+  }
+
+  .map-toggle,
+  #mobile-map-controls .map-toggle {
+    top: auto !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    bottom: max(58px, calc(env(safe-area-inset-bottom) + 42px)) !important;
+    z-index: 1700 !important;
+    gap: 4px;
+    padding: 5px !important;
+    background: rgba(15, 23, 42, 0.86) !important;
+    border: 1px solid rgba(255, 255, 255, 0.72) !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.32) !important;
+  }
+
+  .map-toggle-btn {
+    min-width: 44px;
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  #btn-my-location,
+  #mobile-map-controls #btn-my-location {
+    top: 60px !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    left: auto !important;
+    z-index: 1700 !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    color: #1e293b !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2) !important;
+  }
+
+  .mobile-layer-toggle,
+  #mobile-layer-toggle {
+    position: absolute !important;
+    top: 112px !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    left: auto !important;
+    z-index: 1700 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    padding: 0 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    color: #1e293b !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2) !important;
+  }
+
+  .mobile-layer-toggle-text {
+    display: none !important;
+  }
+
+  .mobile-layer-toggle-icon,
+  .mobile-layer-toggle-svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  #map-hint,
+  #geoquery-toast {
+    max-width: calc(100% - 24px);
+  }
+
+  #main-footer {
+    flex: 0 0 auto;
+    height: auto !important;
+    min-height: 30px;
+    padding: 5px 8px calc(5px + env(safe-area-inset-bottom));
+    gap: 3px 6px;
+    flex-wrap: wrap;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  #main-footer a {
+    white-space: nowrap;
+  }
+}
