@@ -1,0 +1,219 @@
+/* GeoX UI v1 · common index structure */
+
+* { box-sizing: border-box; }
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: var(--gx-font-family);
+  background: var(--gx-page-bg);
+  color: var(--gx-text);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+#main-header {
+  min-height: var(--gx-header-min-height);
+  background: var(--gx-header-bg);
+  color: var(--gx-text-on-dark);
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) 1fr;
+  align-items: center;
+  padding: 12px 18px;
+  gap: 16px;
+  border-bottom: 3px solid var(--gx-header-border);
+}
+
+.brand-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gx-space-1);
+}
+
+#site-title {
+  font-size: var(--gx-font-site-title);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+#site-subtitle {
+  font-size: var(--gx-font-site-subtitle);
+  color: var(--gx-text-on-dark-muted);
+  font-weight: 700;
+}
+
+#site-description {
+  margin: 0;
+  color: var(--gx-text-on-dark-soft);
+  font-size: var(--gx-font-site-description);
+  line-height: 1.35;
+}
+
+#summary-bar {
+  display: flex;
+  justify-content: center;
+  gap: var(--gx-space-5);
+}
+
+.summary-item {
+  min-width: 130px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--gx-radius-card);
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.summary-value {
+  display: block;
+  font-size: var(--gx-font-summary-value);
+  font-weight: 700;
+}
+
+.summary-label {
+  display: block;
+  font-size: var(--gx-font-summary-label);
+  color: var(--gx-text-on-dark-muted);
+}
+
+button,
+.home-link {
+  border: none;
+  border-radius: var(--gx-radius-control);
+  padding: 8px 11px;
+  cursor: pointer;
+  background: var(--gx-control-bg);
+  color: var(--gx-text-strong);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+button:hover,
+.home-link:hover {
+  background: var(--gx-control-hover);
+}
+
+#control-bar {
+  min-height: var(--gx-control-bar-min-height);
+  background: var(--gx-surface);
+  display: flex;
+  align-items: center;
+  gap: var(--gx-space-3);
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--gx-border);
+}
+
+#control-bar select {
+  height: 34px;
+  border: 1px solid var(--gx-border-control);
+  border-radius: var(--gx-radius-control);
+  padding: 0 10px;
+  font-size: var(--gx-font-control);
+}
+
+#main-layout {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+#territorial-panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 500;
+  width: var(--gx-panel-width);
+  background: var(--gx-surface);
+  border: 1px solid var(--gx-border);
+  border-radius: var(--gx-radius-panel);
+  padding: 18px;
+  box-shadow: var(--gx-shadow-panel);
+  overflow-y: auto;
+}
+
+#territorial-panel h2,
+#territorial-panel h3 {
+  margin: 0 0 14px;
+  color: var(--gx-text-strong);
+}
+
+.panel-section {
+  background: var(--gx-surface-soft);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--gx-radius-card);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.panel-note {
+  font-size: 13px;
+  color: var(--gx-text-muted);
+  line-height: 1.4;
+}
+
+#map-container {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+#main-footer {
+  height: var(--gx-footer-height);
+  background: var(--gx-header-bg);
+  color: var(--gx-text-on-dark-muted);
+  font-size: var(--gx-font-small);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+#main-footer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  #main-header {
+    grid-template-columns: 1fr;
+  }
+
+  #summary-bar {
+    justify-content: flex-start;
+    overflow: auto;
+  }
+
+  .summary-item {
+    min-width: 112px;
+  }
+
+  #control-bar {
+    overflow: auto;
+  }
+
+  #territorial-panel {
+    display: none;
+  }
+
+  #map-container {
+    height: 100%;
+    min-height: 420px;
+  }
+}
