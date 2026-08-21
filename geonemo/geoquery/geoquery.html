@@ -5,19 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GeoQuery 2.0 | GeoNEMO</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-tokens.css">
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-base.css">
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-components.css">
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-layouts.css">
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-responsive.css">
+  <link rel="stylesheet" href="geonemo-theme.css">
   <link rel="stylesheet" href="geoquery.css">
 </head>
 <body>
-  <header class="hero">
-    <div><span class="eyebrow">GeoNEMO</span><h1>GeoQuery <b>2.0</b></h1><p>Relación espacial con entidades ambientales</p></div>
+  <header class="hero gq-hero">
+    <div class="gq-container"><span class="eyebrow gq-kicker">GeoNEMO</span><h1>GeoQuery <b>2.0</b></h1><p>Relación espacial con entidades ambientales</p></div>
     <div class="dominant"><span>ICT máximo detectado</span><strong id="dominant-ict">—</strong><b id="dominant-name">Calculando…</b><small id="dominant-group">—</small></div>
   </header>
-  <nav class="actions" aria-label="Acciones"><a id="back-link" href="../index.html">← Volver</a><span></span><button id="kml-button" disabled>Exportar KML</button></nav>
+  <nav class="actions gq-actions" aria-label="Acciones"><a id="back-link" class="gq-button gq-button--secondary" href="../index.html">← Volver</a><span></span><button id="kml-button" class="gq-button gq-button--primary" disabled>Exportar KML</button></nav>
 
-  <main class="layout">
-    <section class="panel summary" aria-labelledby="summary-title">
+  <main class="layout gq-container gq-section-stack">
+    <section class="panel summary gq-card gq-query-summary" aria-labelledby="summary-title">
       <div class="heading"><span>01</span><div><h2 id="summary-title">Resumen de consulta</h2><p id="query-status">Preparando área territorial…</p></div></div>
-      <dl class="summary-grid">
+      <dl class="summary-grid gq-stats-grid">
         <div><dt>Latitud</dt><dd id="latitude">—</dd></div><div><dt>Longitud</dt><dd id="longitude">—</dd></div>
         <div><dt>Sitio de origen</dt><dd id="site">GeoNEMO</dd></div><div><dt>Estado</dt><dd id="status">En proceso</dd></div>
         <div><dt>Grupos ambientales</dt><dd id="group-count">—</dd></div><div><dt>Entidades fuente</dt><dd id="source-entity-count">—</dd></div>
@@ -25,16 +31,16 @@
       </dl>
     </section>
 
-    <section class="results" aria-labelledby="results-title"><div class="section-title"><h2 id="results-title">Diagnóstico por grupo ambiental</h2><p>Cada grupo presenta información ejecutiva, mapa y análisis espacial independientes.</p></div><div id="result-cards" class="result-cards"></div></section>
+    <section class="results gq-card" aria-labelledby="results-title"><div class="section-title"><h2 id="results-title">Diagnóstico por grupo ambiental</h2><p>Cada grupo presenta información ejecutiva, mapa y análisis espacial independientes.</p></div><div id="result-cards" class="result-cards"></div></section>
 
-    <section class="panel synthesis"><div class="heading"><span>03</span><div><h2>Síntesis ejecutiva</h2></div></div><p id="synthesis-text">Preparando síntesis territorial…</p></section>
+    <section class="panel synthesis gq-card gq-card--accent-left gq-executive-summary"><div class="heading"><span>03</span><div><h2>Síntesis ejecutiva</h2></div></div><p id="synthesis-text">Preparando síntesis territorial…</p></section>
 
-    <section class="panel complementary"><div class="heading"><span>04</span><div><h2>Información complementaria</h2></div></div>
-      <h3>Punto consultado</h3><dl class="point-details"><div><dt>Coordenadas decimales</dt><dd id="decimal-coordinates">—</dd></div><div><dt>Coordenadas GMS</dt><dd id="dms-coordinates">—</dd></div><div><dt>CRS</dt><dd>WGS 84 · EPSG:4326</dd></div><div><dt>Fuente</dt><dd id="point-source">GeoNEMO</dd></div></dl>
-      <h3>Entidades analizadas</h3><div class="table-wrap"><table><thead><tr><th>Grupo</th><th>Entidad</th><th>ICT</th><th>Distancia</th><th>Diámetro</th><th>Relación</th><th>Profundidad relativa</th></tr></thead><tbody id="results-table"></tbody></table></div>
+    <section class="panel complementary gq-card"><div class="heading"><span>04</span><div><h2>Información complementaria</h2></div></div>
+      <h3>Punto consultado</h3><dl class="point-details gq-stats-grid"><div><dt>Coordenadas decimales</dt><dd id="decimal-coordinates">—</dd></div><div><dt>Coordenadas GMS</dt><dd id="dms-coordinates">—</dd></div><div><dt>CRS</dt><dd>WGS 84 · EPSG:4326</dd></div><div><dt>Fuente</dt><dd id="point-source">GeoNEMO</dd></div></dl>
+      <h3>Entidades analizadas</h3><div class="table-wrap"><table class="gq-table"><thead><tr><th>Grupo</th><th>Entidad</th><th>ICT</th><th>Distancia</th><th>Diámetro</th><th>Relación</th><th>Profundidad relativa</th></tr></thead><tbody id="results-table"></tbody></table></div>
     </section>
 
-    <section class="panel sources"><div class="heading"><span>05</span><div><h2>Fuentes y exportaciones</h2><p>Fuentes ambientales cargadas para esta consulta</p></div></div><ul id="source-list"></ul><div class="export-actions"><button id="kml-button-bottom" disabled>Exportar KML</button></div></section>
+    <section class="panel sources gq-card"><div class="heading"><span>05</span><div><h2>Fuentes y exportaciones</h2><p>Fuentes ambientales cargadas para esta consulta</p></div></div><ul id="source-list"></ul><div class="export-actions gq-actions"><button id="kml-button-bottom" class="gq-button gq-button--primary" disabled>Exportar KML</button></div></section>
   </main>
   <footer>GeoQuery 2.0 · Informe Ejecutivo Territorial · Resultados territoriales referenciales</footer>
   <script src="../../shared/geocalculo-telemetry.js"></script>
