@@ -1,0 +1,48 @@
+:root {
+  --site-primary: #075e54;
+  --site-primary-strong: #064d47;
+  --site-secondary: #dff4ed;
+  --site-accent: #20b486;
+  --site-background: #edf3f1;
+  --site-surface: #ffffff;
+  --site-text: #17312d;
+  --site-muted: #687b77;
+  --site-border: #d9e5e2;
+  --site-focus: #20b486;
+  --site-success: #16835f;
+
+  /* Compatibilidad con el vocabulario legacy de GeoNEMO. */
+  --green: var(--site-primary);
+  --mint: var(--site-accent);
+  --ink: var(--site-text);
+  --muted: var(--site-muted);
+  --line: var(--site-border);
+  --soft: #f2f7f5;
+  --white: var(--site-surface);
+  --poi: #dc443b;
+}
+
+.gq-hero {
+  background: linear-gradient(120deg, var(--site-primary-strong), #087467);
+  border-bottom: 3px solid var(--site-accent);
+}
+
+.gq-kicker,
+.gq-hero .eyebrow {
+  color: #75e6c2;
+}
+
+.gq-card--accent-left {
+  border-left-color: var(--site-accent);
+}
+
+.gq-button--primary {
+  background: var(--site-primary);
+  border-color: var(--site-primary);
+}
+
+.gq-button--secondary {
+  background: #ffffff;
+  color: var(--site-primary);
+  border-color: #c5d7d2;
+}
