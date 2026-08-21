@@ -19,10 +19,10 @@
     <div class="gq-container"><span class="eyebrow gq-kicker">GeoEVA</span><h1>Consulta territorial ambiental</h1><p>GeoQuery 2.0</p></div>
   </header>
   <main>
-    <section id="status-view" class="status-view" aria-live="polite">
-      <div class="spinner" aria-hidden="true"></div><h2 id="status-title">Cargando proyectos</h2>
+    <section id="status-view" class="status-view gq-status-view" aria-live="polite">
+      <div class="spinner gq-spinner" aria-hidden="true"></div><h2 id="status-title">Cargando proyectos</h2>
       <p id="status-message">Preparando la consulta territorial…</p>
-      <ol id="loading-steps" class="loading-steps"><li class="active">Cargando proyectos</li><li>Calculando distancias</li><li>Construyendo reporte</li></ol>
+      <ol id="loading-steps" class="loading-steps gq-loading-steps"><li class="active">Cargando proyectos</li><li>Calculando distancias</li><li>Construyendo reporte</li></ol>
       <a id="status-back" class="button secondary gq-button gq-button--secondary" href="../index.html" hidden>Volver a GeoEVA</a>
     </section>
     <div id="report" hidden>
@@ -43,19 +43,19 @@
       </section>
       <section class="card timing-panel gq-card gq-chart-panel">
         <span class="section-kicker">Comparación local y nacional</span>
-        <div class="comparison-grid">
-          <div class="comparison-column timing-comparison">
+        <div class="comparison-grid gq-comparison-grid">
+          <div class="comparison-column gq-comparison-column timing-comparison">
             <h2>Plazos de tramitación</h2><p class="chart-subtitle">Comparación entre el clúster y la referencia nacional</p>
-            <div class="chart-legend timing-legend" aria-label="Leyenda"><span><i class="cluster-swatch"></i>Clúster</span><span><i class="national-swatch"></i>Referencia nacional</span></div>
+            <div class="chart-legend gq-chart-legend timing-legend" aria-label="Leyenda"><span><i class="cluster-swatch"></i>Clúster</span><span><i class="national-swatch"></i>Referencia nacional</span></div>
             <div id="timing-comparison-chart" class="timing-chart grouped-timing-chart" data-pdf-chart="true" data-pdf-title="Plazos de tramitación" role="img" aria-label="Comparación de plazos promedio del clúster y la referencia nacional por sector"></div>
           </div>
-          <div class="comparison-column investment-comparison">
+          <div class="comparison-column gq-comparison-column investment-comparison">
             <h2>Distribución de la inversión aprobada</h2><p class="chart-subtitle">Participación por sector en el grupo base</p>
             <div id="investment-chart" class="investment-chart" data-pdf-chart="true" data-pdf-title="Distribución de la inversión aprobada" role="img" aria-label="Distribución de la inversión aprobada por sector"></div>
           </div>
         </div>
       </section>
-      <section class="card spatial-panel gq-card"><span class="section-kicker">Relación espacial</span><h2>Relación espacial con los proyectos aprobados</h2><dl id="spatial-stats" class="stats-grid"></dl></section>
+      <section class="card spatial-panel gq-card"><span class="section-kicker">Relación espacial</span><h2>Relación espacial con los proyectos aprobados</h2><dl id="spatial-stats" class="stats-grid gq-stats-grid"></dl></section>
     </div>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
