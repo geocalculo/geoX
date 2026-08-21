@@ -1,0 +1,56 @@
+:root {
+  --site-primary: #0ea5e9;
+  --site-primary-strong: #0369a1;
+  --site-secondary: #e0f2fe;
+  --site-accent: #38bdf8;
+  --site-background: #f4f6f8;
+  --site-surface: #ffffff;
+  --site-text: #1f2933;
+  --site-muted: #64748b;
+  --site-border: #d9e2ec;
+  --site-focus: #38bdf8;
+  --site-success: #16a34a;
+
+  /* Compatibilidad temporal con la hoja legacy embebida. */
+  --header-bg: #102a43;
+  --header-border: #38bdf8;
+  --page-bg: var(--site-background);
+  --text: var(--site-text);
+  --muted: var(--site-muted);
+  --panel: var(--site-surface);
+  --panel-soft: #f8fafc;
+  --border: var(--site-border);
+  --accent: var(--site-primary);
+  --accent-dark: var(--site-primary-strong);
+  --success: var(--site-success);
+  --warning: #f59e0b;
+  --shadow: var(--gq-shadow-card);
+}
+
+.main-header.gq-hero {
+  background: linear-gradient(135deg, #102a43, #123f63);
+  border-bottom: 3px solid var(--site-accent);
+}
+
+.main-header .site-title,
+.main-header .site-subtitle,
+.main-header .site-description {
+  color: #ffffff;
+}
+
+.main-header .site-subtitle,
+.main-header .site-description {
+  opacity: .88;
+}
+
+.geoquery-analysis .gq-card {
+  border-color: var(--site-border);
+}
+
+.geoquery-analysis .gq-kpi {
+  background: var(--site-surface);
+}
+
+.geoquery-analysis .gq-map-panel #geoquery-map {
+  border-color: color-mix(in srgb, var(--site-primary) 30%, white);
+}
