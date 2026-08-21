@@ -190,6 +190,11 @@ button:hover,
   text-decoration: none;
 }
 
+#main-footer a[aria-current="page"] {
+  color: var(--gx-text-on-dark);
+  font-weight: 800;
+}
+
 @media (max-width: 768px) {
   #main-header {
     grid-template-columns: 1fr;
