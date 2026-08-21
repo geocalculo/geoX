@@ -1,0 +1,54 @@
+:root {
+  /* GeoX UI v1 · shared design tokens */
+  --gx-font-family: Arial, Helvetica, sans-serif;
+
+  --gx-page-bg: #f4f6f8;
+  --gx-header-bg: #102a43;
+  --gx-header-border: #38bdf8;
+  --gx-surface: #ffffff;
+  --gx-surface-soft: #f8fafc;
+  --gx-text: #1f2933;
+  --gx-text-strong: #102a43;
+  --gx-text-muted: #64748b;
+  --gx-text-on-dark: #ffffff;
+  --gx-text-on-dark-muted: #cbd5e1;
+  --gx-text-on-dark-soft: #dbeafe;
+  --gx-border: #d9e2ec;
+  --gx-border-control: #bcccdc;
+  --gx-control-bg: #e2e8f0;
+  --gx-control-hover: #bae6fd;
+
+  --gx-font-site-title: 26px;
+  --gx-font-site-subtitle: 14px;
+  --gx-font-site-description: 13px;
+  --gx-font-summary-value: 20px;
+  --gx-font-summary-label: 11px;
+  --gx-font-control: 14px;
+  --gx-font-small: 12px;
+
+  --gx-space-1: 4px;
+  --gx-space-2: 8px;
+  --gx-space-3: 10px;
+  --gx-space-4: 12px;
+  --gx-space-5: 14px;
+  --gx-space-6: 16px;
+  --gx-space-7: 18px;
+
+  --gx-radius-control: 8px;
+  --gx-radius-card: 10px;
+  --gx-radius-panel: 20px;
+  --gx-radius-map-control: 12px;
+  --gx-radius-pill: 999px;
+
+  --gx-shadow-panel: 0 20px 45px rgba(15, 23, 42, 0.12);
+  --gx-shadow-floating: 0 10px 24px rgba(15, 23, 42, 0.18);
+  --gx-shadow-map-toggle: 0 6px 18px rgba(0, 0, 0, 0.28);
+
+  --gx-header-min-height: 86px;
+  --gx-control-bar-min-height: 52px;
+  --gx-footer-height: 28px;
+  --gx-panel-width: 320px;
+  --gx-search-max-width: 620px;
+
+  --gx-breakpoint-mobile: 768px;
+}
