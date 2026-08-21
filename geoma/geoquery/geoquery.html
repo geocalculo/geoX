@@ -5,41 +5,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GeoQuery | GeoMA</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="geoquery.css?v=20260814-4" />
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-tokens.css" />
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-base.css" />
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-components.css" />
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-layouts.css" />
+  <link rel="stylesheet" href="../../shared/geoquery/geoquery-responsive.css" />
+  <link rel="stylesheet" href="geoma-theme.css" />
+  <link rel="stylesheet" href="geoquery.css?v=20260821-1" />
 </head>
 <body>
   <div class="app">
-    <header class="main-header">
-      <div class="brand-block">
-        <h1 class="site-title">GeoMA</h1>
-        <p class="site-subtitle">GeoQuery · Masas de Aguas Continentales</p>
-        <p class="site-description">Consulta territorial de las masas de agua más próximas al punto seleccionado.</p>
+    <header class="main-header gq-hero">
+      <div class="gq-container geoma-hero-layout">
+        <div class="brand-block">
+          <span class="gq-kicker">GeoMA</span>
+          <h1 class="site-title">Consulta territorial de masas de agua</h1>
+          <p class="site-subtitle">GeoQuery · Masas de Aguas Continentales</p>
+          <p class="site-description">Consulta territorial de las masas de agua más próximas al punto seleccionado.</p>
+        </div>
+        <div class="header-note" id="query-status">Preparando consulta territorial…</div>
       </div>
-      <div class="header-note" id="query-status">Preparando consulta territorial…</div>
     </header>
 
-    <nav class="top-actions" aria-label="Acciones GeoQuery">
-      <a id="back-link" class="back-button" href="../index.html">← Volver a GeoMA</a>
+    <nav class="top-actions gq-container gq-actions" aria-label="Acciones GeoQuery">
+      <a id="back-link" class="back-button gq-button gq-button--secondary" href="../index.html">← Volver a GeoMA</a>
       <fieldset class="nearest-selector" aria-label="Cantidad de masas de agua a analizar">
         <legend>Masas más cercanas</legend>
         <label><input type="radio" name="nearest-limit" value="5" checked><span>5</span></label>
         <label><input type="radio" name="nearest-limit" value="10"><span>10</span></label>
         <label><input type="radio" name="nearest-limit" value="20"><span>20</span></label>
       </fieldset>
-      <button id="fit-set-button" class="fit-set-button" type="button">◎ Ver conjunto</button>
-      <button id="download-kml-button" class="download-button" type="button" data-kml-button="true" disabled>Descargar KML</button>
+      <button id="fit-set-button" class="fit-set-button gq-button gq-button--secondary" type="button">◎ Ver conjunto</button>
+      <button id="download-kml-button" class="download-button gq-button gq-button--primary" type="button" data-kml-button="true" disabled>Descargar KML</button>
     </nav>
 
-    <main class="content geoquery-analysis">
-      <section class="cards" aria-label="Resumen de consulta">
-        <article class="card"><span class="card-label">Masas analizadas</span><strong id="water-count" class="card-value">—</strong></article>
-        <article class="card"><span class="card-label">Más cercana</span><strong id="nearest-distance" class="card-value">—</strong></article>
-        <article class="card"><span class="card-label">Latitud</span><strong id="latitude" class="card-value">—</strong></article>
-        <article class="card"><span class="card-label">Longitud</span><strong id="longitude" class="card-value">—</strong></article>
+    <main class="content geoquery-analysis gq-container">
+      <section class="cards gq-kpi-grid" aria-label="Resumen de consulta">
+        <article class="card gq-kpi"><span class="card-label">Masas analizadas</span><strong id="water-count" class="card-value">—</strong></article>
+        <article class="card gq-kpi"><span class="card-label">Más cercana</span><strong id="nearest-distance" class="card-value">—</strong></article>
+        <article class="card gq-kpi"><span class="card-label">Latitud</span><strong id="latitude" class="card-value">—</strong></article>
+        <article class="card gq-kpi"><span class="card-label">Longitud</span><strong id="longitude" class="card-value">—</strong></article>
       </section>
 
-      <section class="geoquery-primary-grid geoquery-section">
-        <article class="panel visual-panel" aria-labelledby="map-title">
+      <section class="geoquery-primary-grid geoquery-section gq-list-map gq-list-map--50-50">
+        <article class="panel visual-panel gq-card gq-map-panel" aria-labelledby="map-title">
           <div class="panel-header">
             <h2 id="map-title">Masas de agua más cercanas</h2>
             <p id="map-description">El mapa encuadra el punto consultado y las 5 masas de agua con menor distancia al borde.</p>
@@ -54,7 +63,7 @@
           <p class="visual-caption">Distancia mínima medida desde el punto consultado hasta el borde de cada masa de agua.</p>
         </article>
 
-        <article class="panel list-panel" aria-labelledby="list-title">
+        <article class="panel list-panel gq-card" aria-labelledby="list-title">
           <div class="panel-header">
             <h2 id="list-title">5 más cercanas</h2>
             <p>Listado ordenado de menor a mayor distancia.</p>
@@ -63,25 +72,27 @@
         </article>
       </section>
 
-      <section class="panel geometry-panel geoquery-section" aria-labelledby="geometry-title">
+      <section class="panel geometry-panel geoquery-section gq-card" aria-labelledby="geometry-title">
         <div class="panel-header">
+          <span class="gq-kicker">Indicadores del conjunto</span>
           <h2 id="geometry-title">Geometría del conjunto</h2>
           <p>Indicadores geométricos de las masas de agua seleccionadas.</p>
         </div>
-        <div class="geometry-kpis" aria-label="Indicadores geométricos del conjunto">
-          <article class="geometry-kpi"><span class="card-label">Superficie total</span><strong id="total-area" class="card-value">—</strong></article>
-          <article class="geometry-kpi"><span class="card-label">Diámetro equivalente</span><strong id="equivalent-diameter" class="card-value">—</strong></article>
-          <article class="geometry-kpi"><span class="card-label">Distancia media al POI</span><strong id="mean-poi-distance" class="card-value">—</strong></article>
-          <article class="geometry-kpi"><span class="card-label">Distancia media entre masas</span><strong id="mean-water-distance" class="card-value">—</strong></article>
+        <div class="geometry-kpis gq-kpi-grid" aria-label="Indicadores geométricos del conjunto">
+          <article class="geometry-kpi gq-kpi"><span class="card-label">Superficie total</span><strong id="total-area" class="card-value">—</strong></article>
+          <article class="geometry-kpi gq-kpi"><span class="card-label">Diámetro equivalente</span><strong id="equivalent-diameter" class="card-value">—</strong></article>
+          <article class="geometry-kpi gq-kpi"><span class="card-label">Distancia media al POI</span><strong id="mean-poi-distance" class="card-value">—</strong></article>
+          <article class="geometry-kpi gq-kpi"><span class="card-label">Distancia media entre masas</span><strong id="mean-water-distance" class="card-value">—</strong></article>
         </div>
       </section>
 
-      <section class="panel composition-panel geoquery-section" aria-labelledby="composition-title">
+      <section class="panel composition-panel geoquery-section gq-card gq-chart-panel" aria-labelledby="composition-title">
         <div class="panel-header">
+          <span class="gq-kicker">Análisis gráfico</span>
           <h2 id="composition-title">Composición del conjunto</h2>
           <p>Distribución de superficie y distancia media al punto consultado según tipo de masa de agua.</p>
         </div>
-        <div class="composition-grid">
+        <div class="composition-grid gq-comparison-grid">
           <article class="chart-card" aria-labelledby="surface-chart-title">
             <h3 id="surface-chart-title">Superficie por tipo</h3>
             <div class="chart-wrap chart-wrap-pie"><canvas id="surface-type-chart" aria-label="Gráfico de superficie por tipo de masa de agua"></canvas></div>
@@ -93,8 +104,8 @@
         </div>
       </section>
 
-      <section class="panel point-panel geoquery-section" aria-labelledby="point-title">
-        <div class="panel-header"><h2 id="point-title">Punto consultado</h2><p>Información de referencia del punto utilizado para esta consulta.</p></div>
+      <section class="panel point-panel geoquery-section gq-card gq-query-summary" aria-labelledby="point-title">
+        <div class="panel-header"><span class="gq-kicker">Referencia</span><h2 id="point-title">Punto consultado</h2><p>Información de referencia del punto utilizado para esta consulta.</p></div>
         <dl class="details">
           <div class="detail-row"><dt>Coordenadas</dt><dd id="decimal-coordinates">—</dd></div>
           <div class="detail-row"><dt>CRS</dt><dd>WGS 84 · EPSG:4326</dd></div>
