@@ -1,6 +1,8 @@
 @media (max-width: 900px) {
   .gq-list-map, .gq-list-map--50-50, .gq-list-map--40-60 { grid-template-columns: 1fr; }
   .gq-query-summary, .gq-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gq-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gq-comparison-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .gq-container { width: min(var(--gq-content-max-width), calc(100% - 24px)); }
@@ -8,9 +10,11 @@
   .gq-hero > .gq-container, .gq-chart-panel__header { display: block; }
   .gq-card { padding: 18px; border-radius: 12px; }
   .gq-button { min-height: 44px; }
+  .gq-loading-steps { display: block; }
+  .gq-loading-steps li { margin: 8px; }
 }
 @media (max-width: 390px) {
-  .gq-query-summary, .gq-kpi-grid { grid-template-columns: 1fr; }
+  .gq-query-summary, .gq-kpi-grid, .gq-stats-grid { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
