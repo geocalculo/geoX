@@ -7,3 +7,5 @@
 .gq-section-stack { display: grid; gap: var(--gq-space-4); }
 .gq-chart-panel__header { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
 .gq-chart-panel__legend { display: flex; flex-wrap: wrap; gap: var(--gq-space-3); }
+.gq-comparison-grid { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(0, 1fr); gap: clamp(28px, 4vw, 52px); margin-top: 12px; }
+.gq-comparison-column { min-width: 0; }
