@@ -1,0 +1,37 @@
+:root {
+  /* GeoNOXA · GeoQuery UI theme */
+  --site-primary: #059669;
+  --site-primary-strong: #047857;
+  --site-secondary: #ecfdf5;
+  --site-accent: #34d399;
+  --site-background: #f4f6f8;
+  --site-surface: #ffffff;
+  --site-text: #1f2933;
+  --site-muted: #64748b;
+  --site-border: #d9e2ec;
+  --site-focus: #34d399;
+  --site-success: #16a34a;
+  --site-warning: #f59e0b;
+}
+
+.gq-hero,
+.main-header {
+  background: #064e3b;
+  border-bottom-color: #34d399;
+}
+
+.gq-hero .site-title,
+.gq-hero .site-subtitle,
+.gq-hero .site-description {
+  color: #ffffff;
+}
+
+.gq-hero .site-subtitle { color: #cbd5e1; }
+.gq-hero .site-description { color: #dbeafe; }
+
+.status-pill,
+.subsection-pill {
+  background: var(--site-secondary);
+  color: var(--site-primary-strong);
+  border-color: #a7f3d0;
+}
