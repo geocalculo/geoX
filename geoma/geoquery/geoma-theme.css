@@ -1,0 +1,43 @@
+:root {
+  --site-primary: #0f5f7f;
+  --site-primary-strong: #063b5b;
+  --site-secondary: #e8f7f8;
+  --site-accent: #24c6c8;
+  --site-background: #f4f8fa;
+  --site-surface: #ffffff;
+  --site-text: #123047;
+  --site-muted: #5f7784;
+  --site-border: #d2e5e9;
+  --site-focus: #24c6c8;
+}
+
+.gq-hero {
+  background: linear-gradient(125deg, #042b43, var(--site-primary-strong));
+  border-bottom: 3px solid var(--site-accent);
+}
+
+.gq-hero .gq-kicker,
+.gq-hero p {
+  color: #d7f4f5;
+}
+
+.gq-card--accent-left {
+  border-left-color: var(--site-accent);
+}
+
+.gq-button--primary {
+  border-color: var(--site-primary-strong);
+  background: var(--site-primary-strong);
+}
+
+.gq-button--secondary {
+  border-color: var(--site-border);
+  background: var(--site-surface);
+  color: var(--site-primary-strong);
+}
+
+.gq-button--secondary:hover:not(:disabled) {
+  border-color: var(--site-accent);
+  background: var(--site-secondary);
+  color: var(--site-primary-strong);
+}
