@@ -1,0 +1,8 @@
+{
+  "titulo": "UK: Movilidad territorial de la productividad",
+  "fecha": "2026-08-21",
+  "territorio": "Reino Unido",
+  "tema": "Variación de la posición territorial de 50 ciudades del Reino Unido según el Percentil Territorial de productividad (CTp) entre 2004 y 2023, junto con la distribución espacial del aumento de productividad mediante geoquintiles.",
+  "fuente": "Office for National Statistics (ONS), Reino Unido. Modelo: geocalculo.cl",
+  "descripcion": "La lámina compara la posición relativa de 50 ciudades del Reino Unido mediante su Percentil Territorial (CTp) en 2004 y 2023. El gráfico permite identificar ciudades que aumentaron, disminuyeron o mantuvieron su posición territorial, mientras el mapa representa la intensidad territorial del aumento de productividad en 2023, clasificada en geoquintiles de igual superficie.",
+}
