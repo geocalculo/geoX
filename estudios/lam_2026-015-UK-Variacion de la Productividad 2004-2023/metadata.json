@@ -1,9 +1,9 @@
 {
-  "titulo": "Equivalencia Territorial EEUU-RM según nivel de educación",
+  "titulo": "Movilidad territorial de la productividad",
   "fecha": "2026-08-21",
-  "territorio": "Región Metropolitana de Santiago, Chile - Estados Unidos",
-  "tema": "Comparación de Estados Unidos y Región Metropolitana de Santiago, según su ubicación en un grafico Percentil y Funión Z",
-  "fuente": "INE CENSO 2022. U.S. Census Bureau 2026 Modelo: geocalculo.cl",
-  "descripcion": "En la lamina se observa en un mismo gráfico, comunas de la RM y estdos de Estados Unidos, graficos según sus posiciones relativas respecto de sus ubicación en el Percentil Territorial y respecto de la distancia a la Media Territorial",
-  "linkedin": "https://www.linkedin.com/posts/dario-aguirre-gis_equivalenciaterritorial-intensidadterritorial-share-7496513781641084928-L740/?utm_source=social_share_send&utm_medium=member_desktop_web&rcm=ACoAAAoKJeQBzLdsllSQ1tOKQdyYfbJktwBEoTc"
+  "territorio": "Reino Unido",
+  "tema": "Variación de la posición territorial de 50 ciudades del Reino Unido según el Percentil Territorial de productividad (CTp) entre 2004 y 2023, junto con la distribución espacial del aumento de productividad mediante geoquintiles.",
+  "fuente": "Office for National Statistics (ONS), Reino Unido. Modelo: geocalculo.cl",
+  "descripcion": "La lámina compara la posición relativa de 50 ciudades del Reino Unido mediante su Percentil Territorial (CTp) en 2004 y 2023. El gráfico permite identificar ciudades que aumentaron, disminuyeron o mantuvieron su posición territorial, mientras el mapa representa la intensidad territorial del aumento de productividad en 2023, clasificada en geoquintiles de igual superficie.",
+  "linkedin": "https://lnkd.in/p/dmpKAQiD"
 }
