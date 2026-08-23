@@ -1,0 +1,9 @@
+{
+  "titulo": "Gran Santiago: Demanda Relativa de Atención Hospitalaria",
+  "fecha": "2026-08-23",
+  "territorio": "Gran Santiago, Región Metropolitana de Santiago, Chile",
+  "tema": "Distribución territorial de la demanda relativa de atención hospitalaria de alta complejidad, estimada mediante la relación entre la demanda poblacional y la oferta territorial de hospitales, junto con la posición de las principales comunas según Percentil Territorial (CTp) y distancia respecto de la media territorial (CTz).",
+  "fuente": "Ministerio de Salud de Chile (MINSAL), IDE MINSAL. Modelo: geocalculo.cl",
+  "descripcion": "La lámina representa la relación territorial entre demanda poblacional y oferta de hospitales de alta complejidad en el Gran Santiago. El mapa muestra la intensidad de la Demanda Relativa de Atención Hospitalaria, donde los tonos más intensos indican una mayor relación demanda-oferta. El gráfico compara, para comunas y ciudades seleccionadas, su Percentil Territorial (CTp) y su distancia respecto de la media territorial (CTz), destacando en amarillo aquellas ubicadas sobre P50 y sobre la media territorial.",
+  "linkedin": "https://lnkd.in/p/d2qyJ8bd"
+}
