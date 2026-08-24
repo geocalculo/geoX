@@ -20,13 +20,15 @@ La regla sigue siendo 80/20: estructura compartida, contenido temático específ
 7. **Mapa**: los paneles cartográficos estáticos usan `gq-map-panel` cuando corresponde.
 8. **Gráficos**: los bloques analíticos con gráficos usan `gq-chart-panel` y los patrones compartidos disponibles.
 9. **Tablas**: las tablas de reporte usan `gq-table`; en mobile el contenedor permite scroll horizontal controlado.
-10. **Footer**: todo GeoQuery termina con `gq-footer` y el texto `GeoQuery · [Sitio] · Resultados territoriales referenciales`.
+10. **Footer**: cuando el GeoQuery ya dispone de footer, su presentación se resuelve desde `shared/` y utiliza el patrón de resultados territoriales referenciales. No se inserta un footer nuevo en páginas que no lo tenían durante una intervención puramente visual, para no alterar capturas PDF ni flujos de reporte.
 
 ## Geometría común
 
-El ancho máximo transversal es 1240 px y debe provenir del token `--gq-content-max-width`; no se deben mantener anchos paralelos 1120/1320 px en los shells principales.
+El ancho máximo efectivo transversal es 1240 px y proviene del token `--gq-content-max-width`.
 
-La separación interna, radios, sombras y breakpoints generales deben provenir de `shared/geoquery/*`. El CSS local puede ajustar densidad de información sólo cuando el fenómeno lo requiere.
+GeoEVA y GeoMA ya utilizaban el eje común. GeoIPT y GeoNOXA conservan valores legacy de 1120 px en CSS local, pero `shared/geoquery/geoquery-layouts.css` los neutraliza mediante un adaptador de compatibilidad aplicado al shell analítico y a la barra de acciones. GeoNEMO conserva fórmulas históricas de 1320 px en su CSS local; el shared alinea hero y acciones al eje común de 1240 px sin modificar su microinforme cartográfico.
+
+Estos adaptadores permiten validar la nueva geometría antes de retirar físicamente las reglas legacy en una limpieza posterior. La separación interna, radios, sombras y breakpoints generales deben provenir de `shared/geoquery/*`; el CSS local puede ajustar densidad sólo cuando el fenómeno lo requiere.
 
 ## Excepciones justificadas por sitio
 
@@ -37,13 +39,22 @@ Referencia oficial. Mantiene lista de proyectos + mapa 50/50 y paneles comparati
 Mantiene paneles de metadata normativa y descriptores geométricos propios. La estructura base de hero, acciones, KPI, cards y mapa sigue el contrato shared.
 
 ### GeoNEMO
-Excepción estructural válida: los resultados se generan como **microinformes cartográficos dinámicos por grupo ambiental**. No se fuerza un único `gq-list-map` estático porque cada grupo construye su propia relación indicador/mapa. El shell, acciones, cards, tabla y footer sí pertenecen al estándar común.
+Excepción estructural válida: los resultados se generan como **microinformes cartográficos dinámicos por grupo ambiental**. No se fuerza un único `gq-list-map` estático porque cada grupo construye su propia relación indicador/mapa. El shell, acciones, cards y tabla sí pertenecen al estándar común.
 
 ### GeoNOXA
 Mantiene subpaneles diferentes para relaves y zonas saturadas, además de reglas específicas de exportación PDF. No se altera el staging de PDF ni la composición interna de esos reportes.
 
 ### GeoMA
-Mantiene selector 5/10/20, indicadores geométricos y panel comparativo de gráficos. Estos componentes son temáticos; el shell, lista/mapa, KPI y footer siguen el estándar.
+Mantiene selector 5/10/20, indicadores geométricos y panel comparativo de gráficos. Estos componentes son temáticos; el shell, lista/mapa y KPI siguen el estándar.
+
+## Resultado de la Intervención 14
+
+- Eje de contenido común: 1240 px efectivo.
+- GeoIPT/GeoNOXA: shell analítico y acciones alineados desde shared.
+- GeoNEMO: hero y acciones alineados al mismo eje sin tocar su microinforme.
+- Footer existente: estilo compartido desde `geoquery-components.css`.
+- Excepciones temáticas documentadas, no tratadas como desviaciones.
+- Sin cambios en lógica GIS, cálculos, KML ni PDF.
 
 ## Regla de seguridad
 
