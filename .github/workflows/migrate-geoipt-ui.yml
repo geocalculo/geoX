@@ -1,0 +1,38 @@
+name: Migrate GeoIPT UI
+
+on:
+  push:
+    branches:
+      - improve/geox-ui-v1
+    paths:
+      - tools/migrate_geoipt_geoquery_ui.py
+      - .github/workflows/migrate-geoipt-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[geoipt-ui-migrated]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout improvement branch
+        uses: actions/checkout@v4
+        with:
+          ref: improve/geox-ui-v1
+          fetch-depth: 0
+
+      - name: Run migration
+        run: python tools/migrate_geoipt_geoquery_ui.py
+
+      - name: Commit generated migration
+        run: |
+          if git diff --quiet; then
+            echo "No migration changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add geoipt/geoquery/geoquery.html geoipt/geoquery/geoquery.css
+          git commit -m "refactor(ui): migrate GeoIPT GeoQuery CSS to shared stack [geoipt-ui-migrated]"
+          git push origin HEAD:improve/geox-ui-v1
