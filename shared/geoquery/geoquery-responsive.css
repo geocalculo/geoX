@@ -24,6 +24,19 @@
     width: min(var(--gq-content-max-width), calc(100% - 24px));
   }
 
+  .geoquery-analysis.content,
+  .top-actions.gq-actions {
+    width: min(var(--gq-content-max-width), calc(100% - 24px)) !important;
+  }
+
+  body > .gq-hero.hero {
+    padding-inline: 18px !important;
+  }
+
+  body > nav.gq-actions.actions {
+    padding-inline: 10px !important;
+  }
+
   .gq-hero {
     padding-block: 22px;
   }
