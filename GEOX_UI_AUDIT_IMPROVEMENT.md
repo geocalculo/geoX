@@ -14,13 +14,13 @@ Generado por `tools/audit_geox_ui.py`. Este informe es estático: no reemplaza l
 
 ## CSS legacy GeoIPT
 
-| Archivo | Líneas | Referencias detectadas | Clasificación preliminar |
-|---|---:|---:|---|
-| `geo-card.css` | 12 | 3 | Referenciado |
-| `mapago.css` | 207 | 4 | Referenciado |
-| `report_html2pdf.css` | 27 | 3 | Referenciado |
+| Archivo | Líneas | Consumidores de ejecución | Clasificación |
+|---|---:|---|---|
+| `geo-card.css` | 12 | `geoipt/geo-card.html` | Legacy activo |
+| `mapago.css` | 207 | `geoipt/mapago.html` | Legacy activo |
+| `report_html2pdf.css` | 27 | `geoipt/report_html2pdf.html` | Legacy activo |
 
-> Un archivo marcado como huérfano candidato no se elimina automáticamente. Debe revisarse también su relación con PDF, cargas dinámicas y rutas históricas.
+> La clasificación considera sólo referencias de ejecución en HTML/CSS/JS. Menciones en documentación, auditorías o herramientas no cuentan como uso funcional.
 
 ## Variantes semánticas GeoQuery
 
