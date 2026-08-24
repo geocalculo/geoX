@@ -16,10 +16,9 @@ Generado por `tools/audit_geox_ui.py`. Este informe es estático: no reemplaza l
 
 | Archivo | Líneas | Referencias detectadas | Clasificación preliminar |
 |---|---:|---:|---|
-| `geo-card.css` | 12 | 2 | Referenciado |
-| `geonoxa.css` | 184 | 1 | Referenciado |
-| `mapago.css` | 207 | 3 | Referenciado |
-| `report_html2pdf.css` | 27 | 2 | Referenciado |
+| `geo-card.css` | 12 | 3 | Referenciado |
+| `mapago.css` | 207 | 4 | Referenciado |
+| `report_html2pdf.css` | 27 | 3 | Referenciado |
 
 > Un archivo marcado como huérfano candidato no se elimina automáticamente. Debe revisarse también su relación con PDF, cargas dinámicas y rutas históricas.
 
