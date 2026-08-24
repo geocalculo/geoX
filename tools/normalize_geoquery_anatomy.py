@@ -95,3 +95,4 @@ if "- `gq-footer`" not in text:
 write(path, text)
 
 print("Anatomía GeoQuery normalizada: ancho, footer y contrato shared.")
+# Trigger: Intervención 14
