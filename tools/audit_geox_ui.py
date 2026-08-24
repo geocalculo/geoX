@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 SITES = ["geoipt", "geoeva", "geonemo", "geonoxa", "geoma"]
@@ -30,19 +29,23 @@ def line_count(path):
     return len(path.read_text(encoding="utf-8", errors="ignore").splitlines()) if path.exists() else 0
 
 
-def repo_reference_count(token, excluded):
-    count = 0
+def runtime_reference_paths(token, excluded):
+    """Return execution-time references only; docs, audit files and tooling do not count."""
+    refs = []
     for path in ROOT.rglob("*"):
         if not path.is_file() or path == excluded or ".git" in path.parts:
             continue
-        if path.suffix.lower() not in {".html", ".css", ".js", ".json", ".md", ".py", ".yml", ".yaml"}:
+        if path.suffix.lower() not in {".html", ".css", ".js"}:
+            continue
+        if "tools" in path.parts or ".github" in path.parts:
             continue
         try:
             if token in path.read_text(encoding="utf-8", errors="ignore"):
-                count += 1
+                refs.append(path.relative_to(ROOT).as_posix())
         except OSError:
             pass
-    return count
+    return refs
+
 
 rows = []
 issues = []
@@ -74,8 +77,9 @@ if geoipt_css.exists():
     for path in sorted(geoipt_css.glob("*.css")):
         if path.name == "index.css":
             continue
-        refs = repo_reference_count(path.name, path)
-        legacy_candidates.append((path.name, line_count(path), refs, "Huérfano candidato" if refs == 0 else "Referenciado"))
+        refs = runtime_reference_paths(path.name, path)
+        status = "Legacy activo" if refs else "Huérfano candidato"
+        legacy_candidates.append((path.name, line_count(path), refs, status))
 
 semantic = {}
 for site in SITES:
@@ -99,11 +103,12 @@ for row in rows:
     out.append(f"| {site} | {yn(a)} | {yn(b)} | {yn(c)} | {yn(d)} | {yn(e)} | {f} | {g} |")
 
 out.append("\n## CSS legacy GeoIPT\n")
-out.append("| Archivo | Líneas | Referencias detectadas | Clasificación preliminar |")
-out.append("|---|---:|---:|---|")
+out.append("| Archivo | Líneas | Consumidores de ejecución | Clasificación |")
+out.append("|---|---:|---|---|")
 for name, lines, refs, status in legacy_candidates:
-    out.append(f"| `{name}` | {lines} | {refs} | {status} |")
-out.append("\n> Un archivo marcado como huérfano candidato no se elimina automáticamente. Debe revisarse también su relación con PDF, cargas dinámicas y rutas históricas.\n")
+    ref_text = ", ".join(f"`{ref}`" for ref in refs) if refs else "—"
+    out.append(f"| `{name}` | {lines} | {ref_text} | {status} |")
+out.append("\n> La clasificación considera sólo referencias de ejecución en HTML/CSS/JS. Menciones en documentación, auditorías o herramientas no cuentan como uso funcional.\n")
 
 out.append("## Variantes semánticas GeoQuery\n")
 out.append("| Sitio | Exportar KML | Descargar KML | GeoQuery 2.0 |")
@@ -122,4 +127,3 @@ out.append("La rama sólo puede cerrarse después de validar desktop/mobile y re
 
 (ROOT / "GEOX_UI_AUDIT_IMPROVEMENT.md").write_text("\n".join(out) + "\n", encoding="utf-8")
 print("Generado GEOX_UI_AUDIT_IMPROVEMENT.md")
-# Trigger marker: 2026-08-24
