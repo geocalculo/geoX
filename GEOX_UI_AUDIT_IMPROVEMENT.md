@@ -41,3 +41,4 @@ Contrato definido en `GEOX_UI_DICTIONARY.md`.
 ## Criterio de cierre
 
 La rama sólo puede cerrarse después de validar desktop/mobile y regresión funcional de GIS, cálculos, KML y PDF.
+
