@@ -24,6 +24,21 @@ Contrato definido en `GEOX_UI_DICTIONARY.md`.
 | GeoNOXA | Sí | Sí | Sí | Sí | Sí |
 | GeoMA | Sí | Sí | Sí | Sí | Sí |
 
+## Anatomía transversal GeoQuery
+
+Contrato definido en `GEOX_UI_ANATOMY.md`. El ancho efectivo común es 1240 px desde shared.
+
+| Sitio | Hero | Acciones | Cards | KPI/Stats | Lista + mapa | Mapa | Cumple |
+|---|---|---|---|---|---|---|---|
+| GeoIPT | Sí | Sí | Sí | Sí | Sí | Sí | Sí |
+| GeoEVA | Sí | Sí | Sí | Sí | Sí | Sí | Sí |
+| GeoNEMO | Sí | Sí | Sí | Sí | Excepción dinámica | Microinformes dinámicos | Sí |
+| GeoNOXA | Sí | Sí | Sí | Sí | Sí | Sí | Sí |
+| GeoMA | Sí | Sí | Sí | Sí | Sí | Sí | Sí |
+
+Shared: token 1240 = Sí; adaptador GeoIPT/GeoNOXA = Sí; eje GeoNEMO = Sí; mobile = Sí; footer existente = Sí.
+
+
 ## CSS legacy GeoIPT
 
 | Archivo | Líneas | Consumidores de ejecución | Clasificación |
@@ -36,7 +51,7 @@ Contrato definido en `GEOX_UI_DICTIONARY.md`.
 
 ## Incidencias estáticas
 
-- Sin incumplimientos estructurales ni semánticos detectados por el auditor estático.
+- Sin incumplimientos estructurales, anatómicos ni semánticos detectados por el auditor estático.
 
 ## Criterio de cierre
 
