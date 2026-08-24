@@ -50,6 +50,24 @@ def runtime_reference_paths(token, excluded):
 rows = []
 issues = []
 copy_rows = []
+anatomy_rows = []
+
+shared_tokens = (ROOT / "shared/geoquery/geoquery-tokens.css").read_text(encoding="utf-8", errors="ignore")
+shared_layouts = (ROOT / "shared/geoquery/geoquery-layouts.css").read_text(encoding="utf-8", errors="ignore")
+shared_components = (ROOT / "shared/geoquery/geoquery-components.css").read_text(encoding="utf-8", errors="ignore")
+shared_responsive = (ROOT / "shared/geoquery/geoquery-responsive.css").read_text(encoding="utf-8", errors="ignore")
+
+width_token_ok = "--gq-content-max-width: 1240px" in shared_tokens
+legacy_shell_adapter_ok = ".geoquery-analysis.content" in shared_layouts and ".top-actions.gq-actions" in shared_layouts
+geonemo_axis_adapter_ok = "body > .gq-hero.hero" in shared_layouts and "body > nav.gq-actions.actions" in shared_layouts
+mobile_shell_adapter_ok = ".geoquery-analysis.content" in shared_responsive and "body > .gq-hero.hero" in shared_responsive
+footer_shared_ok = ".gq-footer" in shared_components and ".app > footer" in shared_components
+
+if not width_token_ok: issues.append("Shared GeoQuery: el ancho común no está fijado en 1240 px mediante token.")
+if not legacy_shell_adapter_ok: issues.append("Shared GeoQuery: faltan adaptadores de shell para GeoIPT/GeoNOXA.")
+if not geonemo_axis_adapter_ok: issues.append("Shared GeoQuery: falta alineación del eje hero/acciones de GeoNEMO.")
+if not mobile_shell_adapter_ok: issues.append("Shared GeoQuery: los adaptadores de shell no tienen cobertura mobile.")
+if not footer_shared_ok: issues.append("Shared GeoQuery: footer existente no está cubierto por el componente compartido.")
 
 for site in SITES:
     display = DISPLAY[site]
@@ -74,8 +92,25 @@ for site in SITES:
     no_visible_version = "GeoQuery 2.0" not in gq_text and "GeoQuery <b>2.0</b>" not in gq_text
     copy_ok = title_ok and back_ok and kml_ok and no_visible_version
 
+    hero_ok = "gq-hero" in gq_text
+    actions_ok = "gq-actions" in gq_text and "gq-button" in gq_text
+    cards_ok = "gq-card" in gq_text
+    indicators_ok = "gq-kpi-grid" in gq_text or "gq-stats-grid" in gq_text
+    if site == "geonemo":
+        list_map_status = "Excepción dinámica"
+        map_status = "Microinformes dinámicos"
+        list_map_ok = True
+        map_ok = True
+    else:
+        list_map_ok = "gq-list-map" in gq_text
+        map_ok = "gq-map-panel" in gq_text
+        list_map_status = "Sí" if list_map_ok else "No"
+        map_status = "Sí" if map_ok else "No"
+    anatomy_ok = hero_ok and actions_ok and cards_ok and indicators_ok and list_map_ok and map_ok
+
     rows.append((display, idx_stack, footer_ok, gq_stack, theme_ok, no_inline_style, gq_classes, line_count(ROOT/site/"css"/"index.css")))
     copy_rows.append((display, title_ok, back_ok, kml_ok, no_visible_version, copy_ok))
+    anatomy_rows.append((display, hero_ok, actions_ok, cards_ok, indicators_ok, list_map_status, map_status, anatomy_ok))
 
     if not idx_stack: issues.append(f"{display}: orden/carga de CSS index no cumple contrato.")
     if not footer_ok: issues.append(f"{display}: navegación transversal incompleta o sin aria-current.")
@@ -86,6 +121,7 @@ for site in SITES:
     if not back_ok: issues.append(f"{display}: acción de retorno no identifica el sitio de destino.")
     if not kml_ok: issues.append(f"{display}: acción KML no cumple `Descargar KML` o conserva `Exportar KML`.")
     if not no_visible_version: issues.append(f"{display}: conserva `GeoQuery 2.0` como denominación visible.")
+    if not anatomy_ok: issues.append(f"{display}: anatomía GeoQuery incompleta respecto de `GEOX_UI_ANATOMY.md`.")
 
 legacy_candidates = []
 geoipt_css = ROOT / "geoipt" / "css"
@@ -116,6 +152,15 @@ for site, title_ok, back_ok, kml_ok, no_version, copy_ok in copy_rows:
     yn = lambda x: "Sí" if x else "No"
     out.append(f"| {site} | {yn(title_ok)} | {yn(back_ok)} | {yn(kml_ok)} | {yn(no_version)} | {yn(copy_ok)} |")
 
+out.append("\n## Anatomía transversal GeoQuery\n")
+out.append("Contrato definido en `GEOX_UI_ANATOMY.md`. El ancho efectivo común es 1240 px desde shared.\n")
+out.append("| Sitio | Hero | Acciones | Cards | KPI/Stats | Lista + mapa | Mapa | Cumple |")
+out.append("|---|---|---|---|---|---|---|---|")
+for site, hero_ok, actions_ok, cards_ok, indicators_ok, list_map_status, map_status, anatomy_ok in anatomy_rows:
+    yn = lambda x: "Sí" if x else "No"
+    out.append(f"| {site} | {yn(hero_ok)} | {yn(actions_ok)} | {yn(cards_ok)} | {yn(indicators_ok)} | {list_map_status} | {map_status} | {yn(anatomy_ok)} |")
+out.append("\nShared: token 1240 = %s; adaptador GeoIPT/GeoNOXA = %s; eje GeoNEMO = %s; mobile = %s; footer existente = %s.\n" % tuple("Sí" if x else "No" for x in [width_token_ok, legacy_shell_adapter_ok, geonemo_axis_adapter_ok, mobile_shell_adapter_ok, footer_shared_ok]))
+
 out.append("\n## CSS legacy GeoIPT\n")
 out.append("| Archivo | Líneas | Consumidores de ejecución | Clasificación |")
 out.append("|---|---:|---|---|")
@@ -128,7 +173,7 @@ out.append("## Incidencias estáticas\n")
 if issues:
     out.extend(f"- {issue}" for issue in issues)
 else:
-    out.append("- Sin incumplimientos estructurales ni semánticos detectados por el auditor estático.")
+    out.append("- Sin incumplimientos estructurales, anatómicos ni semánticos detectados por el auditor estático.")
 
 out.append("\n## Criterio de cierre\n")
 out.append("La rama sólo puede cerrarse después de validar desktop/mobile y regresión funcional de GIS, cálculos, KML y PDF.\n")
