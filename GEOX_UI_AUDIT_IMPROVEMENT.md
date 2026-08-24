@@ -12,6 +12,18 @@ Generado por `tools/audit_geox_ui.py`. Este informe es estático: no reemplaza l
 | GeoNOXA | Sí | Sí | Sí | Sí | Sí | 4 | 852 |
 | GeoMA | Sí | Sí | Sí | Sí | Sí | 4 | 10 |
 
+## Diccionario UI GeoQuery
+
+Contrato definido en `GEOX_UI_DICTIONARY.md`.
+
+| Sitio | Título estándar | Retorno identificado | Descargar KML | Sin GeoQuery 2.0 | Cumple |
+|---|---|---|---|---|---|
+| GeoIPT | Sí | Sí | Sí | Sí | Sí |
+| GeoEVA | Sí | Sí | Sí | Sí | Sí |
+| GeoNEMO | Sí | Sí | Sí | Sí | Sí |
+| GeoNOXA | Sí | Sí | Sí | Sí | Sí |
+| GeoMA | Sí | Sí | Sí | Sí | Sí |
+
 ## CSS legacy GeoIPT
 
 | Archivo | Líneas | Consumidores de ejecución | Clasificación |
@@ -22,21 +34,10 @@ Generado por `tools/audit_geox_ui.py`. Este informe es estático: no reemplaza l
 
 > La clasificación considera sólo referencias de ejecución en HTML/CSS/JS. Menciones en documentación, auditorías o herramientas no cuentan como uso funcional.
 
-## Variantes semánticas GeoQuery
-
-| Sitio | Exportar KML | Descargar KML | GeoQuery 2.0 |
-|---|---:|---:|---:|
-| GeoIPT | 0 | 2 | 0 |
-| GeoEVA | 0 | 1 | 0 |
-| GeoNEMO | 0 | 2 | 0 |
-| GeoNOXA | 0 | 2 | 0 |
-| GeoMA | 0 | 1 | 0 |
-
 ## Incidencias estáticas
 
-- Sin incumplimientos estructurales detectados por el auditor estático.
+- Sin incumplimientos estructurales ni semánticos detectados por el auditor estático.
 
 ## Criterio de cierre
 
 La rama sólo puede cerrarse después de validar desktop/mobile y regresión funcional de GIS, cálculos, KML y PDF.
-
