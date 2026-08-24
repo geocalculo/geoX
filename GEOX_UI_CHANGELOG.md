@@ -29,10 +29,14 @@ Resultado estructural: presentación extraída a `geoipt/geoquery/geoquery.css`;
 Se conservan localmente: identidad de color, escala Leaflet, resultados de búsqueda, etiquetas territoriales, icono de etiquetas mobile, posición específica del toast, summary mobile e introducción GeoIPT.
 
 ### 12 · CSS residual
-- [x] Clasificar referencias preliminares mediante auditoría automática.
-- [x] Confirmar que `geo-card.css`, `geonoxa.css`, `mapago.css` y `report_html2pdf.css` presentan referencias detectadas.
-- [ ] Determinar para cada referencia si es funcional, histórica o sólo documental.
-- [ ] No eliminar archivos sin confirmar referencias HTML/JS/PDF y cargas dinámicas.
+- [x] Corregir auditoría para distinguir referencias de ejecución de menciones documentales.
+- [x] Clasificar `geo-card.css` como **Legacy activo**, consumido por `geoipt/geo-card.html`.
+- [x] Clasificar `mapago.css` como **Legacy activo**, consumido por `geoipt/mapago.html`.
+- [x] Clasificar `report_html2pdf.css` como **Legacy activo / PDF**, consumido por `geoipt/report_html2pdf.html`.
+- [x] Clasificar `geonoxa.css` como **Huérfano**: sin consumidor HTML/CSS/JS dentro de GeoIPT.
+- [x] Eliminar `geoipt/css/geonoxa.css` de la rama de mejora.
+
+Resultado: no quedan CSS residuales sin clasificación en `geoipt/css`. Los tres archivos legacy conservados pertenecen a páginas independientes que quedan fuera de la limpieza del `index` hasta una intervención específica de esos módulos.
 
 ### 13 · Diccionario UI GeoX
 - [ ] Normalizar nomenclatura de acciones y estados.
