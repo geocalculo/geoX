@@ -40,4 +40,6 @@
 .gq-stats-grid dd { margin: 7px 0 0; font-size: 1.2rem; font-weight: 800; text-align: left; }
 .gq-chart-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 20px; color: var(--site-muted); font-size: .76rem; font-weight: 700; }
 .gq-chart-legend span { display: flex; align-items: center; gap: 6px; }
-.gq-footer { min-height: 34px; display: flex; align-items: center; justify-content: center; padding: 8px 16px; border-top: 1px solid var(--site-border); background: var(--site-primary-strong); color: #e2e8f0; font-size: .75rem; text-align: center; }
+.gq-footer,
+body > footer,
+.app > footer { min-height: 34px; display: flex; align-items: center; justify-content: center; padding: 8px 16px; border-top: 1px solid var(--site-border); background: var(--site-primary-strong); color: #e2e8f0; font-size: .75rem; text-align: center; }
