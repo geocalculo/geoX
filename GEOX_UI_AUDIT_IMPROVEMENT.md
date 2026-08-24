@@ -27,8 +27,8 @@ Generado por `tools/audit_geox_ui.py`. Este informe es estático: no reemplaza l
 | Sitio | Exportar KML | Descargar KML | GeoQuery 2.0 |
 |---|---:|---:|---:|
 | GeoIPT | 0 | 2 | 0 |
-| GeoEVA | 0 | 1 | 2 |
-| GeoNEMO | 2 | 0 | 2 |
+| GeoEVA | 0 | 1 | 0 |
+| GeoNEMO | 0 | 2 | 0 |
 | GeoNOXA | 0 | 2 | 0 |
 | GeoMA | 0 | 1 | 0 |
 
