@@ -1,0 +1,59 @@
+# GeoX UI · Auditoría automática de rama de mejora
+
+Generado por `tools/audit_geox_ui.py`. Este informe es estático: no reemplaza la validación visual ni funcional.
+
+## Contrato transversal
+
+| Sitio | Index shared | Footer | GeoQuery shared | Tema | Sin style inline | Clases gq (de 4) | Líneas index.css |
+|---|---|---|---|---|---|---:|---:|
+| GeoIPT | Sí | Sí | Sí | Sí | Sí | 4 | 421 |
+| GeoEVA | Sí | Sí | Sí | Sí | Sí | 4 | 846 |
+| GeoNEMO | Sí | Sí | Sí | Sí | Sí | 4 | 714 |
+| GeoNOXA | Sí | Sí | Sí | Sí | Sí | 4 | 852 |
+| GeoMA | Sí | Sí | Sí | Sí | Sí | 4 | 10 |
+
+## Diccionario UI GeoQuery
+
+Contrato definido en `GEOX_UI_DICTIONARY.md`.
+
+| Sitio | Título estándar | Retorno identificado | Descargar KML | Sin GeoQuery 2.0 | Cumple |
+|---|---|---|---|---|---|
+| GeoIPT | Sí | Sí | Sí | Sí | Sí |
+| GeoEVA | Sí | Sí | Sí | Sí | Sí |
+| GeoNEMO | Sí | Sí | Sí | Sí | Sí |
+| GeoNOXA | Sí | Sí | Sí | Sí | Sí |
+| GeoMA | Sí | Sí | Sí | Sí | Sí |
+
+## Anatomía transversal GeoQuery
+
+Contrato definido en `GEOX_UI_ANATOMY.md`. El ancho efectivo común es 1240 px desde shared.
+
+| Sitio | Hero | Acciones | Cards | KPI/Stats | Lista + mapa | Mapa | Cumple |
+|---|---|---|---|---|---|---|---|
+| GeoIPT | Sí | Sí | Sí | Sí | Sí | Sí | Sí |
+| GeoEVA | Sí | Sí | Sí | Sí | Sí | Sí | Sí |
+| GeoNEMO | Sí | Sí | Sí | Sí | Excepción dinámica | Microinformes dinámicos | Sí |
+| GeoNOXA | Sí | Sí | Sí | Sí | Sí | Sí | Sí |
+| GeoMA | Sí | Sí | Sí | Sí | Sí | Sí | Sí |
+
+Shared: token 1240 = Sí; adaptador GeoIPT/GeoNOXA = Sí; eje GeoNEMO = Sí; mobile = Sí; footer existente = Sí.
+
+
+## CSS legacy GeoIPT
+
+| Archivo | Líneas | Consumidores de ejecución | Clasificación |
+|---|---:|---|---|
+| `geo-card.css` | 12 | `geoipt/geo-card.html` | Legacy activo |
+| `mapago.css` | 207 | `geoipt/mapago.html` | Legacy activo |
+| `report_html2pdf.css` | 27 | `geoipt/report_html2pdf.html` | Legacy activo |
+
+> La clasificación considera sólo referencias de ejecución en HTML/CSS/JS. Menciones en documentación, auditorías o herramientas no cuentan como uso funcional.
+
+## Incidencias estáticas
+
+- Sin incumplimientos estructurales, anatómicos ni semánticos detectados por el auditor estático.
+
+## Criterio de cierre
+
+La rama sólo puede cerrarse después de validar desktop/mobile y regresión funcional de GIS, cálculos, KML y PDF.
+

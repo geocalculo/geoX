@@ -9,3 +9,18 @@
 .gq-chart-panel__legend { display: flex; flex-wrap: wrap; gap: var(--gq-space-3); }
 .gq-comparison-grid { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(0, 1fr); gap: clamp(28px, 4vw, 52px); margin-top: 12px; }
 .gq-comparison-column { min-width: 0; }
+
+/* Compatibility adapters for GeoQuery shells migrated progressively to shared. */
+.geoquery-analysis.content,
+.top-actions.gq-actions {
+  width: min(var(--gq-content-max-width), calc(100% - 40px)) !important;
+  margin-inline: auto;
+}
+
+/* GeoNEMO keeps a legacy hero/actions shell; align it to the common 1240 px axis. */
+body > .gq-hero.hero {
+  padding-inline: max(22px, calc((100% - var(--gq-content-max-width)) / 2)) !important;
+}
+body > nav.gq-actions.actions {
+  padding-inline: max(22px, calc((100% - var(--gq-content-max-width)) / 2)) !important;
+}
