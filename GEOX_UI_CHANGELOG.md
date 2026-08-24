@@ -51,7 +51,17 @@ Resultado: no quedan CSS residuales sin clasificación en `geoipt/css`. Los tres
 Resultado: los cinco GeoQuery comparten vocabulario de producto y acciones sin perder títulos, análisis ni contenidos propios de cada sitio.
 
 ### 14 · Anatomía transversal
-- [ ] Comparar hero, contenedores, cards, KPI, listas, mapas, tablas y footer.
+- [x] Crear `GEOX_UI_ANATOMY.md` y definir anatomía obligatoria versus componentes temáticos.
+- [x] Confirmar `gq-hero`, `gq-actions`, `gq-button` y `gq-card` en los cinco GeoQuery.
+- [x] Fijar ancho efectivo común en 1240 px mediante `--gq-content-max-width`.
+- [x] Alinear GeoIPT y GeoNOXA al eje común mediante adaptador shared de shell/acciones.
+- [x] Alinear hero y acciones de GeoNEMO al mismo eje sin modificar sus microinformes dinámicos.
+- [x] Mantener GeoNEMO como excepción válida al patrón estático `lista + mapa`.
+- [x] Normalizar desde shared la presentación de footers existentes sin insertar nuevos footers en reportes que no los tenían.
+- [x] Incorporar auditoría anatómica a `tools/audit_geox_ui.py`.
+- [x] Confirmar cumplimiento anatómico de GeoIPT, GeoEVA, GeoNEMO, GeoNOXA y GeoMA.
+
+Resultado: los cinco GeoQuery comparten eje, shell y lenguaje de componentes, mientras mapas, gráficos, tablas y microinformes permanecen específicos del fenómeno. No se modificó lógica GIS, KML ni PDF.
 
 ### 15 · Responsive
 - [ ] Revisar 1440 / 1024 / 768 / 430 / 390 px.
@@ -69,7 +79,7 @@ Resultado: los cinco GeoQuery comparten vocabulario de producto y acciones sin p
 
 ## Estado estático actual
 
-La auditoría de la rama informa que los cinco sitios cumplen el contrato estructural de carga shared en index y GeoQuery, temas GeoQuery, navegación transversal, ausencia de bloques `<style>` inline en GeoQuery y diccionario UI común.
+La auditoría de la rama informa que los cinco sitios cumplen el contrato estructural de carga shared en index y GeoQuery, temas GeoQuery, navegación transversal, ausencia de bloques `<style>` inline, diccionario UI común y anatomía transversal GeoQuery.
 
 ## Regla de seguridad
 
