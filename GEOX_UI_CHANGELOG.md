@@ -12,19 +12,27 @@ Retirar deuda visual y estructural residual sin alterar lógica GIS, cálculos t
 
 ### 10 · GeoIPT GeoQuery
 - [x] Crear migración reproducible para extraer CSS inline.
-- [x] Preparar conexión al stack `shared/geoquery/*`.
-- [x] Preparar puente de clases `gq-*` manteniendo clases legacy.
-- [ ] Confirmar ejecución automática de la migración y ausencia de `<style>` inline.
-- [ ] Validar cálculo, mapa, KML y PDF.
+- [x] Conectar al stack `shared/geoquery/*`.
+- [x] Incorporar puente de clases `gq-*` manteniendo clases legacy.
+- [x] Confirmar ausencia de `<style>` inline mediante auditoría estática.
+- [ ] Validar cálculo, mapa, KML y PDF en navegador antes del cierre de rama.
+
+Resultado estructural: presentación extraída a `geoipt/geoquery/geoquery.css`; lógica analítica permanece sin extracción para evitar cambios funcionales prematuros.
 
 ### 11 · GeoIPT Index
-- [ ] Inventariar reglas duplicadas contra `shared/`.
-- [ ] Retirar únicamente reglas con equivalencia comprobada.
-- [ ] Mantener tema, normativa urbana y excepciones funcionales.
+- [x] Inventariar reglas duplicadas contra `shared/`.
+- [x] Retirar reglas estructurales, controles y responsive ya cubiertos por `shared/`.
+- [x] Mantener tema GeoIPT y componentes funcionales propios.
+- [x] Reducir `geoipt/css/index.css` a 421 líneas según auditoría automática.
+- [ ] Validar visualmente desktop/mobile antes de considerar definitiva la limpieza.
+
+Se conservan localmente: identidad de color, escala Leaflet, resultados de búsqueda, etiquetas territoriales, icono de etiquetas mobile, posición específica del toast, summary mobile e introducción GeoIPT.
 
 ### 12 · CSS residual
-- [ ] Clasificar archivos como Activo / Compartible / Legacy requerido / Huérfano.
-- [ ] No eliminar archivos sin confirmar referencias HTML/JS/PDF.
+- [x] Clasificar referencias preliminares mediante auditoría automática.
+- [x] Confirmar que `geo-card.css`, `geonoxa.css`, `mapago.css` y `report_html2pdf.css` presentan referencias detectadas.
+- [ ] Determinar para cada referencia si es funcional, histórica o sólo documental.
+- [ ] No eliminar archivos sin confirmar referencias HTML/JS/PDF y cargas dinámicas.
 
 ### 13 · Diccionario UI GeoX
 - [ ] Normalizar nomenclatura de acciones y estados.
@@ -43,8 +51,13 @@ Retirar deuda visual y estructural residual sin alterar lógica GIS, cálculos t
 
 ### 17 · Cierre documental
 - [x] Crear este changelog.
-- [ ] Actualizar auditoría tras validación.
+- [x] Incorporar auditoría automática de rama de mejora.
+- [ ] Actualizar auditoría tras validación visual/funcional final.
 - [ ] Declarar excepciones finales y cerrar UI v1.
+
+## Estado estático actual
+
+La auditoría de la rama informa que los cinco sitios cumplen el contrato estructural de carga shared en index y GeoQuery, temas GeoQuery, navegación transversal y ausencia de bloques `<style>` inline en GeoQuery.
 
 ## Regla de seguridad
 
