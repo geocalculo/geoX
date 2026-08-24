@@ -1,0 +1,44 @@
+name: Audit GeoX UI
+
+on:
+  push:
+    branches:
+      - improve/geox-ui-v1
+    paths:
+      - 'geoipt/**'
+      - 'geoeva/**'
+      - 'geonemo/**'
+      - 'geonoxa/**'
+      - 'geoma/**'
+      - 'shared/**'
+      - 'tools/audit_geox_ui.py'
+      - '.github/workflows/audit-geox-ui.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    if: ${{ !contains(github.event.head_commit.message, '[ui-audit]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout improvement branch
+        uses: actions/checkout@v4
+        with:
+          ref: improve/geox-ui-v1
+          fetch-depth: 0
+
+      - name: Generate static UI audit
+        run: python tools/audit_geox_ui.py
+
+      - name: Commit audit report
+        run: |
+          if git diff --quiet; then
+            echo "Audit report unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add GEOX_UI_AUDIT_IMPROVEMENT.md
+          git commit -m "docs(ui): refresh improvement audit [ui-audit]"
+          git push origin HEAD:improve/geox-ui-v1
