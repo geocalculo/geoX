@@ -39,8 +39,16 @@ Se conservan localmente: identidad de color, escala Leaflet, resultados de búsq
 Resultado: no quedan CSS residuales sin clasificación en `geoipt/css`. Los tres archivos legacy conservados pertenecen a páginas independientes que quedan fuera de la limpieza del `index` hasta una intervención específica de esos módulos.
 
 ### 13 · Diccionario UI GeoX
-- [ ] Normalizar nomenclatura de acciones y estados.
-- [ ] Mantener contenido temático específico por sitio.
+- [x] Crear `GEOX_UI_DICTIONARY.md` como contrato de copy visible.
+- [x] Normalizar título del documento como `GeoQuery | [Sitio]`.
+- [x] Normalizar acción KML como `Descargar KML`.
+- [x] Normalizar acción de retorno como `Volver a [Sitio]`.
+- [x] Retirar `GeoQuery 2.0` como denominación visible del producto.
+- [x] Mantener nombres técnicos históricos (`geoquery2.css/js`) sin renombrar.
+- [x] Incorporar estas reglas a `tools/audit_geox_ui.py`.
+- [x] Confirmar cumplimiento semántico de GeoIPT, GeoEVA, GeoNEMO, GeoNOXA y GeoMA.
+
+Resultado: los cinco GeoQuery comparten vocabulario de producto y acciones sin perder títulos, análisis ni contenidos propios de cada sitio.
 
 ### 14 · Anatomía transversal
 - [ ] Comparar hero, contenedores, cards, KPI, listas, mapas, tablas y footer.
@@ -61,7 +69,7 @@ Resultado: no quedan CSS residuales sin clasificación en `geoipt/css`. Los tres
 
 ## Estado estático actual
 
-La auditoría de la rama informa que los cinco sitios cumplen el contrato estructural de carga shared en index y GeoQuery, temas GeoQuery, navegación transversal y ausencia de bloques `<style>` inline en GeoQuery.
+La auditoría de la rama informa que los cinco sitios cumplen el contrato estructural de carga shared en index y GeoQuery, temas GeoQuery, navegación transversal, ausencia de bloques `<style>` inline en GeoQuery y diccionario UI común.
 
 ## Regla de seguridad
 
