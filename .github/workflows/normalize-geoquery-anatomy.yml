@@ -1,0 +1,48 @@
+name: Normalize GeoQuery anatomy
+
+on:
+  push:
+    branches:
+      - improve/geox-ui-v1
+    paths:
+      - tools/normalize_geoquery_anatomy.py
+      - .github/workflows/normalize-geoquery-anatomy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    if: ${{ !contains(github.event.head_commit.message, '[geoquery-anatomy-normalized]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout improvement branch
+        uses: actions/checkout@v4
+        with:
+          ref: improve/geox-ui-v1
+          fetch-depth: 0
+
+      - name: Normalize GeoQuery anatomy
+        run: python tools/normalize_geoquery_anatomy.py
+
+      - name: Commit normalized anatomy
+        run: |
+          if git diff --quiet; then
+            echo "No anatomy changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            GEOX_UI_STANDARD.md \
+            shared/geoquery/geoquery-components.css \
+            geoipt/geoquery/geoquery.css \
+            geoipt/geoquery/geoquery.html \
+            geoeva/geoquery/geoquery.html \
+            geonemo/geoquery/geoquery.css \
+            geonemo/geoquery/geoquery.html \
+            geonoxa/geoquery/geoquery.css \
+            geonoxa/geoquery/geoquery.html \
+            geoma/geoquery/geoquery.html
+          git commit -m "refactor(ui): normalize GeoQuery anatomy [geoquery-anatomy-normalized]"
+          git push origin HEAD:improve/geox-ui-v1
