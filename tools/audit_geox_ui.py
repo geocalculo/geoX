@@ -49,8 +49,10 @@ def runtime_reference_paths(token, excluded):
 
 rows = []
 issues = []
+copy_rows = []
 
 for site in SITES:
+    display = DISPLAY[site]
     index = ROOT / site / "index.html"
     index_text = index.read_text(encoding="utf-8", errors="ignore") if index.exists() else ""
     idx_stack = ordered(index_text, INDEX_STACK)
@@ -64,12 +66,26 @@ for site in SITES:
     theme = f"{site}-theme.css" if site != "geoeva" else "geoeva-theme.css"
     theme_ok = theme in gq_text
 
-    rows.append((DISPLAY[site], idx_stack, footer_ok, gq_stack, theme_ok, no_inline_style, gq_classes, line_count(ROOT/site/"css"/"index.css")))
-    if not idx_stack: issues.append(f"{DISPLAY[site]}: orden/carga de CSS index no cumple contrato.")
-    if not footer_ok: issues.append(f"{DISPLAY[site]}: navegación transversal incompleta o sin aria-current.")
-    if not gq_stack: issues.append(f"{DISPLAY[site]}: GeoQuery no carga el stack shared completo en orden.")
-    if not theme_ok: issues.append(f"{DISPLAY[site]}: tema GeoQuery no detectado.")
-    if not no_inline_style: issues.append(f"{DISPLAY[site]}: conserva bloque <style> inline en GeoQuery.")
+    expected_title = f"<title>GeoQuery | {display}</title>"
+    expected_back = f"Volver a {display}"
+    title_ok = expected_title in gq_text
+    back_ok = expected_back in gq_text
+    kml_ok = "Descargar KML" in gq_text and "Exportar KML" not in gq_text
+    no_visible_version = "GeoQuery 2.0" not in gq_text and "GeoQuery <b>2.0</b>" not in gq_text
+    copy_ok = title_ok and back_ok and kml_ok and no_visible_version
+
+    rows.append((display, idx_stack, footer_ok, gq_stack, theme_ok, no_inline_style, gq_classes, line_count(ROOT/site/"css"/"index.css")))
+    copy_rows.append((display, title_ok, back_ok, kml_ok, no_visible_version, copy_ok))
+
+    if not idx_stack: issues.append(f"{display}: orden/carga de CSS index no cumple contrato.")
+    if not footer_ok: issues.append(f"{display}: navegación transversal incompleta o sin aria-current.")
+    if not gq_stack: issues.append(f"{display}: GeoQuery no carga el stack shared completo en orden.")
+    if not theme_ok: issues.append(f"{display}: tema GeoQuery no detectado.")
+    if not no_inline_style: issues.append(f"{display}: conserva bloque <style> inline en GeoQuery.")
+    if not title_ok: issues.append(f"{display}: título de documento no cumple `GeoQuery | [Sitio]`.")
+    if not back_ok: issues.append(f"{display}: acción de retorno no identifica el sitio de destino.")
+    if not kml_ok: issues.append(f"{display}: acción KML no cumple `Descargar KML` o conserva `Exportar KML`.")
+    if not no_visible_version: issues.append(f"{display}: conserva `GeoQuery 2.0` como denominación visible.")
 
 legacy_candidates = []
 geoipt_css = ROOT / "geoipt" / "css"
@@ -80,16 +96,6 @@ if geoipt_css.exists():
         refs = runtime_reference_paths(path.name, path)
         status = "Legacy activo" if refs else "Huérfano candidato"
         legacy_candidates.append((path.name, line_count(path), refs, status))
-
-semantic = {}
-for site in SITES:
-    gq = ROOT / site / "geoquery" / "geoquery.html"
-    text = gq.read_text(encoding="utf-8", errors="ignore") if gq.exists() else ""
-    semantic[DISPLAY[site]] = {
-        "Exportar KML": text.count("Exportar KML"),
-        "Descargar KML": text.count("Descargar KML"),
-        "GeoQuery 2.0": text.count("GeoQuery 2.0"),
-    }
 
 out = []
 out.append("# GeoX UI · Auditoría automática de rama de mejora\n")
@@ -102,6 +108,14 @@ for row in rows:
     yn = lambda x: "Sí" if x else "No"
     out.append(f"| {site} | {yn(a)} | {yn(b)} | {yn(c)} | {yn(d)} | {yn(e)} | {f} | {g} |")
 
+out.append("\n## Diccionario UI GeoQuery\n")
+out.append("Contrato definido en `GEOX_UI_DICTIONARY.md`.\n")
+out.append("| Sitio | Título estándar | Retorno identificado | Descargar KML | Sin GeoQuery 2.0 | Cumple |")
+out.append("|---|---|---|---|---|---|")
+for site, title_ok, back_ok, kml_ok, no_version, copy_ok in copy_rows:
+    yn = lambda x: "Sí" if x else "No"
+    out.append(f"| {site} | {yn(title_ok)} | {yn(back_ok)} | {yn(kml_ok)} | {yn(no_version)} | {yn(copy_ok)} |")
+
 out.append("\n## CSS legacy GeoIPT\n")
 out.append("| Archivo | Líneas | Consumidores de ejecución | Clasificación |")
 out.append("|---|---:|---|---|")
@@ -110,17 +124,11 @@ for name, lines, refs, status in legacy_candidates:
     out.append(f"| `{name}` | {lines} | {ref_text} | {status} |")
 out.append("\n> La clasificación considera sólo referencias de ejecución en HTML/CSS/JS. Menciones en documentación, auditorías o herramientas no cuentan como uso funcional.\n")
 
-out.append("## Variantes semánticas GeoQuery\n")
-out.append("| Sitio | Exportar KML | Descargar KML | GeoQuery 2.0 |")
-out.append("|---|---:|---:|---:|")
-for site, vals in semantic.items():
-    out.append(f"| {site} | {vals['Exportar KML']} | {vals['Descargar KML']} | {vals['GeoQuery 2.0']} |")
-
-out.append("\n## Incidencias estáticas\n")
+out.append("## Incidencias estáticas\n")
 if issues:
     out.extend(f"- {issue}" for issue in issues)
 else:
-    out.append("- Sin incumplimientos estructurales detectados por el auditor estático.")
+    out.append("- Sin incumplimientos estructurales ni semánticos detectados por el auditor estático.")
 
 out.append("\n## Criterio de cierre\n")
 out.append("La rama sólo puede cerrarse después de validar desktop/mobile y regresión funcional de GIS, cálculos, KML y PDF.\n")
