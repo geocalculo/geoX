@@ -122,3 +122,4 @@ out.append("La rama sólo puede cerrarse después de validar desktop/mobile y re
 
 (ROOT / "GEOX_UI_AUDIT_IMPROVEMENT.md").write_text("\n".join(out) + "\n", encoding="utf-8")
 print("Generado GEOX_UI_AUDIT_IMPROVEMENT.md")
+# Trigger marker: 2026-08-24
