@@ -1,0 +1,9 @@
+{
+  "titulo": "Australia: Percentiles de Crímenes Asalto físico y Asalto Sexual por Territorio y Principales Urbes",
+  "fecha": "2026-08-23",
+  "territorio": "Australia",
+  "tema": "Comparación de la distribución territorial relativa del asalto físico y del asalto sexual en Australia, mediante Percentiles Territoriales (CTp), junto con la posición relativa de las principales urbes del país para ambas variables.",
+  "fuente": "Australian Bureau of Statistics (ABS). Modelo: geocalculo.cl",
+  "descripcion": "La lámina compara la intensidad territorial relativa del asalto físico y del asalto sexual en Australia. El mapa representa mediante percentiles territoriales la distribución espacial del fenómeno, donde los tonos más intensos indican valores territoriales relativos más altos. El gráfico posiciona las principales urbes según su Percentil Territorial (CTp) de asalto físico en el eje X y de asalto sexual en el eje Y, permitiendo identificar ciudades con comportamientos similares, diferencias entre ambos tipos de crimen y agrupaciones territoriales características.",
+  "linkedin":"https://lnkd.in/p/dDTpjz4m"
+}
