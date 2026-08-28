@@ -1,0 +1,9 @@
+{
+  "titulo": "Gemelos Territoriales: España - Francia",
+  "fecha": "2026-08-27",
+  "territorio": "España - Francia",
+  "tema": "Homologación de ciudades de España y Francia según su jerarquía territorial, utilizando su posición relativa en el espacio CTpU–CTzU y su correspondencia sobre una curva J común.",
+  "fuente": "OpenStreetMap (OSM). Modelo: geocalculo.cl",
+  "descripcion": "La lámina compara las estructuras territoriales urbanas de España y Francia mediante las curvas J unitarias construidas a partir del Percentil Territorial unitario (CTpU) y la desviación territorial estandarizada (CTzU). A partir de una curva J común, las ciudades de ambos países se proyectan sobre una trayectoria equivalente y se buscan pares homólogos según su cercanía sobre dicha curva. El mapa muestra el despliegue cruzado de ciudades francesas sobre España y ciudades españolas sobre Francia, permitiendo visualizar correspondencias de jerarquía territorial entre ambos sistemas urbanos.",
+  "linkedin": "https://lnkd.in/p/dw6AYbRU"
+}

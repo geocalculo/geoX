@@ -1,0 +1,9 @@
+{
+  "titulo": "Japón-Alemania: ¿Ciudades comparables?",
+  "fecha": "2026-08-26",
+  "territorio": "Japón - Alemania",
+  "tema": "Comparación de ciudades de Japón y Alemania según su posición geométrica relativa en el Campo Territorial Unitario, utilizando el Percentil Territorial Unitario (CTpU) y la distancia respecto de la media territorial (CTzU).",
+  "fuente": "OpenStreetMap (OSM). Modelo: geocalculo.cl",
+  "descripcion": "La lámina compara la firma geométrica territorial de los sistemas urbanos de Japón y Alemania. Los mapas muestran la intensidad territorial unitaria generada por la configuración espacial de las ciudades de cada país, mientras el gráfico conjunto CTpU–CTzU permite observar la trayectoria relativa de ambos sistemas e identificar ciudades que ocupan posiciones geométricas semejantes. La comparación permite explorar la existencia de ciudades homólogas entre territorios con geografías y estructuras urbanas muy diferentes.",
+  "linkedin": "https://lnkd.in/p/dqMQS4Ea"
+}
