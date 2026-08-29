@@ -1,0 +1,9 @@
+{
+  "titulo": "Gemelos Territoriales: EEUU vs México",
+  "fecha": "2026-08-28",
+  "territorio": "Estados Unidos - México",
+  "tema": "Equivalencia en jerarquía territorial geométrica entre ciudades de Estados Unidos y México, utilizando su posición relativa en el espacio CTpU–CTzU y su correspondencia sobre una curva J promedio.",
+  "fuente": "OpenStreetMap (OSM). Modelo: geocalculo.cl",
+  "descripcion": "La lámina compara las estructuras territoriales urbanas de Estados Unidos y México mediante el Percentil Territorial Unitario (CTpU) y la desviación territorial estandarizada (CTzU). El gráfico central muestra las trayectorias de ambos sistemas y una curva J promedio utilizada como referencia común para proyectar las ciudades e identificar pares territoriales homólogos según su proximidad sobre la curva. Los mapas permiten visualizar el despliegue de estas equivalencias en ambos territorios, mostrando ciudades que ocupan posiciones comparables dentro de sus respectivas jerarquías territoriales geométricas.",
+  "linkedin": "https://lnkd.in/p/ddjHEqre"
+}
