@@ -2,7 +2,7 @@
   "use strict";
 
   const ENDPOINT = "https://hidden-mud-ce7a.geocalculo.workers.dev/api/registro";
-  const SITES = ["geoipt", "geoeva", "geonemo", "geonoxa"];
+  const SITES = ["geoipt", "geoeva", "geonemo", "geonoxa", "geoma"];
   const SESSION_KEY = "geocalculo_session_id";
   const JOURNEY_KEY = "geocalculo_journey_id";
 
