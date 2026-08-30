@@ -19,6 +19,7 @@ const geomaHtml = fs.readFileSync('geoma/geoquery/geoquery.html', 'utf8');
 const geomaCss = fs.readFileSync('geoma/geoquery/geoquery.css', 'utf8');
 const geonemoHtml = fs.readFileSync('geonemo/geoquery/geoquery.html', 'utf8');
 const geonemoCss = fs.readFileSync('geonemo/geoquery/geoquery.css', 'utf8');
+const geoiptHtml = fs.readFileSync('geoipt/geoquery/geoquery.html', 'utf8');
 
 for (const [site, html, localStylesheet] of [
   ['GeoEVA', geoevaHtml, 'css/geoeva-theme.css'],
@@ -55,4 +56,20 @@ assert.match(geonemoCss, /border-radius:var\(--gq-radius-panel\)/);
 assert.match(geonemoCss, /\.hero h1\{color:#fff\}/);
 assert.match(geonemoCss, /\.synthesis h2\{color:#fff\}/);
 
-console.log('GeoQuery shared style tests passed for GeoEVA, GeoMA and GeoNEMO');
+const geoiptLinks = stylesheetOrder(geoiptHtml);
+for (const shared of sharedStyles) {
+  assert.ok(geoiptLinks.includes(shared), `GeoIPT: falta ${shared}`);
+}
+assert.ok(
+  geoiptHtml.indexOf('../../shared/geoquery/geoquery-responsive.css') < geoiptHtml.indexOf('<style>'),
+  'GeoIPT: el bloque de tema inline debe cargar después de la base shared'
+);
+assert.match(geoiptHtml, /--site-primary:\s*#102a43/);
+assert.match(geoiptHtml, /--site-background:\s*#f4f6f8/);
+assert.match(geoiptHtml, /--site-border:\s*#d9e2ec/);
+assert.match(geoiptHtml, /--gq-content-max-width:\s*1120px/);
+assert.match(geoiptHtml, /font-family:\s*var\(--gq-font-family\)/);
+assert.match(geoiptHtml, /width:\s*min\(var\(--gq-content-max-width\), calc\(100% - 32px\)\)/);
+assert.doesNotMatch(geoiptHtml, /--gq-content-max-width:\s*var\(--gq-content-max-width\)/);
+
+console.log('GeoQuery shared style tests passed for GeoEVA, GeoMA, GeoNEMO and GeoIPT');
