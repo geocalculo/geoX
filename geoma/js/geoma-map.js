@@ -1,5 +1,6 @@
 (function () {
   "use strict";
+  const SITE_ID = "geoma";
   const CHILE_BOUNDS = [[-56.1, -76.5], [-17.4, -66.2]];
   const DEFAULT_REGION_ID = "LA";
   const DEFAULT_REGION_ZOOM = 7; // Escala de referencia cercana a 1:500.000.
@@ -10,6 +11,15 @@
   };
   let activeLayer = layers.osm.addTo(map);
   let activeBasemap = "osm";
+
+  function normalizeBasemap(value) {
+    return String(value || "").toLowerCase() === "sat" ? "sat" : "osm";
+  }
+
+  const geoQueryContext = window.GeoXGeoQueryContext.create({
+    site: SITE_ID,
+    normalizeBasemap
+  });
 
   function selectBasemap(name) {
     if (!layers[name]) name = "osm";
@@ -39,31 +49,68 @@
     map.fitBounds(CHILE_BOUNDS);
   });
 
+  function isCrossAccessNavigationFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("from") === "crossaccess" || params.get("crossAccess") === "1";
+  }
+
   function openGeoQuery(lat, lon) {
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-    const center = map.getCenter();
-    const bounds = map.getBounds();
+
+    const navigationFrom = isCrossAccessNavigationFromUrl() ? "crossaccess" : "index";
+    const originState = geoQueryContext.capture({
+      site: SITE_ID,
+      map,
+      queryLat: lat,
+      queryLon: lon,
+      basemap: activeBasemap,
+      from: navigationFrom
+    });
+    if (!originState) return;
+
+    geoQueryContext.persist(originState);
+
     const url = new URL("./geoquery/geoquery.html", window.location.href);
-    url.searchParams.set("site", "geoma");
+    url.searchParams.set("site", SITE_ID);
     url.searchParams.set("lat", lat.toFixed(7));
     url.searchParams.set("lon", lon.toFixed(7));
-    url.searchParams.set("queryLat", lat.toFixed(7));
-    url.searchParams.set("queryLon", lon.toFixed(7));
-    url.searchParams.set("viewLat", center.lat.toFixed(7));
-    url.searchParams.set("viewLon", center.lng.toFixed(7));
-    url.searchParams.set("viewWest", bounds.getWest().toFixed(7));
-    url.searchParams.set("viewSouth", bounds.getSouth().toFixed(7));
-    url.searchParams.set("viewEast", bounds.getEast().toFixed(7));
-    url.searchParams.set("viewNorth", bounds.getNorth().toFixed(7));
-    url.searchParams.set("zoom", String(map.getZoom()));
-    url.searchParams.set("basemap", activeBasemap);
-    url.searchParams.set("from", "index");
-    window.location.href = url.href;
+    url.searchParams.set("from", originState.navigation.crossAccess ? "crossaccess" : "index");
+
+    window.location.href = geoQueryContext.appendToGeoQueryUrl(url.href, originState);
   }
 
   map.on("click", (event) => {
     openGeoQuery(event.latlng.lat, event.latlng.lng);
   });
+
+  function restoreGeoQueryViewport() {
+    const params = new URLSearchParams(window.location.search);
+    const isGeoQueryReturn =
+      params.get("from") === "geoquery" ||
+      params.get("restoreViewport") === "1";
+    if (!isGeoQueryReturn) return false;
+
+    const state = geoQueryContext.resolve(SITE_ID);
+    if (!state) return false;
+
+    const restored = geoQueryContext.restore(map, state, {
+      site: SITE_ID,
+      applyBasemap: selectBasemap
+    });
+    if (restored) console.info("GeoMA: contexto GeoQuery restaurado.");
+    return restored;
+  }
+
+  function installGeoQueryRestoreHandlers() {
+    geoQueryContext.installRestoreHandlers({
+      site: SITE_ID,
+      getMap: () => map,
+      restore: (mapInstance, state) => geoQueryContext.restore(mapInstance, state, {
+        site: SITE_ID,
+        applyBasemap: selectBasemap
+      })
+    });
+  }
 
   function applyCrossAccess() {
     const viewport = window.GeoXViewport?.readCrossAccessViewport(new URLSearchParams(window.location.search));
@@ -100,7 +147,7 @@
         if (selector.value === "") map.fitBounds(CHILE_BOUNDS);
         else map.fitBounds(regions[Number(selector.value)].bbox);
       });
-      if (!hasCrossAccessViewport) {
+      if (!hasExternalViewport) {
         const defaultRegionIndex = regions.findIndex((region) => region.id === DEFAULT_REGION_ID);
         if (defaultRegionIndex >= 0) {
           selector.value = String(defaultRegionIndex);
@@ -112,7 +159,12 @@
       console.warn("GeoMA: selector regional no disponible", error);
     }
   }
-  const hasCrossAccessViewport = applyCrossAccess();
+
+  installGeoQueryRestoreHandlers();
+  const hasGeoQueryViewport = restoreGeoQueryViewport();
+  const hasCrossAccessViewport = hasGeoQueryViewport ? false : applyCrossAccess();
+  const hasExternalViewport = hasGeoQueryViewport || hasCrossAccessViewport;
+
   updateCrossAccessLinks();
   initRegionSelector();
   GeoMASummary.init(map);
