@@ -275,8 +275,9 @@ async function createLeafletMapSnapshot(mapInstance, mapElement) {
     console.error("[GeoNOXA PDF] Error capturando mapa:", error);
     const fallback = document.createElement("div");
     fallback.className = "pdf-map-fallback";
-    const lat = Number(window.geoQueryState?.lat ?? queryLat);
-    const lon = Number(window.geoQueryState?.lon ?? queryLon);
+    const params = new URLSearchParams(window.location.search);
+    const lat = Number(window.geoQueryState?.lat ?? params.get("lat") ?? params.get("queryLat"));
+    const lon = Number(window.geoQueryState?.lon ?? params.get("lon") ?? params.get("queryLon"));
     fallback.innerHTML = `<strong>Mapa de ubicación</strong><br>Coordenadas: ${Number.isFinite(lat) ? lat.toFixed(6) : "N/D"}, ${Number.isFinite(lon) ? lon.toFixed(6) : "N/D"}<br>El mapa base no pudo incorporarse durante la exportación.`;
     return fallback;
   } finally {
