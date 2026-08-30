@@ -17,10 +17,13 @@ function stylesheetOrder(html) {
 const geoevaHtml = fs.readFileSync('geoeva/geoquery/geoquery.html', 'utf8');
 const geomaHtml = fs.readFileSync('geoma/geoquery/geoquery.html', 'utf8');
 const geomaCss = fs.readFileSync('geoma/geoquery/geoquery.css', 'utf8');
+const geonemoHtml = fs.readFileSync('geonemo/geoquery/geoquery.html', 'utf8');
+const geonemoCss = fs.readFileSync('geonemo/geoquery/geoquery.css', 'utf8');
 
 for (const [site, html, localStylesheet] of [
   ['GeoEVA', geoevaHtml, 'css/geoeva-theme.css'],
-  ['GeoMA', geomaHtml, 'geoquery.css?v=20260814-4']
+  ['GeoMA', geomaHtml, 'geoquery.css?v=20260814-4'],
+  ['GeoNEMO', geonemoHtml, 'geoquery.css']
 ]) {
   const links = stylesheetOrder(html);
   for (const shared of sharedStyles) {
@@ -42,4 +45,14 @@ assert.match(geomaCss, /width:min\(var\(--gq-content-max-width\),calc\(100% - 32
 assert.match(geomaCss, /border:1px solid var\(--site-border\)/);
 assert.match(geomaCss, /border-radius:var\(--gq-radius-panel\)/);
 
-console.log('GeoQuery shared style tests passed for GeoEVA and GeoMA');
+assert.match(geonemoCss, /--site-primary:#075e54/);
+assert.match(geonemoCss, /--site-background:#edf3f1/);
+assert.match(geonemoCss, /--site-border:#d9e5e2/);
+assert.match(geonemoCss, /--gq-content-max-width:1320px/);
+assert.match(geonemoCss, /font:14px\/1\.45 var\(--gq-font-family\)/);
+assert.match(geonemoCss, /max-width:var\(--gq-content-max-width\)/);
+assert.match(geonemoCss, /border-radius:var\(--gq-radius-panel\)/);
+assert.match(geonemoCss, /\.hero h1\{color:#fff\}/);
+assert.match(geonemoCss, /\.synthesis h2\{color:#fff\}/);
+
+console.log('GeoQuery shared style tests passed for GeoEVA, GeoMA and GeoNEMO');
