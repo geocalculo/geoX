@@ -1,0 +1,9 @@
+{
+  "titulo": "Alto del Carmen: El análisis en Territorio Rural",
+  "fecha": "2026-08-30",
+  "territorio": "Alto del Carmen, Región de Atacama, Chile",
+  "tema": "Análisis de la estructura territorial rural de Alto del Carmen mediante el potencial territorial unitario y la Curva J Rural, construida en el espacio CTpU vs CTzU.",
+  "fuente": "Fuente espacial: OSM. Modelo: geocalculo.cl",
+  "descripcion": "La lámina muestra cómo la distribución espacial de las localidades rurales de Alto del Carmen configura un campo continuo de potencial territorial y una firma geométrica observable mediante la Curva J Rural. El mapa representa el potencial territorial unitario en quintiles de superficie, mientras el gráfico relaciona el Percentil Territorial Unitario (CTpU) con la distancia a la media territorial (CTzU). Las localidades se diferencian además según la ruta en que se encuentran, permitiendo observar conjuntamente jerarquía territorial, posición geométrica y estructura vial en un territorio rural.",
+  "linkedin": "https://lnkd.in/p/dxqSnqsQ"
+}

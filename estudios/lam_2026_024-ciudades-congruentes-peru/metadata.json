@@ -1,0 +1,9 @@
+{
+  "titulo": "Perú: Ciudades Congruentes",
+  "fecha": "2026-08-30",
+  "territorio": "Perú",
+  "tema": "Identificación de pares de ciudades con igual o muy similar jerarquía territorial mediante su posición sobre la Curva J, construida en el espacio CTpU vs CTzU.",
+  "fuente": "Fuente espacial: OSM. Modelo: geocalculo.cl",
+  "descripcion": "La lámina muestra los 10 pares de ciudades peruanas más congruentes según su proximidad sobre la Curva J territorial. Cada ciudad es proyectada a una posición unidimensional sobre la curva y luego emparejada por mínima diferencia ΔS, bloqueando cada ciudad una vez seleccionada. El ajuste presenta un R² = 0.9931, evidenciando una estructura territorial altamente ordenada. Entre los pares más próximos destacan Chimbote–Nuevo Chimbote, Tumán–Ferreñafe, Chiclayo–Lambayeque y Chepén–Monsefú.",
+  "linkedin": "https://lnkd.in/p/dAKdZZc4"
+}
