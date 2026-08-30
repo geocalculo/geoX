@@ -116,3 +116,22 @@ for (const site of sites) {
 }
 
 console.log('GeoX GeoQuery context shared tests passed');
+
+
+const geomaHtml = fs.readFileSync('geoma/index.html', 'utf8');
+const geomaMap = fs.readFileSync('geoma/js/geoma-map.js', 'utf8');
+const geomaGeoQuery = fs.readFileSync('geoma/geoquery/geoquery.js', 'utf8');
+assert.match(geomaHtml, /\.\.\/shared\/geoquery-context\.js/);
+assert.ok(
+  geomaHtml.indexOf('../shared/geoquery-context.js') < geomaHtml.indexOf('js/geoma-map.js'),
+  'GeoMA: geoquery-context debe cargar antes de geoma-map.js'
+);
+assert.match(geomaMap, /GeoXGeoQueryContext\.create/);
+assert.match(geomaMap, /geoQueryContext\.capture/);
+assert.match(geomaMap, /geoQueryContext\.persist/);
+assert.match(geomaMap, /geoQueryContext\.appendToGeoQueryUrl/);
+assert.match(geomaMap, /geoQueryContext\.restore/);
+assert.match(geomaMap, /geoQueryContext\.installRestoreHandlers/);
+assert.match(geomaGeoQuery, /function buildReturnUrl\(\)/);
+assert.match(geomaGeoQuery, /restoreViewport/);
+console.log('GeoMA GeoQuery context integration tests passed');
