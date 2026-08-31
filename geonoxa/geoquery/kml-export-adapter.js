@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const api = factory(root.turf, root.GeoQueryKmlExporter);
+  const api = factory(root, root.turf, root.GeoQueryKmlExporter);
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.GeoNoxaKmlExport = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (turf, exporter) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (root, turf, exporter) {
   "use strict";
 
   if (!turf) throw new Error("GeoNoxaKmlExport requiere Turf.");
