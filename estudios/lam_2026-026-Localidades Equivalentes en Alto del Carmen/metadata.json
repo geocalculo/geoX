@@ -1,0 +1,9 @@
+{
+  "titulo": "Alto del Carmen: Valles Equivalentes",
+  "fecha": "2026-08-31",
+  "territorio": "Alto del Carmen, Región de Atacama, Chile",
+  "tema": "Identificación de localidades territorialmente equivalentes entre el Valle del Tránsito y el Valle de San Félix mediante su posición relativa sobre la Curva J Rural, construida en el espacio CTpU vs CTzU.",
+  "fuente": "Fuente espacial: OSM. Modelo: geocalculo.cl",
+  "descripcion": "La lámina compara las localidades rurales del Valle del Tránsito y del Valle de San Félix a partir de su posición relativa dentro de la estructura territorial de Alto del Carmen. Cada localidad es proyectada sobre la Curva J Rural, definida por el Percentil Territorial Unitario (CTpU) y la distancia a la media territorial (CTzU), permitiendo asignarle una posición unidimensional sobre la curva. Los pares Norte–Sur se obtienen buscando las menores distancias entre posiciones sobre J y bloqueando cada localidad una vez seleccionada. De esta forma aparecen pares territorialmente equivalentes como Chiguinto–La Puntilla, Chanchoquín Chico–El Churcal, El Olivo–Cerro Blanco, El Tránsito–Retamo y Perales Norte–Los Canales. El análisis muestra que localidades físicamente separadas y pertenecientes a distintos valles pueden ocupar posiciones geométricamente comparables dentro de un mismo sistema territorial.",
+  "linkedin": "https://lnkd.in/p/d3Uf8dNH"
+}
