@@ -23,6 +23,8 @@ assert.match(main, /mapAdapter\.fitResults/);
 assert.match(main, /mapAdapter\.invalidateSoon/);
 
 assert.match(adapter, /root\.GeoNoxaMapAdapter\s*=\s*api/);
+assert.match(adapter, /factory\(root, root\.L\)/);
+assert.match(adapter, /function \(root, L\)/);
 assert.match(adapter, /function create\(/);
 assert.match(adapter, /function drawGroup\(/);
 assert.match(adapter, /function fitResults\(/);
