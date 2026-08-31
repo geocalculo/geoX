@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const api = factory(root.L);
+  const api = factory(root, root.L);
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.GeoNoxaMapAdapter = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (L) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (root, L) {
   "use strict";
 
   if (!L) throw new Error("GeoNoxaMapAdapter requiere Leaflet.");
