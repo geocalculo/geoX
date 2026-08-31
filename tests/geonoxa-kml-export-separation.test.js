@@ -25,6 +25,8 @@ assert.match(main, /installGeoNoxaKmlButton/);
 assert.match(main, /buildGeoNoxaMapExport/);
 
 assert.match(adapter, /root\.GeoNoxaKmlExport\s*=\s*api/);
+assert.match(adapter, /factory\(root, root\.turf, root\.GeoQueryKmlExporter\)/);
+assert.match(adapter, /function \(root, turf, exporter\)/);
 assert.match(adapter, /function buildMapExport\(/);
 assert.match(adapter, /function installButton\(/);
 assert.match(adapter, /installGeoQueryKmlButton/);
