@@ -1,0 +1,9 @@
+{
+  "titulo": "Problema MAUP: Caso V, VI y RM en Chile",
+  "fecha": "2026-09-02",
+  "territorio": "Regiones de Valparaíso (V), Metropolitana (RM) y del Libertador General Bernardo O’Higgins (VI), Chile",
+  "tema": "Evaluación experimental del Problema de la Unidad de Área Modificable (MAUP) mediante la transformación de datos comunales de población a un campo continuo de intensidad territorial y su posterior integración sobre sistemas hexagonales de distintas escalas.",
+  "fuente": "Fuente: CASEN 2022, comunas de las regiones V, RM y VI. Elaboración propia en QGIS. Modelo: geocalculo.cl",
+  "descripcion": "La lámina muestra un experimento sobre el Problema de la Unidad de Área Modificable (MAUP) utilizando información comunal de población de las regiones de Valparaíso, Metropolitana y O’Higgins. A partir de las comunas originales, la población y la superficie son transformadas en campos continuos de intensidad territorial, CT(Pob) y CT(Área), cuyo cociente permite construir un campo de densidad territorial. Este campo es posteriormente integrado sobre distintos sistemas zonales: las comunas originales y mallas hexagonales de aproximadamente 20k, 40k y 80k. Tras la integración se aplica un ajuste de masa para conservar la población total inicial. Los resultados muestran que, aun partiendo del mismo fenómeno territorial, el patrón espacial observado cambia al modificar el soporte y la escala de agregación: con hexágonos de mayor tamaño se suavizan los contrastes locales, se atenúan los valores extremos y disminuye el detalle espacial. El ejercicio permite observar de manera directa el efecto de escala asociado al MAUP y plantea una metodología para cuantificar cuánto de un patrón estadístico pertenece al fenómeno territorial y cuánto depende de la geometría utilizada para medirlo.",
+  "linkedin": "https://lnkd.in/p/d2RtpCGs"
+}
