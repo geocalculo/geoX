@@ -1,0 +1,9 @@
+{
+  "titulo": "RM-Chile: una aproximación al TMDA",
+  "fecha": "2026-09-03",
+  "territorio": "Región Metropolitana de Santiago, Chile",
+  "tema": "Primera aproximación lineal al Tránsito Medio Diario Anual (TMDA) de la red vial de la Región Metropolitana, utilizando la intensidad territorial media asociada a cada segmento vial como proxy de jerarquía y flujo esperado.",
+  "fuente": "Fuente vial: Dirección de Vialidad, Ministerio de Obras Públicas de Chile (https://vialidad.mop.gob.cl/). Elaboración propia en QGIS. Modelo: geocalculo.cl",
+  "descripcion": "La lámina presenta una primera aproximación espacial al Tránsito Medio Diario Anual (TMDA) en la Región Metropolitana de Chile. El procedimiento utiliza la red vial activa y asigna a cada segmento el valor medio de intensidad territorial correspondiente al espacio atravesado, generando una aproximación lineal de la demanda potencial sobre la red. La situación modelada muestra cómo los mayores valores se concentran en corredores asociados a las áreas de mayor intensidad territorial y conectividad metropolitana, mientras que los segmentos periféricos presentan niveles comparativamente menores. El panel inferior muestra la red vial utilizada como base del análisis. Este resultado no corresponde a una estimación directa del TMDA observado, sino a un proxy territorial que permite explorar la relación entre estructura espacial, jerarquía vial y flujos potenciales. El ejercicio constituye además un paso intermedio hacia modelos más completos de movilidad y hacia una futura estimación de matrices origen-destino, incorporando posteriormente componentes de emisión, atracción, distancia, fricción y capacidad vial.",
+  "linkedin": "https://lnkd.in/p/dhtj4mcy"
+}
