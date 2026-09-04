@@ -1,0 +1,9 @@
+{
+  "titulo": "China: Distribution of the 100 Largest Cities",
+  "fecha": "2026-09-04",
+  "territorio": "China",
+  "tema": "Análisis de la distribución territorial de las 100 mayores ciudades de China mediante su posición en el campo territorial ponderado y la construcción de la Función J a partir de la relación entre Percentil Territorial (CTp_W) y distancia a la media territorial (CTz_W).",
+  "fuente": "Fuente: 7th National Population Census of the People's Republic of China. Modelo: geocalculo.cl",
+  "descripcion": "La lámina representa la distribución espacial de las 100 mayores ciudades de China y la estructura territorial que emerge de su configuración geográfica y demográfica. El mapa superior muestra el campo territorial ponderado generado por el sistema urbano, evidenciando una fuerte concentración de intensidad en el este y centro-este del país y una disminución progresiva hacia las regiones occidentales. El gráfico inferior relaciona el Percentil Territorial ponderado (CTp_W) con la distancia a la media territorial (CTz_W), revelando una Función J altamente estructurada. El ajuste cúbico alcanza un R² = 0.9969, indicando una relación geométrica muy fuerte entre ambas variables. Ciudades situadas en posiciones territoriales muy diferentes, desde Shihezi, Ürümqi o Lhasa hasta Suzhou, Nanchang y Xiamen, se ordenan de manera continua a lo largo de la curva. El resultado sugiere que, pese a la enorme escala y complejidad del sistema urbano chino, la distribución de sus principales ciudades presenta una estructura territorial altamente ordenada y susceptible de ser descrita mediante una función geométrica común.",
+  "linkedin": "https://lnkd.in/p/dmwZb7EQ"
+}

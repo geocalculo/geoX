@@ -1,0 +1,9 @@
+{
+  "titulo": "España: Presión Demográfica Basal",
+  "fecha": "2026-09-04",
+  "territorio": "España",
+  "tema": "Análisis exploratorio de la presión demográfica basal de las principales ciudades españolas mediante la comparación entre su jerarquía demográfica observada y su posición geométrica territorial unitaria, expresada por el Percentil Territorial Unitario (CTp_U).",
+  "fuente": "Fuente: INE.es. Modelo: geocalculo.cl",
+  "descripcion": "La lámina compara la jerarquía demográfica observada de las principales ciudades españolas con su posición geométrica dentro de la estructura territorial unitaria. El gráfico relaciona el percentil discreto de población (Pob_pct) con el Percentil Territorial Unitario (CTp_U), utilizando la diagonal de equivalencia como referencia. Las ciudades situadas sobre la diagonal presentan una posición territorial superior a la que correspondería a su jerarquía poblacional y se interpretan, de forma exploratoria, como casos de presión demográfica basal positiva o potencial natural de crecimiento. Las ciudades situadas bajo la diagonal presentan una jerarquía poblacional igual o superior a la sugerida por su posición territorial y se clasifican como casos sin presión positiva natural. El mapa localiza espacialmente ambas condiciones sobre el manto CTp_U de España, permitiendo observar cómo la presión propuesta emerge del contraste entre población y geometría territorial. El indicador no constituye una proyección demográfica, sino una hipótesis estructural destinada a identificar desequilibrios entre la masa poblacional observada y la posición potencial de cada ciudad dentro del sistema territorial.",
+  "linkedin": "https://lnkd.in/p/dXqf_3Dm"
+}

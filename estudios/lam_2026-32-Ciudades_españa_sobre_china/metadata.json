@@ -1,0 +1,9 @@
+{
+  "titulo": "Spain Cities over China",
+  "fecha": "2026-09-04",
+  "territorio": "España y China",
+  "tema": "Comparación de ciudades españolas con sus homólogas chinas mediante un espacio J común construido a partir de la configuración territorial ponderada por población, permitiendo identificar posiciones equivalentes dentro de ambos sistemas urbanos.",
+  "fuente": "Fuente: 7th National Population Census of the People's Republic of China | ine.es. Modelo: geocalculo.cl",
+  "descripcion": "La lámina compara la estructura territorial de las ciudades de España y China mediante un espacio J común. El gráfico inferior representa conjuntamente las ciudades de ambos países en el espacio definido por el Percentil Territorial ponderado (CTpW) y la distancia territorial ponderada (CTzW), permitiendo reconocer posiciones equivalentes dentro de sistemas urbanos de escalas demográficas y geográficas muy diferentes. A partir de estas homologías, el mapa superior proyecta ciudades españolas sobre el territorio chino según la posición que les correspondería dentro de esa estructura territorial común. Así, ciudades como Madrid, Barcelona, Valencia, Zaragoza, Sevilla, Bilbao o Vigo adquieren ubicaciones equivalentes en China no por proximidad geográfica ni por igualdad de población, sino por semejanza en su posición relativa dentro del sistema territorial. El ejercicio muestra que la Función J puede utilizarse como un espacio de referencia para comparar estructuras urbanas entre países, desacoplando parcialmente la escala absoluta y permitiendo explorar homologías, jerarquías y equivalencias territoriales entre sistemas urbanos distintos.",
+  "linkedin": "https://lnkd.in/p/d7KrpsJP"
+}
