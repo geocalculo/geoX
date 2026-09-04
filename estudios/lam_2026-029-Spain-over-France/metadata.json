@@ -1,0 +1,9 @@
+{
+  "titulo": "España sobre Francia: Equivalencia Territorial",
+  "fecha": "2026-09-04",
+  "territorio": "España y Francia",
+  "tema": "Proyección de ciudades españolas sobre el territorio francés a partir de su posición relativa en la Curva J Unitaria, construida en el espacio CTpU vs CTzU.",
+  "fuente": "Fuente gráfica: OSM. Modelo: geocalculo.cl",
+  "descripcion": "La lámina explora una equivalencia territorial entre España y Francia a partir de la estructura geométrica interna de las ciudades españolas. En el panel inferior se representa la Curva J Unitaria de España, construida mediante la relación entre Percentil Territorial Unitario (CTpU) y distancia territorial unitaria (CTzU). Cada ciudad ocupa una posición característica sobre esta curva, desde centros periféricos como Vigo y Jerez de la Frontera hasta ciudades de alta centralidad territorial como Madrid, Barcelona, Sabadell o Terrassa. Utilizando esa posición relativa como referencia, el panel superior proyecta las ciudades españolas sobre el territorio francés, respondiendo a la pregunta de qué ubicación tendría cada una si conservara dentro de Francia una posición territorial equivalente a la que posee en España. El resultado no representa una traslación geográfica directa ni una similitud demográfica, sino una equivalencia estructural basada en la geometría territorial. Este ejercicio permite comparar sistemas urbanos distintos utilizando una referencia común y abre una línea de análisis para estudiar homologías entre ciudades, jerarquías urbanas y configuraciones territoriales de diferentes países.",
+  "linkedin": "https://lnkd.in/p/dtN64gJR"
+}
