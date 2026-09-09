@@ -1,0 +1,9 @@
+{
+  "titulo": "EEUU Cities over China",
+  "fecha": "2026-09-09",
+  "territorio": "China - Estados Unidos",
+  "tema": "Comparación exploratoria de homologías territoriales entre ciudades de China y estados de Estados Unidos mediante su posición relativa sobre una Curva J territorial conjunta, construida a partir del Percentil Territorial (CTp) y la función Territorial Z (CTz).",
+  "fuente": "Fuente: OSM. Modelo: geocalculo.cl",
+  "descripcion": "La lámina muestra la proyección territorial de estados de Estados Unidos sobre la configuración espacial de China y su comparación con ciudades chinas mediante una Curva J conjunta. Cada entidad es proyectada perpendicularmente sobre la curva de regresión y posteriormente se identifican los pares más próximos según su distancia de arco ΔS. El panel superior representa espacialmente los estados estadounidenses homologados sobre China, mientras el gráfico inferior compara las posiciones territoriales de ciudades chinas y estados de EE.UU. en el espacio CTp vs CTz. La selección presentada corresponde a pares con ΔS menor a 2, permitiendo identificar similitudes geométricas y jerárquicas entre configuraciones territoriales pertenecientes a contextos geográficos muy distintos.",
+  "linkedin": "https://www.linkedin.com/posts/dario-aguirre-gis_campoterritorial-geocalculo-geositios-activity-7503393606854987776-e5N8?utm_source=social_share_send&utm_medium=member_desktop_web&rcm=ACoAAAoKJeQBzLdsllSQ1tOKQdyYfbJktwBEoTc"
+}
