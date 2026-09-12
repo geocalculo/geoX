@@ -1,0 +1,9 @@
+{
+  "titulo": "Colombia: Potencial de emisión O-D",
+  "fecha": "2026-09-12",
+  "territorio": "Colombia",
+  "tema": "Análisis exploratorio del potencial territorial de conectividad y construcción de una componente dirigida de matriz Origen-Destino a partir de las diferencias de potencial Connect entre focos poblados de Colombia.",
+  "fuente": "Fuente: DANE (Departamento Administrativo Nacional de Estadística). Modelo: geocalculo.cl",
+  "descripcion": "La lámina explora una aproximación territorial a la componente de emisión de una matriz Origen-Destino utilizando información mínima de los focos poblados. El panel superior representa el potencial territorial de conectividad de Colombia, donde los tonos azules corresponden a mayores niveles de potencial y los tonos rojos a menores niveles. El panel inferior muestra la matriz dirigida de diferencias de potencial Connect, calculada para cada par origen-destino como ΔConnect(i→j) = Connect(i) - Connect(j). La magnitud y el signo de esta diferencia permiten representar una componente estructural asociada al costo relativo de transporte y a la capacidad de emisión entre focos. La matriz conserva la dirección del intercambio y presenta valores opuestos para los pares i→j y j→i, con valor cero sobre la diagonal principal. El ejercicio muestra cómo, a partir de la posición de los focos y de un campo territorial de conectividad, es posible derivar información útil para la construcción de matrices O-D sintéticas, modelos de emisión y atracción, matrices de impedancia y análisis de movilidad en territorios con disponibilidad limitada de datos.",
+  "linkedin": "https://lnkd.in/p/drqgdd-p"
+}
