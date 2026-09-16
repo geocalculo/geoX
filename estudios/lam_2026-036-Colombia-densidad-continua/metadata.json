@@ -1,0 +1,9 @@
+{
+  "titulo": "Colombia: Modelo de densidad como un manto continuo",
+  "fecha": "2026-09-16",
+  "territorio": "Colombia",
+  "tema": "Modelación exploratoria de la densidad territorial de Colombia como un manto continuo y análisis de su estructura mediante la Curva J2, relacionando el Percentil Territorial de densidad (CTp_hab/km²) con la función Territorial Z de densidad (CTz_hab/km²).",
+  "fuente": "Fuente: Censo 2018. Modelo: geocalculo.cl",
+  "descripcion": "La lámina representa la densidad territorial de Colombia como una variable continua derivada de la relación entre población y superficie dentro del Campo Territorial. El panel superior muestra espacialmente este manto continuo de densidad, permitiendo observar gradientes y transiciones territoriales más allá de los límites administrativos. El panel inferior presenta la Curva J2 de densidad territorial, construida a partir de CTp_hab/km² y CTz_hab/km². La relación adopta una estructura no lineal altamente regular, ajustada mediante un polinomio de grado 5 con R² = 0,9964. La curva permite representar en un único espacio de estado la posición relativa de los focos territoriales según su densidad, identificando sectores de baja, media y alta intensidad territorial. Esta aproximación abre posibilidades para comparar territorios, detectar anomalías respecto de la estructura esperada, estudiar estados de equilibrio territorial y desarrollar modelos prospectivos de densidad, presión demográfica e infraestructura utilizando una cantidad reducida de información de entrada.",
+  "linkedin": "https://lnkd.in/p/d3zyxfCW"
+}
