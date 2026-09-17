@@ -1,0 +1,9 @@
+{
+  "titulo": "Brasil: densidad y ruralidad derivables sobre el espacio euclideo",
+  "fecha": "2026-09-17",
+  "territorio": "Brasil",
+  "tema": "Modelación exploratoria de la densidad poblacional y la ruralidad de Brasil como funciones continuas sobre el espacio euclídeo, construidas a partir de la distribución territorial de ciudades y de información demográfica del IBGE.",
+  "fuente": "Fuente: IBGE. Modelo: geocalculo.cl",
+  "descripcion": "La lámina representa dos variables territoriales de Brasil —densidad y ruralidad— como campos continuos sobre el espacio euclídeo, superando su representación convencional mediante unidades administrativas discretas. El panel superior muestra el manto continuo de densidad poblacional, donde los tonos azules representan mayores niveles de concentración y los tonos rojos menores niveles de densidad o mayor dispersión territorial. El panel inferior representa la ruralidad como una superficie continua, con tonos cyan claros asociados a mayor ruralidad y tonos más oscuros a territorios de menor ruralidad y mayor urbanización. Ambos modelos permiten observar gradientes, transiciones y estructuras espaciales que no dependen directamente de los límites político-administrativos. La aproximación plantea que variables demográficas tradicionalmente expresadas por estados, municipios o áreas censales pueden ser tratadas como funciones continuas del territorio, abriendo oportunidades para estudiar transiciones urbano-rurales, concentración poblacional, presión territorial, accesibilidad e infraestructura desde la propia geometría de la ocupación del espacio.",
+  "linkedin": "https://lnkd.in/p/dgH29X6m"
+}
