@@ -5,6 +5,11 @@ const path = require('node:path');
 
 const estudiosDir = path.resolve(__dirname, '..');
 const catalogoPath = path.join(estudiosDir, 'catalogo.json');
+const fechasPath = path.join(estudiosDir, 'fechas-creacion-laminas.json');
+// Git no conserva birthtime: reutilizar las fechas capturadas en el equipo local.
+const fechas = fs.existsSync(fechasPath)
+  ? JSON.parse(fs.readFileSync(fechasPath, 'utf8'))
+  : {};
 
 const estudios = [];
 
@@ -33,7 +38,18 @@ for (const entry of fs.readdirSync(estudiosDir, { withFileTypes: true })) {
     continue;
   }
 
-  const timestamp = fs.statSync(path.join(estudiosDir, entry.name)).birthtimeMs;
+  if (!Object.hasOwn(fechas, entry.name)) {
+    if (process.env.CI) {
+      throw new Error(
+        `${entry.name}: falta la fecha de creación de lamina.png. Ejecuta node estudios/tools/build-catalogo.js localmente y sube fechas-creacion-laminas.json.`,
+      );
+    }
+    fechas[entry.name] = fs.statSync(laminaPath).birthtime.toISOString();
+  }
+  const timestamp = Date.parse(fechas[entry.name]);
+  if (!Number.isFinite(timestamp)) {
+    throw new Error(`${entry.name}: fecha de creación de lamina.png inválida.`);
+  }
 
   estudios.push({
     slug: entry.name,
@@ -47,6 +63,10 @@ estudios.sort((a, b) => {
 });
 
 const slugs = [...new Set(estudios.map(({ slug }) => slug))];
+const fechasOrdenadas = Object.fromEntries(
+  Object.keys(fechas).sort().map((slug) => [slug, fechas[slug]]),
+);
+fs.writeFileSync(fechasPath, `${JSON.stringify(fechasOrdenadas, null, 2)}\n`);
 fs.writeFileSync(catalogoPath, `${JSON.stringify(slugs, null, 2)}\n`);
 
 console.log(`Estudios encontrados: ${slugs.length}`);
