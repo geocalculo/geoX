@@ -141,8 +141,8 @@ async function cargar() {
       if (!respuesta.ok) throw new Error(`No fue posible leer ${ruta}`);
       return { ...await respuesta.json(), id: ruta, ruta: `./${ruta}` };
     }));
-    estudios = resultados.filter(({ status }) => status === 'fulfilled').map(({ value }) => value)
-      .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+    // Promise.allSettled conserva el orden de las rutas del catálogo.
+    estudios = resultados.filter(({ status }) => status === 'fulfilled').map(({ value }) => value);
     pintar();
   } catch (error) {
     estado.textContent = 'No fue posible cargar los estudios. Intenta nuevamente más tarde.';

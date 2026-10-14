@@ -24,9 +24,8 @@ for (const entry of fs.readdirSync(estudiosDir, { withFileTypes: true })) {
     continue;
   }
 
-  let metadata;
   try {
-    metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
   } catch (error) {
     console.warn(
       `[advertencia] ${entry.name}: metadata.json no es JSON válido (${error.message}); no se incluirá.`,
@@ -34,16 +33,7 @@ for (const entry of fs.readdirSync(estudiosDir, { withFileTypes: true })) {
     continue;
   }
 
-  const parsedDate =
-    typeof metadata.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metadata.fecha)
-      ? new Date(`${metadata.fecha}T00:00:00Z`)
-      : null;
-  const timestamp =
-    parsedDate &&
-    !Number.isNaN(parsedDate.getTime()) &&
-    parsedDate.toISOString().slice(0, 10) === metadata.fecha
-      ? parsedDate.getTime()
-      : null;
+  const timestamp = fs.statSync(path.join(estudiosDir, entry.name)).birthtimeMs;
 
   estudios.push({
     slug: entry.name,
@@ -52,8 +42,6 @@ for (const entry of fs.readdirSync(estudiosDir, { withFileTypes: true })) {
 }
 
 estudios.sort((a, b) => {
-  if (a.timestamp === null && b.timestamp !== null) return 1;
-  if (a.timestamp !== null && b.timestamp === null) return -1;
   if (a.timestamp !== b.timestamp) return b.timestamp - a.timestamp;
   return a.slug.localeCompare(b.slug);
 });
