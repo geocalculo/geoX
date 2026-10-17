@@ -132,7 +132,7 @@ function installGeoQueryViewportRestoreHandlers() {
 const REGIONES_PATH = "capas_selector/regiones.json";
 let regionesSelector = [];
 
-const GEOEVA_SEARCH_PATH = "./capas_tosearch/geoeva_tosearch_proyectos.geojson";
+const GEOEVA_SEARCH_PATH = "./capas_geoquery/geoeva_geoquery_proyectos.geojson";
 const GEOEVA_SEARCH_MIN_CHARS = 3;
 const GEOEVA_SEARCH_MAX_RESULTS = 15;
 const GEOEVA_SEARCH_DEBOUNCE_MS = 200;
